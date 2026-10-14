@@ -43,7 +43,7 @@ class AccountRepositoryImpl @Inject constructor(
     override suspend fun setArchived(id: Long, archived: Boolean) = dao.setArchived(id, archived)
 
     override suspend fun usage(id: Long) = AccountUsage(
-        expenses = dao.countExpenses(id),
+        expenses = dao.countExpenses(id) + dao.countIncomesAndRefunds(id),
         recurring = dao.countRecurring(id),
         adjustments = dao.countAdjustments(id),
     )

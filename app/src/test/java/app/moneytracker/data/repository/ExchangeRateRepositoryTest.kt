@@ -69,14 +69,14 @@ class ExchangeRateRepositoryTest {
         expenses = ExpenseRepositoryImpl(db, db.expenseDao())
         val budgets = BudgetRepositoryImpl(db.budgetDao())
         val check = CheckBudgetsUseCase(
-            ObserveBudgetsUseCase(budgets, expenses, CategoryRepositoryImpl(db.categoryDao())),
+            ObserveBudgetsUseCase(budgets, expenses, CategoryRepositoryImpl(db.categoryDao()), RefundRepositoryImpl(db.refundDao())),
             budgets,
             object : BudgetNotifier {
                 override fun notify(progress: BudgetProgress, level: BudgetLevel) = Unit
             },
             clock,
         )
-        refresh = RefreshRatesUseCase(repo, FillPendingRatesUseCase(expenses, repo, check, clock), clock)
+        refresh = RefreshRatesUseCase(repo, FillPendingRatesUseCase(expenses, IncomeRepositoryImpl(db.incomeDao()), RefundRepositoryImpl(db.refundDao()), repo, check, clock), clock)
     }
 
     @After

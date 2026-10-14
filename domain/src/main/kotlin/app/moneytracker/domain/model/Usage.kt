@@ -15,7 +15,10 @@ data class CategoryUsage(
     val needsTarget: Boolean get() = expenses > 0 || recurring > 0
 }
 
-/** [adjustments] — корректировки сверки: удаляются вместе со счётом, переносить их не нужно. */
+/**
+ * [expenses] — операции, которые переносятся на другой счёт: расходы, доходы, возвраты.
+ * [adjustments] — корректировки сверки: удаляются вместе со счётом, переносить их не нужно.
+ */
 data class AccountUsage(val expenses: Int = 0, val recurring: Int = 0, val adjustments: Int = 0) {
     val needsTarget: Boolean get() = expenses > 0 || recurring > 0
 }

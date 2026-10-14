@@ -76,6 +76,11 @@ import app.moneytracker.ui.format.currentLocale
 import app.moneytracker.ui.format.formatDate
 import app.moneytracker.ui.format.formatMoney
 import app.moneytracker.ui.format.symbol
+import app.moneytracker.ui.operations.AccountChips
+import app.moneytracker.ui.operations.AmountHeader
+import app.moneytracker.ui.operations.DateTimeRow
+import app.moneytracker.ui.operations.NewOperationKind
+import app.moneytracker.ui.operations.OperationKindTabs
 import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneOffset
@@ -84,7 +89,14 @@ import java.time.format.FormatStyle
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun ExpenseEditScreen(onClose: () -> Unit, viewModel: ExpenseEditViewModel = hiltViewModel()) {
+fun ExpenseEditScreen(
+    onClose: () -> Unit,
+    /** Новый расход: переключение на доход. */
+    onSwitchKind: ((NewOperationKind) -> Unit)? = null,
+    /** Сохранённый расход: оформить возврат по нему. */
+    onRefund: ((Long) -> Unit)? = null,
+    viewModel: ExpenseEditViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(viewModel) {
@@ -102,6 +114,12 @@ fun ExpenseEditScreen(onClose: () -> Unit, viewModel: ExpenseEditViewModel = hil
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_cancel))
                     }
                 },
+                actions = {
+                    val original = state?.form?.original
+                    if (original != null && onRefund != null) {
+                        TextButton(onClick = { onRefund(original.id) }) { Text(stringResource(R.string.refund_action)) }
+                    }
+                },
             )
         },
     ) { padding ->
@@ -112,10 +130,11 @@ fun ExpenseEditScreen(onClose: () -> Unit, viewModel: ExpenseEditViewModel = hil
                 Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                AmountHeader(s, onCurrency = viewModel::onCurrency)
+                if (s.isNew && onSwitchKind != null) OperationKindTabs(NewOperationKind.EXPENSE, onSwitchKind)
+                AmountHeader(s.form.amount, s.form.currency, s.conversions, s.ratesDate, onCurrency = viewModel::onCurrency)
                 CategoryRow(s, onSelect = viewModel::onCategory)
-                AccountRow(s, onSelect = viewModel::onAccount)
-                DateTimeRow(s, onDate = viewModel::onDate, onTime = viewModel::onTime)
+                AccountChips(s.accounts, s.form.accountId, onSelect = viewModel::onAccount)
+                DateTimeRow(s.form.dateTime, onDate = viewModel::onDate, onTime = viewModel::onTime)
                 OutlinedTextField(
                     value = s.form.comment,
                     onValueChange = viewModel::onComment,
@@ -143,42 +162,6 @@ fun ExpenseEditScreen(onClose: () -> Unit, viewModel: ExpenseEditViewModel = hil
                     Text(stringResource(R.string.action_save), style = MaterialTheme.typography.titleMedium)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun AmountHeader(s: ExpenseEditUiState, onCurrency: (CurrencyCode) -> Unit) {
-    val locale = currentLocale()
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            CurrencyCode.entries.forEachIndexed { index, currency ->
-                SegmentedButton(
-                    selected = s.form.currency == currency,
-                    onClick = { onCurrency(currency) },
-                    shape = SegmentedButtonDefaults.itemShape(index, CurrencyCode.entries.size),
-                ) { Text(currency.name) }
-            }
-        }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = s.form.amount.display(locale) + " " + s.form.currency.symbol,
-            fontSize = 44.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            color = if (s.form.amount.isEmpty) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface,
-        )
-        val sub = when {
-            s.conversions.isNotEmpty() -> s.conversions.joinToString("   ") { formatMoney(it, locale, approx = true) }
-            else -> stringResource(R.string.expense_no_rates)
-        }
-        Text(sub, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        s.ratesDate?.let {
-            Text(
-                stringResource(R.string.rates_as_of, formatDate(it, locale)),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.outline,
-            )
         }
     }
 }
@@ -213,84 +196,6 @@ private fun CategoryRow(s: ExpenseEditUiState, onSelect: (Long) -> Unit) {
                 pickerOpen = false
             },
             onDismiss = { pickerOpen = false },
-        )
-    }
-}
-
-@Composable
-private fun AccountRow(s: ExpenseEditUiState, onSelect: (app.moneytracker.domain.model.Account) -> Unit) {
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        s.accounts.forEach { method ->
-            FilterChip(
-                selected = method.id == s.form.accountId,
-                onClick = { onSelect(method) },
-                label = {
-                    Text(method.displayName() + " · " + method.currency.name)
-                },
-                leadingIcon = { Icon(CategoryIcons.forPaymentType(method.type), contentDescription = null, Modifier.size(18.dp)) },
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DateTimeRow(s: ExpenseEditUiState, onDate: (java.time.LocalDate) -> Unit, onTime: (LocalTime) -> Unit) {
-    val locale = currentLocale()
-    val context = LocalContext.current
-    var dateOpen by rememberSaveable { mutableStateOf(false) }
-    var timeOpen by rememberSaveable { mutableStateOf(false) }
-    val dateTime = s.form.dateTime
-
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        AssistChip(
-            onClick = { dateOpen = true },
-            label = { Text(formatDate(dateTime.toLocalDate(), locale)) },
-            leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null, Modifier.size(18.dp)) },
-        )
-        AssistChip(
-            onClick = { timeOpen = true },
-            label = { Text(dateTime.toLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))) },
-            leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, Modifier.size(18.dp)) },
-        )
-    }
-
-    if (dateOpen) {
-        // DatePicker работает в UTC-миллисекундах полуночи выбранного дня — конвертируем через UTC,
-        // иначе в поясах восточнее Гринвича дата съезжает на день назад.
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = dateTime.toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
-        )
-        DatePickerDialog(
-            onDismissRequest = { dateOpen = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    pickerState.selectedDateMillis?.let {
-                        onDate(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate())
-                    }
-                    dateOpen = false
-                }) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = { TextButton(onClick = { dateOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
-        ) { DatePicker(pickerState) }
-    }
-
-    if (timeOpen) {
-        val pickerState = rememberTimePickerState(
-            initialHour = dateTime.hour,
-            initialMinute = dateTime.minute,
-            is24Hour = DateFormat.is24HourFormat(context),
-        )
-        AlertDialog(
-            onDismissRequest = { timeOpen = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    onTime(LocalTime.of(pickerState.hour, pickerState.minute))
-                    timeOpen = false
-                }) { Text(stringResource(android.R.string.ok)) }
-            },
-            dismissButton = { TextButton(onClick = { timeOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
-            text = { TimePicker(pickerState) },
         )
     }
 }

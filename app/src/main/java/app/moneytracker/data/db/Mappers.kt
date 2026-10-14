@@ -6,14 +6,20 @@ import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
 import app.moneytracker.data.db.entity.ExpenseEntity
 import app.moneytracker.data.db.entity.AccountEntity
+import app.moneytracker.data.db.entity.IncomeCategoryEntity
+import app.moneytracker.data.db.entity.IncomeEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
+import app.moneytracker.data.db.entity.RefundEntity
 import app.moneytracker.domain.model.BalanceAdjustment
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.ConvertedAmounts
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.ExchangeRate
 import app.moneytracker.domain.model.Expense
+import app.moneytracker.domain.model.Income
+import app.moneytracker.domain.model.IncomeCategory
 import app.moneytracker.domain.model.Money
+import app.moneytracker.domain.model.Refund
 import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.RateSnapshot
 import app.moneytracker.domain.model.RecurringExpense
@@ -115,4 +121,86 @@ fun RecurringExpense.toEntity() = RecurringExpenseEntity(
     endDate = endDate,
     nextRunDate = nextRunDate,
     active = active,
+)
+
+private fun snapshot(rsd: java.math.BigDecimal?, rub: java.math.BigDecimal?, date: java.time.LocalDate?) =
+    if (rsd != null && rub != null && date != null) RateSnapshot(rsd, rub, date) else null
+
+private fun converted(rsd: Long?, eur: Long?, rub: Long?) =
+    if (rsd != null && eur != null && rub != null) ConvertedAmounts(rsd, eur, rub) else null
+
+fun IncomeCategoryEntity.toDomain() = IncomeCategory(id, name, defaultKey, iconKey, color, sortOrder, archived)
+
+fun IncomeCategory.toEntity() = IncomeCategoryEntity(id, name, defaultKey, iconKey, color, sortOrder, archived)
+
+fun IncomeEntity.toDomain() = Income(
+    id = id,
+    amount = Money(amountMinor, currency),
+    accountId = accountId,
+    categoryId = incomeCategoryId,
+    occurredAt = occurredAt,
+    localDate = localDate,
+    comment = comment,
+    rates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate),
+    converted = converted(rsdMinor, eurMinor, rubMinor),
+    accountAmountMinor = accountAmountMinor,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun Income.toEntity() = IncomeEntity(
+    id = id,
+    amountMinor = amount.minor,
+    currency = amount.currency,
+    accountId = accountId,
+    incomeCategoryId = categoryId,
+    occurredAt = occurredAt,
+    localDate = localDate,
+    comment = comment,
+    rateRsdPerEur = rates?.rsdPerEur,
+    rateRubPerEur = rates?.rubPerEur,
+    rateDate = rates?.date,
+    rsdMinor = converted?.rsdMinor,
+    eurMinor = converted?.eurMinor,
+    rubMinor = converted?.rubMinor,
+    accountAmountMinor = accountAmountMinor,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun RefundEntity.toDomain() = Refund(
+    id = id,
+    amount = Money(amountMinor, currency),
+    accountId = accountId,
+    expenseId = expenseId,
+    categoryId = categoryId,
+    occurredAt = occurredAt,
+    localDate = localDate,
+    comment = comment,
+    rates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate),
+    converted = converted(rsdMinor, eurMinor, rubMinor),
+    accountAmountMinor = accountAmountMinor,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun Refund.toEntity() = RefundEntity(
+    id = id,
+    amountMinor = amount.minor,
+    currency = amount.currency,
+    accountId = accountId,
+    expenseId = expenseId,
+    categoryId = categoryId,
+    occurredAt = occurredAt,
+    localDate = localDate,
+    comment = comment,
+    rateRsdPerEur = rates?.rsdPerEur,
+    rateRubPerEur = rates?.rubPerEur,
+    rateDate = rates?.date,
+    rsdMinor = converted?.rsdMinor,
+    eurMinor = converted?.eurMinor,
+    rubMinor = converted?.rubMinor,
+    accountAmountMinor = accountAmountMinor,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
 )

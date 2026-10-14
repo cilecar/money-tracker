@@ -1,5 +1,7 @@
 package app.moneytracker.ui.analytics
 
+import app.moneytracker.ui.common.IncomeCategoryAvatar
+import app.moneytracker.ui.operations.IncomeColor
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -102,10 +104,11 @@ fun AnalyticsScreen(
             val report = s.report
             if (report == null) {
                 Spacer(Modifier.height(200.dp))
-            } else if (report.total.total.isZero && report.previousTotal.total.isZero) {
+            } else if (report.total.total.isZero && report.previousTotal.total.isZero && report.income.total.isZero) {
                 ComingSoon(stringResource(R.string.analytics_empty), Modifier.height(240.dp))
             } else {
                 SummaryCard(report)
+                IncomeCard(report)
                 ChartCard(stringResource(R.string.analytics_by_time)) {
                     val labels = bucketLabels(report)
                     SpendingColumnChart(report.buckets.map { it.amount }, labels, labelSpacing(report))
@@ -363,3 +366,40 @@ fun periodLabel(period: AnalyticsPeriod, locale: Locale): String = when (period)
     }
 }
 
+/** Доходы, расходы и разница за период; ниже — доходы по категориям. */
+@Composable
+private fun IncomeCard(r: AnalyticsReport) {
+    val locale = currentLocale()
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth()) {
+                Figure(stringResource(R.string.analytics_income), formatMoney(r.income.total, locale), IncomeColor, Modifier.weight(1f))
+                Figure(stringResource(R.string.analytics_expenses), formatMoney(r.total.total, locale), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
+                Figure(
+                    stringResource(R.string.analytics_net),
+                    (if (r.net.minor > 0) "+" else "") + formatMoney(r.net, locale, approx = r.income.withoutRates + r.total.withoutRates > 0),
+                    if (r.net.minor < 0) MaterialTheme.colorScheme.error else IncomeColor,
+                    Modifier.weight(1f),
+                )
+            }
+            if (r.incomeCategories.isNotEmpty()) {
+                Text(stringResource(R.string.analytics_by_income), style = MaterialTheme.typography.labelLarge)
+                r.incomeCategories.forEach { slice ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        IncomeCategoryAvatar(slice.category, size = 28.dp)
+                        Text(slice.category?.displayName() ?: "—", modifier = Modifier.weight(1f))
+                        Text(formatMoney(slice.amount, locale), style = MaterialTheme.typography.titleSmall)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Figure(label: String, value: String, color: androidx.compose.ui.graphics.Color, modifier: Modifier) {
+    Column(modifier) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.titleSmall, color = color, maxLines = 1)
+    }
+}

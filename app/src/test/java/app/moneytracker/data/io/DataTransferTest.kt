@@ -16,6 +16,7 @@ import app.moneytracker.data.repository.CategoryRepositoryImpl
 import app.moneytracker.data.repository.ExchangeRateRepositoryImpl
 import app.moneytracker.data.repository.ExpenseRepositoryImpl
 import app.moneytracker.data.repository.RecurringRepositoryImpl
+import app.moneytracker.data.repository.RefundRepositoryImpl
 import app.moneytracker.domain.model.Budget
 import app.moneytracker.domain.model.BudgetLevel
 import app.moneytracker.domain.model.BudgetProgress
@@ -98,7 +99,7 @@ class DataTransferTest {
         val runRecurring = RunRecurringUseCase(
             recurring,
             rateRepo,
-            CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories), budgets, NoNotifier, clock),
+            CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories, RefundRepositoryImpl(db.refundDao())), budgets, NoNotifier, clock),
             clock,
         )
         val transfer = DataTransferImpl(
@@ -496,5 +497,35 @@ class DataTransferTest {
         val revolut = env.db.accountDao().getAll(true).single { it.name == "Revolut" }
         assertEquals(CurrencyCode.EUR, revolut.currency)
         assertEquals(LocalDate.of(2026, 9, 1), revolut.openingDate)
+    }
+
+    @Test
+    fun jsonRoundTripKeepsIncomesAndRefunds() = runTest {
+        val source = Env()
+        val e = source.add(Money(1000, CurrencyCode.EUR), 1, "2026-10-02T10:00:00Z")
+        val incomeCats = source.db.incomeCategoryDao()
+        val freelance = incomeCats.getAll(true).first { it.defaultKey == "freelance" }
+        incomeCats.upsert(freelance.copy(name = "Заказы", defaultKey = null, archived = true))
+        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(source.db.incomeDao())
+        val refunds = RefundRepositoryImpl(source.db.refundDao())
+        incomes.insert(app.moneytracker.domain.model.Income.create(Money(500000, CurrencyCode.RSD), 1, freelance.id, Instant.parse("2026-10-03T10:00:00Z"), zone, rates, clock.instant(), "аванс"))
+        refunds.insert(app.moneytracker.domain.model.Refund.create(Money(300, CurrencyCode.EUR), 1, e, 1, Instant.parse("2026-10-04T10:00:00Z"), zone, null, clock.instant()))
+
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(source.exportJson()))
+        assertEquals(incomeCats.getAll(true), target.db.incomeCategoryDao().getAll(true))
+        assertEquals(source.db.incomeDao().getAll(), target.db.incomeDao().getAll())
+        assertEquals(source.db.refundDao().getAll(), target.db.refundDao().getAll())
+    }
+
+    /** В файлах до появления доходов категорий доходов нет — создаются стандартные. */
+    @Test
+    fun jsonWithoutIncomeCategoriesGetsDefaults() = runTest {
+        val env = Env()
+        val tree = Json.parseToJsonElement(String(env.exportJson())) as JsonObject
+        val json = JsonObject(tree - "incomeCategories").toString()
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(json.toByteArray()))
+        assertEquals(listOf("salary", "freelance", "gift", "income_other"), target.db.incomeCategoryDao().getAll(true).map { it.defaultKey })
     }
 }

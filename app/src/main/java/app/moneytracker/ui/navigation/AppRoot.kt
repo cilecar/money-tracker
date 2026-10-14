@@ -1,5 +1,10 @@
 package app.moneytracker.ui.navigation
 
+import androidx.navigation.NavHostController
+import app.moneytracker.ui.incomecategories.IncomeCategoriesScreen
+import app.moneytracker.ui.operations.IncomeEditScreen
+import app.moneytracker.ui.operations.NewOperationKind
+import app.moneytracker.ui.operations.RefundEditScreen
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -104,11 +109,22 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                 ExpenseListScreen(
                     onAdd = { navController.navigate(ExpenseEditRoute()) },
                     onEdit = { navController.navigate(ExpenseEditRoute(it)) },
+                    onEditIncome = { navController.navigate(IncomeEditRoute(it)) },
+                    onEditRefund = { navController.navigate(RefundEditRoute(it)) },
                 )
             }
             composable<ExpenseEditRoute> {
-                ExpenseEditScreen(onClose = { navController.popBackStack() })
+                ExpenseEditScreen(
+                    onClose = { navController.popBackStack() },
+                    onSwitchKind = { navController.switchNewOperation(it) },
+                    onRefund = { navController.navigate(RefundEditRoute(expenseId = it)) { popUpTo<ExpenseEditRoute> { inclusive = true } } },
+                )
             }
+            composable<IncomeEditRoute> {
+                IncomeEditScreen(onClose = { navController.popBackStack() }, onSwitchKind = { navController.switchNewOperation(it) })
+            }
+            composable<RefundEditRoute> { RefundEditScreen(onClose = { navController.popBackStack() }) }
+            composable<IncomeCategoriesRoute> { IncomeCategoriesScreen(onBack = { navController.popBackStack() }) }
             composable<AnalyticsRoute> {
                 AnalyticsScreen(
                     onCategory = { id, from, to ->
@@ -123,6 +139,8 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                 ExpenseListScreen(
                     onAdd = { navController.navigate(ExpenseEditRoute()) },
                     onEdit = { navController.navigate(ExpenseEditRoute(it)) },
+                    onEditIncome = { navController.navigate(IncomeEditRoute(it)) },
+                    onEditRefund = { navController.navigate(RefundEditRoute(it)) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -138,6 +156,7 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                 MoreScreen(
                     onCategories = { navController.navigate(CategoriesRoute) },
                     onAccounts = { navController.navigate(AccountsRoute) },
+                    onIncomeCategories = { navController.navigate(IncomeCategoriesRoute) },
                     onRecurring = { navController.navigate(RecurringListRoute) },
                     onRates = { navController.navigate(RatesRoute) },
                     onData = { navController.navigate(DataRoute) },
@@ -158,4 +177,14 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
             composable<RatesRoute> { RatesScreen(onBack = { navController.popBackStack() }) }
         }
     }
+}
+
+/** Переключение типа новой операции заменяет текущий экран добавления, а не кладёт второй поверх. */
+private fun NavHostController.switchNewOperation(kind: NewOperationKind) {
+    val route: Any = when (kind) {
+        NewOperationKind.EXPENSE -> ExpenseEditRoute()
+        NewOperationKind.INCOME -> IncomeEditRoute()
+    }
+    val current = currentBackStackEntry?.destination?.id ?: return
+    navigate(route) { popUpTo(current) { inclusive = true } }
 }

@@ -53,9 +53,11 @@ data class BudgetProgress(
             budgets: List<Budget>,
             expenses: List<Expense>,
             categories: Map<Long, Category>,
+            /** Возвраты месяца уменьшают потраченное в своей категории. */
+            refunds: List<Refund> = emptyList(),
         ): List<BudgetProgress> = budgets.map { budget ->
             val ids = setOf(budget.categoryId) + categories.values.filter { it.parentId == budget.categoryId }.map { it.id }
-            val total = Total.of(expenses.filter { it.categoryId in ids }, budget.limit.currency)
+            val total = Total.spending(expenses.filter { it.categoryId in ids }, refunds.filter { it.categoryId in ids }, budget.limit.currency)
             BudgetProgress(budget, categories[budget.categoryId], total.total, total.withoutRates)
         }
     }

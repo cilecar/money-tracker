@@ -34,3 +34,11 @@ data class FilteredExpensesRoute(
 @Serializable data class RecurringEditRoute(val id: Long = 0)
 
 @Serializable data object DataRoute
+
+/** id = 0 — новый доход. */
+@Serializable data class IncomeEditRoute(val id: Long = 0)
+
+/** id = 0 — новый возврат; expenseId != 0 — по этому расходу. */
+@Serializable data class RefundEditRoute(val id: Long = 0, val expenseId: Long = 0)
+
+@Serializable data object IncomeCategoriesRoute

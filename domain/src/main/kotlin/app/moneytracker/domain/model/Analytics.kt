@@ -21,6 +21,8 @@ data class CategorySlice(
 
 data class PaymentSlice(val method: Account?, val amount: Money, val share: Float)
 
+data class IncomeSlice(val category: IncomeCategory?, val amount: Money, val share: Float)
+
 data class AnalyticsReport(
     val period: AnalyticsPeriod,
     val currency: CurrencyCode,
@@ -39,7 +41,14 @@ data class AnalyticsReport(
     val previousCumulative: List<Money>,
     val categories: List<CategorySlice>,
     val accounts: List<PaymentSlice>,
+    /** Доходы периода; возвраты сюда не входят — они уменьшают [total]. */
+    val income: Total = Total(Money.zero(currency), 0),
+    val previousIncome: Total = Total(Money.zero(currency), 0),
+    val incomeCategories: List<IncomeSlice> = emptyList(),
 ) {
+    /** Доходы минус расходы (отрицательная — потратили больше, чем заработали). */
+    val net: Money get() = income.total - total.total
+
     /** С чем сравнивать: «на это же число», если период идёт, иначе весь прошлый период. */
     val comparisonBase: Money get() = previousToDate ?: previousTotal.total
 
@@ -53,6 +62,10 @@ data class AnalyticsReport(
  */
 object Analytics {
 
+    /**
+     * Возвраты входят в расчёт как расходы с минусом в день возврата: уменьшают итог, свою категорию,
+     * столбец графика и счёт. Доходы считаются отдельно и в траты не попадают.
+     */
     fun build(
         expenses: List<Expense>,
         period: AnalyticsPeriod,
@@ -60,10 +73,16 @@ object Analytics {
         categories: Map<Long, Category>,
         accounts: Map<Long, Account>,
         today: LocalDate,
+        refunds: List<Refund> = emptyList(),
+        incomes: List<Income> = emptyList(),
+        incomeCategories: Map<Long, IncomeCategory> = emptyMap(),
     ): AnalyticsReport {
         val previousPeriod = period.previous()
-        val current = expenses.filter { it.localDate in period }
-        val previous = expenses.filter { it.localDate in previousPeriod }
+        val spending = expenses + refunds.map(Refund::asNegativeExpense)
+        val current = spending.filter { it.localDate in period }
+        val previous = spending.filter { it.localDate in previousPeriod }
+        val currentIncome = incomes.filter { it.localDate in period }
+        val income = Total.of(currentIncome, currency)
 
         val ongoing = today in period
         val elapsedDays = if (ongoing) ChronoUnit.DAYS.between(period.from, today) + 1 else period.days
@@ -92,6 +111,15 @@ object Analytics {
             previousCumulative = cumulative(previousBuckets, currency),
             categories = categorySlices(current, previous, currency, categories, total.total),
             accounts = paymentSlices(current, currency, accounts, total.total),
+            income = income,
+            previousIncome = Total.of(incomes.filter { it.localDate in previousPeriod }, currency),
+            incomeCategories = currentIncome.groupBy { it.categoryId }
+                .map { (id, list) ->
+                    val amount = Total.of(list, currency).total
+                    IncomeSlice(incomeCategories[id], amount, share(amount, income.total))
+                }
+                .filter { it.amount.minor > 0 }
+                .sortedByDescending { it.amount.minor },
         )
     }
 

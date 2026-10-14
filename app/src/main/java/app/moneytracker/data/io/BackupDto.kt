@@ -28,6 +28,10 @@ data class BackupDto(
     val recurring: List<RecurringDto>,
     val exchangeRates: List<RateDto>,
     val balanceAdjustments: List<BalanceAdjustmentDto> = emptyList(),
+    /** Пусто в старых файлах — тогда при импорте создаются категории доходов по умолчанию. */
+    val incomeCategories: List<IncomeCategoryDto> = emptyList(),
+    val incomes: List<IncomeDto> = emptyList(),
+    val refunds: List<RefundDto> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "money-tracker-backup"
@@ -133,3 +137,47 @@ data class RecurringDto(
 
 @Serializable
 data class RateDto(val date: String, val currency: String, val source: String, val perEur: String, val fetchedAt: String)
+
+@Serializable
+data class IncomeCategoryDto(
+    val id: Long,
+    val name: String,
+    val defaultKey: String? = null,
+    val iconKey: String,
+    val color: Int,
+    val sortOrder: Int,
+    val archived: Boolean,
+)
+
+@Serializable
+data class IncomeDto(
+    val id: Long,
+    val amountMinor: Long,
+    val currency: String,
+    val accountId: Long,
+    val categoryId: Long,
+    val occurredAt: String,
+    val localDate: String,
+    val comment: String? = null,
+    val rates: RatesDto? = null,
+    val accountAmountMinor: Long? = null,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class RefundDto(
+    val id: Long,
+    val amountMinor: Long,
+    val currency: String,
+    val accountId: Long,
+    val expenseId: Long? = null,
+    val categoryId: Long,
+    val occurredAt: String,
+    val localDate: String,
+    val comment: String? = null,
+    val rates: RatesDto? = null,
+    val accountAmountMinor: Long? = null,
+    val createdAt: String,
+    val updatedAt: String,
+)

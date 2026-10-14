@@ -13,6 +13,7 @@ import app.moneytracker.domain.model.Money
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -92,5 +93,20 @@ class CategoryRepositoryTest {
         assertEquals(1, methods.usage(card).expenses)
         methods.delete(card, moveTo = 1)
         assertEquals(1L, expenses.get(e)!!.accountId)
+    }
+
+    /** Возврат ссылается на категорию (RESTRICT): без переноса удаление упало бы на внешнем ключе. */
+    @Test
+    fun deleteWithMoveCarriesRefunds() = runTest {
+        val refunds = RefundRepositoryImpl(db.refundDao())
+        val r = refunds.insert(
+            app.moneytracker.domain.model.Refund.create(
+                app.moneytracker.domain.model.Money(100, CurrencyCode.RSD), 1, null, 2, java.time.Instant.parse("2026-10-01T10:00:00Z"),
+                java.time.ZoneOffset.UTC, null, java.time.Instant.parse("2026-10-01T10:00:00Z"),
+            ),
+        )
+        assertTrue(categories.usage(2).needsTarget)
+        categories.delete(2, moveTo = 3)
+        assertEquals(3L, refunds.get(r)!!.categoryId)
     }
 }

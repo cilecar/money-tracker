@@ -35,7 +35,8 @@ abstract class AccountDao {
     abstract suspend fun setArchived(id: Long, archived: Boolean)
 
     /**
-     * Остатки всех счетов одним запросом, баланс нигде не хранится.
+     * Остатки всех счетов одним запросом, баланс нигде не хранится:
+     * начальный остаток + корректировки − расходы + доходы + возвраты.
      *
      * Сумма операции в валюте счёта: сумма списания, если записана; иначе сама сумма, если валюта совпадает;
      * иначе пересчёт по снапшоту курса операции (rsd/eur/rub_minor). Без снапшота CASE даёт NULL —
@@ -56,10 +57,32 @@ abstract class AccountDao {
                     WHEN a.currency = 'RUB' THEN e.rub_minor
                 END) FROM expense e
                 WHERE e.account_id = a.id AND e.local_date >= a.opening_date), 0)
+            + COALESCE((SELECT SUM(CASE
+                    WHEN i.account_amount_minor IS NOT NULL THEN i.account_amount_minor
+                    WHEN i.currency = a.currency THEN i.amount_minor
+                    WHEN a.currency = 'RSD' THEN i.rsd_minor
+                    WHEN a.currency = 'EUR' THEN i.eur_minor
+                    WHEN a.currency = 'RUB' THEN i.rub_minor
+                END) FROM income i
+                WHERE i.account_id = a.id AND i.local_date >= a.opening_date), 0)
+            + COALESCE((SELECT SUM(CASE
+                    WHEN r.account_amount_minor IS NOT NULL THEN r.account_amount_minor
+                    WHEN r.currency = a.currency THEN r.amount_minor
+                    WHEN a.currency = 'RSD' THEN r.rsd_minor
+                    WHEN a.currency = 'EUR' THEN r.eur_minor
+                    WHEN a.currency = 'RUB' THEN r.rub_minor
+                END) FROM refund r
+                WHERE r.account_id = a.id AND r.local_date >= a.opening_date), 0)
             AS balance_minor,
             (SELECT COUNT(*) FROM expense e
                 WHERE e.account_id = a.id AND e.local_date >= a.opening_date
                 AND e.account_amount_minor IS NULL AND e.currency <> a.currency AND e.rsd_minor IS NULL)
+            + (SELECT COUNT(*) FROM income i
+                WHERE i.account_id = a.id AND i.local_date >= a.opening_date
+                AND i.account_amount_minor IS NULL AND i.currency <> a.currency AND i.rsd_minor IS NULL)
+            + (SELECT COUNT(*) FROM refund r
+                WHERE r.account_id = a.id AND r.local_date >= a.opening_date
+                AND r.account_amount_minor IS NULL AND r.currency <> a.currency AND r.rsd_minor IS NULL)
             AS unconverted
         FROM account a
         """,
@@ -84,21 +107,29 @@ abstract class AccountDao {
     @Query("SELECT COUNT(*) FROM balance_adjustment WHERE account_id = :id")
     abstract suspend fun countAdjustments(id: Long): Int
 
+    @Query("SELECT (SELECT COUNT(*) FROM income WHERE account_id = :id) + (SELECT COUNT(*) FROM refund WHERE account_id = :id)")
+    abstract suspend fun countIncomesAndRefunds(id: Long): Int
+
     @Query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM account")
     abstract suspend fun nextSortOrder(): Int
 
     /** Есть ли у счёта операции — тогда валюту менять нельзя, иначе прошлые остатки поплывут. */
-    @Query("SELECT EXISTS(SELECT 1 FROM expense WHERE account_id = :id) OR EXISTS(SELECT 1 FROM balance_adjustment WHERE account_id = :id)")
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM expense WHERE account_id = :id) OR EXISTS(SELECT 1 FROM balance_adjustment WHERE account_id = :id) " +
+            "OR EXISTS(SELECT 1 FROM income WHERE account_id = :id) OR EXISTS(SELECT 1 FROM refund WHERE account_id = :id)",
+    )
     abstract suspend fun hasOperations(id: Long): Boolean
 
     /**
      * Корректировки сверки удаляются вместе со счётом: они описывают его остаток, на другом счёте
-     * они бессмысленны. Расходы и регулярные платежи переносятся.
+     * они бессмысленны. Расходы, доходы, возвраты и регулярные платежи переносятся.
      */
     @Transaction
     open suspend fun deleteMovingReferences(id: Long, moveTo: Long?) {
         if (moveTo != null) {
             moveExpenses(id, moveTo)
+            moveIncomes(id, moveTo)
+            moveRefunds(id, moveTo)
             moveRecurring(id, moveTo)
         }
         deleteAdjustments(id)
@@ -108,6 +139,12 @@ abstract class AccountDao {
     // Сумма списания относится к прежнему счёту (его валюте) — при переносе она теряет смысл.
     @Query("UPDATE expense SET account_id = :to, account_amount_minor = NULL WHERE account_id = :from")
     protected abstract suspend fun moveExpenses(from: Long, to: Long)
+
+    @Query("UPDATE income SET account_id = :to, account_amount_minor = NULL WHERE account_id = :from")
+    protected abstract suspend fun moveIncomes(from: Long, to: Long)
+
+    @Query("UPDATE refund SET account_id = :to, account_amount_minor = NULL WHERE account_id = :from")
+    protected abstract suspend fun moveRefunds(from: Long, to: Long)
 
     @Query("UPDATE recurring_expense SET account_id = :to WHERE account_id = :from")
     protected abstract suspend fun moveRecurring(from: Long, to: Long)

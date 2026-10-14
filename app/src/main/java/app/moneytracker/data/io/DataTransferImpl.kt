@@ -5,12 +5,14 @@ import android.database.sqlite.SQLiteConstraintException
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.withTransaction
 import app.moneytracker.data.db.AppDatabase
+import app.moneytracker.data.db.DefaultData
 import app.moneytracker.data.db.DefaultNames
 import app.moneytracker.data.db.entity.BalanceAdjustmentEntity
 import app.moneytracker.data.db.entity.BudgetAlertEntity
 import app.moneytracker.data.db.entity.BudgetEntity
 import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
+import app.moneytracker.data.db.entity.IncomeCategoryEntity
 import app.moneytracker.data.db.entity.AccountEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
 import app.moneytracker.data.db.toDomain
@@ -18,6 +20,8 @@ import app.moneytracker.data.db.toEntity
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.Frequency
+import app.moneytracker.domain.model.Income
+import app.moneytracker.domain.model.Refund
 import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.model.AccountType
 import app.moneytracker.domain.model.RateSnapshot
@@ -315,7 +319,7 @@ class DataTransferImpl @Inject constructor(
                         localDate = e.localDate.toString(),
                         comment = e.comment,
                         tags = e.tags,
-                        rates = e.rates?.let { RatesDto(it.rsdPerEur.toPlainString(), it.rubPerEur.toPlainString(), it.date.toString()) },
+                        rates = e.rates?.toDto(),
                         amountRsdMinor = e.converted?.rsdMinor,
                         amountEurMinor = e.converted?.eurMinor,
                         amountRubMinor = e.converted?.rubMinor,
@@ -339,6 +343,21 @@ class DataTransferImpl @Inject constructor(
                 },
                 balanceAdjustments = m.allAdjustments().map {
                     BalanceAdjustmentDto(it.id, it.accountId, it.amountMinor, it.occurredAt.toString(), it.localDate.toString(), it.comment, it.createdAt.toString())
+                },
+                incomeCategories = db.incomeCategoryDao().getAll(true).map {
+                    IncomeCategoryDto(it.id, it.name, it.defaultKey, it.iconKey, it.color, it.sortOrder, it.archived)
+                },
+                incomes = db.incomeDao().getAll().map { it.toDomain() }.map { i ->
+                    IncomeDto(
+                        i.id, i.amount.minor, i.amount.currency.name, i.accountId, i.categoryId, i.occurredAt.toString(), i.localDate.toString(),
+                        i.comment, i.rates?.toDto(), i.accountAmountMinor, i.createdAt.toString(), i.updatedAt.toString(),
+                    )
+                },
+                refunds = db.refundDao().getAll().map { it.toDomain() }.map { r ->
+                    RefundDto(
+                        r.id, r.amount.minor, r.amount.currency.name, r.accountId, r.expenseId, r.categoryId, r.occurredAt.toString(),
+                        r.localDate.toString(), r.comment, r.rates?.toDto(), r.accountAmountMinor, r.createdAt.toString(), r.updatedAt.toString(),
+                    )
                 },
             )
         }
@@ -377,8 +396,11 @@ class DataTransferImpl @Inject constructor(
                     parsed.categories.sortedBy { if (it.parentId == null) 0 else 1 }.forEach { db.categoryDao().upsert(it) }
                     parsed.methods.forEach { db.accountDao().upsert(it) }
                     parsed.adjustments.forEach { db.accountDao().insertAdjustment(it) }
+                    parsed.incomeCategories.forEach { db.incomeCategoryDao().upsert(it) }
+                    parsed.incomes.forEach { db.incomeDao().insert(it.toEntity()) }
                     parsed.recurring.forEach { db.recurringDao().upsert(it) }
                     parsed.expenses.forEach { db.expenseDao().insertWithTags(it.toEntity(), it.tags) }
+                    parsed.refunds.forEach { db.refundDao().insert(it.toEntity()) }
                     parsed.budgets.forEach { db.budgetDao().save(it) }
                     parsed.alerts.forEach { db.budgetDao().insertAlert(it) }
                     if (parsed.rates.isNotEmpty()) db.exchangeRateDao().upsert(parsed.rates)
@@ -409,6 +431,9 @@ class DataTransferImpl @Inject constructor(
         val recurring: List<RecurringExpenseEntity>,
         val rates: List<ExchangeRateEntity>,
         val adjustments: List<BalanceAdjustmentEntity>,
+        val incomeCategories: List<IncomeCategoryEntity>,
+        val incomes: List<Income>,
+        val refunds: List<Refund>,
     )
 
     private fun parse(dto: BackupDto): Parsed {
@@ -475,7 +500,7 @@ class DataTransferImpl @Inject constructor(
         val expenses = dto.expenses.map {
             if (it.categoryId !in categoryIds || it.accountId !in methodIds) inconsistent()
             val amount = Money(positive(it.amountMinor), currency(it.currency))
-            val snapshot = it.rates?.let { r -> RateSnapshot(BigDecimal(r.rsdPerEur), BigDecimal(r.rubPerEur), LocalDate.parse(r.date)) }
+            val snapshot = it.rates?.toSnapshot()
             Expense(
                 id = it.id,
                 amount = amount,
@@ -514,10 +539,49 @@ class DataTransferImpl @Inject constructor(
             BalanceAdjustmentEntity(it.id, it.accountId, it.amountMinor, Instant.parse(it.occurredAt), LocalDate.parse(it.localDate), it.comment, Instant.parse(it.createdAt))
         }
         unique(adjustments.map { it.id })
-        return Parsed(categories, methods, expenses, budgets, alerts, recurring, rates, adjustments)
+
+        // Файл без категорий доходов (до их появления) — создаём набор по умолчанию.
+        val incomeCategories = dto.incomeCategories.map {
+            IncomeCategoryEntity(it.id, it.name, it.defaultKey, it.iconKey, it.color, it.sortOrder, it.archived)
+        }.ifEmpty {
+            DefaultData.incomeCategories.mapIndexed { i, c -> IncomeCategoryEntity(i + 1L, context.getString(c.nameRes), c.key, c.iconKey, c.color, i, false) }
+        }
+        val incomeCategoryIds = unique(incomeCategories.map { it.id })
+        if (incomeCategories.none { !it.archived }) inconsistent()
+        val expenseIds = expenses.map { it.id }.toSet()
+        val incomes = dto.incomes.map {
+            if (it.accountId !in methodIds || it.categoryId !in incomeCategoryIds) inconsistent()
+            val amount = Money(positive(it.amountMinor), currency(it.currency))
+            val snapshot = it.rates?.toSnapshot()
+            Income(
+                id = it.id, amount = amount, accountId = it.accountId, categoryId = it.categoryId,
+                occurredAt = Instant.parse(it.occurredAt), localDate = LocalDate.parse(it.localDate), comment = it.comment,
+                rates = snapshot, converted = snapshot?.convertAll(amount), accountAmountMinor = it.accountAmountMinor,
+                createdAt = Instant.parse(it.createdAt), updatedAt = Instant.parse(it.updatedAt),
+            )
+        }
+        unique(incomes.map { it.id })
+        val refunds = dto.refunds.map {
+            if (it.accountId !in methodIds || it.categoryId !in categoryIds) inconsistent()
+            val amount = Money(positive(it.amountMinor), currency(it.currency))
+            val snapshot = it.rates?.toSnapshot()
+            Refund(
+                id = it.id, amount = amount, accountId = it.accountId,
+                expenseId = it.expenseId?.takeIf { id -> id in expenseIds }, categoryId = it.categoryId,
+                occurredAt = Instant.parse(it.occurredAt), localDate = LocalDate.parse(it.localDate), comment = it.comment,
+                rates = snapshot, converted = snapshot?.convertAll(amount), accountAmountMinor = it.accountAmountMinor,
+                createdAt = Instant.parse(it.createdAt), updatedAt = Instant.parse(it.updatedAt),
+            )
+        }
+        unique(refunds.map { it.id })
+        return Parsed(categories, methods, expenses, budgets, alerts, recurring, rates, adjustments, incomeCategories, incomes, refunds)
     }
 
     private fun inconsistent(): Nothing = throw BackupFormatException(Reason.INCONSISTENT)
+
+    private fun RateSnapshot.toDto() = RatesDto(rsdPerEur.toPlainString(), rubPerEur.toPlainString(), date.toString())
+
+    private fun RatesDto.toSnapshot() = RateSnapshot(BigDecimal(rsdPerEur), BigDecimal(rubPerEur), LocalDate.parse(date))
 
     // ---------------------------------------------------------------- Файл базы
 

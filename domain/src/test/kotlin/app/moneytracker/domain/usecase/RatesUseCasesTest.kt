@@ -2,6 +2,8 @@ package app.moneytracker.domain.usecase
 
 import app.moneytracker.domain.fake.FakeExchangeRateRepository
 import app.moneytracker.domain.fake.FakeExpenseRepository
+import app.moneytracker.domain.fake.FakeIncomeRepository
+import app.moneytracker.domain.fake.FakeRefundRepository
 import app.moneytracker.domain.fake.checkBudgets
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Expense
@@ -38,8 +40,10 @@ class RatesUseCasesTest {
     private val today = LocalDate.of(2026, 10, 14)
 
     private val expenses = FakeExpenseRepository()
+    private val incomes = FakeIncomeRepository()
+    private val refunds = FakeRefundRepository()
     private val rates = FakeExchangeRateRepository(clock)
-    private val fill = FillPendingRatesUseCase(expenses, rates, checkBudgets(clock, expenses), clock)
+    private val fill = FillPendingRatesUseCase(expenses, incomes, refunds, rates, checkBudgets(clock, expenses), clock)
     private val refresh = RefreshRatesUseCase(rates, fill, clock)
     private val setManual = SetManualRateUseCase(rates, fill, clock)
 
@@ -155,7 +159,7 @@ class RatesUseCasesTest {
                 expenses.update(expenses.get(resized)!!.withAmount(Money(5000, CurrencyCode.EUR), now))
             }
         }
-        FillPendingRatesUseCase(racing, rates, checkBudgets(clock, expenses), clock)()
+        FillPendingRatesUseCase(racing, FakeIncomeRepository(), FakeRefundRepository(), rates, checkBudgets(clock, expenses), clock)()
 
         val c = expenses.get(commented)!!
         assertEquals("правка", c.comment)
@@ -174,7 +178,7 @@ class RatesUseCasesTest {
         val racing = object : ExpenseRepository by expenses {
             override suspend fun getWithoutRates() = expenses.getWithoutRates().also { expenses.delete(id) }
         }
-        FillPendingRatesUseCase(racing, rates, checkBudgets(clock, expenses), clock)()
+        FillPendingRatesUseCase(racing, FakeIncomeRepository(), FakeRefundRepository(), rates, checkBudgets(clock, expenses), clock)()
         assertNull(expenses.get(id))
     }
 }

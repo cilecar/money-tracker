@@ -12,6 +12,19 @@ import app.moneytracker.domain.model.ExpenseFilter
 import app.moneytracker.domain.model.ExpenseSections
 import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.Total
+import app.moneytracker.domain.model.Income
+import app.moneytracker.domain.model.IncomeCategory
+import app.moneytracker.domain.model.MonthSummary
+import app.moneytracker.domain.model.OperationKind
+import app.moneytracker.domain.model.Operations
+import app.moneytracker.domain.model.Refund
+import app.moneytracker.domain.repository.IncomeCategoryRepository
+import app.moneytracker.domain.repository.IncomeRepository
+import app.moneytracker.domain.repository.RefundRepository
+import app.moneytracker.domain.usecase.DeleteRefundUseCase
+import app.moneytracker.domain.usecase.ObserveMonthSummaryUseCase
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.ExpenseRepository
 import app.moneytracker.domain.repository.AccountRepository
@@ -42,9 +55,11 @@ data class ExpenseListUiState(
     val sections: List<DaySection> = emptyList(),
     val displayCurrency: CurrencyCode = CurrencyCode.RSD,
     val month: YearMonth = YearMonth.now(),
-    val monthTotal: Total? = null,
-    /** Итог по найденному — только когда фильтр или поиск активны. */
+    /** «Осталось до конца месяца» — доходы, траты и остаток текущего месяца. */
+    val monthSummary: MonthSummary? = null,
+    /** Итог трат по найденному (за вычетом возвратов) — только когда фильтр или поиск активны. */
     val filteredTotal: Total? = null,
+    val filteredIncome: Total? = null,
     val filteredCount: Int = 0,
     val filter: ExpenseFilter = ExpenseFilter(),
     val categories: List<Category> = emptyList(),
@@ -56,6 +71,8 @@ data class ExpenseListUiState(
 
 sealed interface ExpenseListEvent {
     data class Deleted(val expense: Expense) : ExpenseListEvent
+    data class IncomeDeleted(val income: Income) : ExpenseListEvent
+    data class RefundDeleted(val refund: Refund) : ExpenseListEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -69,6 +86,11 @@ class ExpenseListViewModel @Inject constructor(
     clock: Clock,
     private val defaultNames: DefaultNames,
     private val checkBudgets: CheckBudgetsUseCase,
+    private val incomes: IncomeRepository,
+    private val refunds: RefundRepository,
+    incomeCategoryRepository: IncomeCategoryRepository,
+    private val deleteRefund: DeleteRefundUseCase,
+    observeMonthSummary: ObserveMonthSummaryUseCase,
 ) : ViewModel() {
 
     private val month = YearMonth.now(clock)
@@ -109,29 +131,45 @@ class ExpenseListViewModel @Inject constructor(
         categories,
     ) { f, q, cats -> f.copy(query = q).withSubcategories(cats) }.distinctUntilChanged()
 
-    private val filtered = effectiveFilter.flatMapLatest { expenses.observe(it) }
+    /** Расходы — SQL-фильтром, доходы и возвраты — тем же фильтром в Kotlin (их немного). */
+    private val filtered = effectiveFilter.flatMapLatest { f ->
+        combine(
+            if (f.includes(OperationKind.EXPENSE)) expenses.observe(f) else flowOf(emptyList()),
+            incomes.observeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
+            refunds.observeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
+        ) { e, i, r -> Operations(e, i, r) }
+    }
 
-    private val monthExpenses = expenses.observeBetween(month.atDay(1), month.atEndOfMonth())
+    private val monthSummary = settingsRepository.settings.map { it.displayCurrency }.distinctUntilChanged()
+        .flatMapLatest { observeMonthSummary(it) }
 
-    private val references = combine(categories, accounts, expenses.observeTags()) { c, p, t -> Triple(c, p, t) }
+    private val references = combine(
+        categories,
+        accounts,
+        expenses.observeTags(),
+        incomeCategoryRepository.observeAll(includeArchived = true),
+    ) { c, p, t, ic -> References(c, p, t, ic) }
 
     val state: StateFlow<ExpenseListUiState> = combine(
         filtered,
-        monthExpenses,
+        monthSummary,
         references,
         settingsRepository.settings,
         combine(filter, effectiveFilter) { raw, effective -> raw to effective },
-    ) { list, monthList, (cats, methods, tags), settings: AppSettings, (rawFilter, effective) ->
+    ) { ops, summary, refs, settings: AppSettings, (rawFilter, effective) ->
+        val (cats, methods, tags, incomeCats) = refs
         val currency = settings.displayCurrency
         val active = !effective.isEmpty
         ExpenseListUiState(
             loading = false,
-            sections = ExpenseSections.byDay(list, cats.associateBy { it.id }, methods.associateBy { it.id }, currency),
+            sections = ExpenseSections.byDay(ops, cats.associateBy { it.id }, methods.associateBy { it.id }, incomeCats.associateBy { it.id }, currency),
             displayCurrency = currency,
             month = month,
-            monthTotal = Total.of(monthList, currency),
-            filteredTotal = if (active) Total.of(list, currency) else null,
-            filteredCount = list.size,
+            // Сводка — в валюте отображения; пока она не пересчиталась после смены валюты, не показываем старую.
+            monthSummary = summary.takeIf { it.remaining.currency == currency },
+            filteredTotal = if (active) Total.spending(ops.expenses, ops.refunds, currency) else null,
+            filteredIncome = if (active) Total.of(ops.incomes, currency) else null,
+            filteredCount = ops.size,
             filter = rawFilter,
             categories = cats.filter { !it.archived },
             accounts = methods.filter { !it.archived },
@@ -182,4 +220,39 @@ class ExpenseListViewModel @Inject constructor(
             checkBudgets()
         }
     }
+
+    fun deleteIncome(id: Long) {
+        viewModelScope.launch {
+            val income = incomes.get(id) ?: return@launch
+            incomes.delete(id)
+            _events.send(ExpenseListEvent.IncomeDeleted(income))
+        }
+    }
+
+    fun restore(income: Income) {
+        viewModelScope.launch { incomes.insert(income) }
+    }
+
+    fun deleteRefund(id: Long) {
+        viewModelScope.launch {
+            val refund = deleteRefund.invoke(id) ?: return@launch
+            _events.send(ExpenseListEvent.RefundDeleted(refund))
+        }
+    }
+
+    fun restore(refund: Refund) {
+        viewModelScope.launch {
+            // Исходный расход могли удалить, пока висел Snackbar, — тогда возврат без привязки.
+            val expenseId = refund.expenseId?.takeIf { expenses.get(it) != null }
+            refunds.insert(refund.copy(expenseId = expenseId))
+            checkBudgets()
+        }
+    }
+
+    private data class References(
+        val categories: List<Category>,
+        val accounts: List<Account>,
+        val tags: List<String>,
+        val incomeCategories: List<IncomeCategory>,
+    )
 }

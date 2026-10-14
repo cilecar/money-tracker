@@ -3,6 +3,7 @@ package app.moneytracker.domain.usecase
 import app.moneytracker.domain.fake.FakeBudgetRepository
 import app.moneytracker.domain.fake.FakeCategoryRepository
 import app.moneytracker.domain.fake.FakeExpenseRepository
+import app.moneytracker.domain.fake.FakeRefundRepository
 import app.moneytracker.domain.fake.RecordingNotifier
 import app.moneytracker.domain.model.Budget
 import app.moneytracker.domain.model.BudgetLevel
@@ -44,7 +45,8 @@ class BudgetUseCasesTest {
     private val expenses = FakeExpenseRepository()
     private val budgets = FakeBudgetRepository()
     private val notifier = RecordingNotifier()
-    private val observe = ObserveBudgetsUseCase(budgets, expenses, categories)
+    private val refunds = FakeRefundRepository()
+    private val observe = ObserveBudgetsUseCase(budgets, expenses, categories, refunds)
     private val check = CheckBudgetsUseCase(observe, budgets, notifier, clock)
     private val save = SaveBudgetUseCase(budgets, check)
 

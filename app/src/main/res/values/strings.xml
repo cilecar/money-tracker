@@ -73,10 +73,10 @@
     <string name="day_today">Сегодня</string>
     <string name="day_yesterday">Вчера</string>
     <plurals name="expenses_found">
-        <item quantity="one">Найден %1$d расход</item>
-        <item quantity="few">Найдено %1$d расхода</item>
-        <item quantity="many">Найдено %1$d расходов</item>
-        <item quantity="other">Найдено %1$d расхода</item>
+        <item quantity="one">Найдена %1$d операция</item>
+        <item quantity="few">Найдено %1$d операции</item>
+        <item quantity="many">Найдено %1$d операций</item>
+        <item quantity="other">Найдено %1$d операции</item>
     </plurals>
     <plurals name="expenses_without_rates">
         <item quantity="one">+ %1$d расход без курса (не учтён)</item>
@@ -349,4 +349,40 @@
     <!-- Виджет -->
     <string name="widget_name">Расходы за месяц</string>
     <string name="widget_description">Сумма за текущий месяц и быстрое добавление расхода</string>
+    <!-- Доходы, возвраты, лента операций -->
+    <string name="operation_expense">Расход</string>
+    <string name="operation_income">Доход</string>
+    <string name="operation_refund">Возврат</string>
+    <string name="income_new">Новый доход</string>
+    <string name="income_edit">Доход</string>
+    <string name="income_deleted">Доход удалён</string>
+    <string name="refund_action">Возврат</string>
+    <string name="refund_new">Новый возврат</string>
+    <string name="refund_edit">Возврат</string>
+    <string name="refund_deleted">Возврат удалён</string>
+    <string name="refund_title">Возврат · %1$s</string>
+    <string name="refund_for">Возврат за «%1$s»</string>
+    <string name="refund_choose_category">Категория расхода</string>
+    <string name="refund_hint">Возврат уменьшает траты этой категории в месяце возврата, в доходы не входит</string>
+    <string name="summary_income">Доходы</string>
+    <string name="summary_left">Осталось до конца месяца</string>
+    <string name="summary_overspent">Расходы больше доходов этого месяца</string>
+    <string name="summary_income_line">Доходы: %1$s</string>
+    <plurals name="summary_per_day">
+        <item quantity="one">Можно тратить %1$s в день · остался %2$d день</item>
+        <item quantity="few">Можно тратить %1$s в день · осталось %2$d дня</item>
+        <item quantity="many">Можно тратить %1$s в день · осталось %2$d дней</item>
+        <item quantity="other">Можно тратить %1$s в день · осталось %2$d дня</item>
+    </plurals>
+    <string name="filter_kinds">Тип операции</string>
+    <string name="analytics_income">Доходы</string>
+    <string name="analytics_expenses">Расходы</string>
+    <string name="analytics_net">Разница</string>
+    <string name="analytics_by_income">Доходы по категориям</string>
+    <string name="income_categories_title">Категории доходов</string>
+    <string name="income_category_new">Новая категория дохода</string>
+    <string name="income_category_edit">Категория дохода</string>
+    <string name="income_category_error_last">Должна остаться хотя бы одна активная категория дохода</string>
+    <string name="income_category_delete_title">Удалить «%1$s»?</string>
+    <string name="income_category_delete_move">Доходов в категории: %1$d. Перенести их в:</string>
 </resources>

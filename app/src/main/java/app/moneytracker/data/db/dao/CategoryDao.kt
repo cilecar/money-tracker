@@ -24,7 +24,8 @@ abstract class CategoryDao {
     @Query("UPDATE category SET archived = :archived WHERE id IN (:ids)")
     abstract suspend fun setArchived(ids: List<Long>, archived: Boolean)
 
-    @Query("SELECT COUNT(*) FROM expense WHERE category_id = :id")
+    /** Расходы и возвраты: и те, и другие при удалении категории переносятся в другую. */
+    @Query("SELECT (SELECT COUNT(*) FROM expense WHERE category_id = :id) + (SELECT COUNT(*) FROM refund WHERE category_id = :id)")
     abstract suspend fun countExpenses(id: Long): Int
 
     @Query("SELECT COUNT(*) FROM recurring_expense WHERE category_id = :id")
@@ -49,6 +50,7 @@ abstract class CategoryDao {
     open suspend fun deleteMovingReferences(id: Long, moveTo: Long?) {
         if (moveTo != null) {
             moveExpenses(id, moveTo)
+            moveRefunds(id, moveTo)
             moveRecurring(id, moveTo)
         }
         delete(id)
@@ -56,6 +58,9 @@ abstract class CategoryDao {
 
     @Query("UPDATE expense SET category_id = :to WHERE category_id = :from")
     protected abstract suspend fun moveExpenses(from: Long, to: Long)
+
+    @Query("UPDATE refund SET category_id = :to WHERE category_id = :from")
+    protected abstract suspend fun moveRefunds(from: Long, to: Long)
 
     @Query("UPDATE recurring_expense SET category_id = :to WHERE category_id = :from")
     protected abstract suspend fun moveRecurring(from: Long, to: Long)

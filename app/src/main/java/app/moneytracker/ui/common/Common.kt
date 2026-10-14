@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import app.moneytracker.data.db.DefaultData
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.Account
+import app.moneytracker.domain.model.IncomeCategory
 
 /** Название с учётом локали: для нетронутых категорий по умолчанию — из ресурсов. */
 @Composable
@@ -31,6 +32,15 @@ fun Category.displayName(): String =
 @Composable
 fun Account.displayName(): String =
     defaultKey?.let(DefaultData::nameResFor)?.let { stringResource(it) } ?: name
+
+@Composable
+fun IncomeCategory.displayName(): String =
+    defaultKey?.let(DefaultData::nameResFor)?.let { stringResource(it) } ?: name
+
+/** Значок категории дохода — того же вида, что у категорий расходов. */
+@Composable
+fun IncomeCategoryAvatar(category: IncomeCategory?, modifier: Modifier = Modifier, size: Dp = 40.dp) =
+    CategoryAvatar(category?.let { Category(name = it.name, iconKey = it.iconKey, color = it.color) }, modifier, size)
 
 /** «Еда › Кафе» для подкатегории. */
 @Composable

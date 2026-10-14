@@ -7,7 +7,7 @@ import java.time.ZoneId
 data class Expense(
     val id: Long = 0,
     /** Исходная сумма в валюте ввода. */
-    val amount: Money,
+    override val amount: Money,
     val categoryId: Long,
     val accountId: Long,
     val occurredAt: Instant,
@@ -22,7 +22,7 @@ data class Expense(
      */
     val rates: RateSnapshot?,
     /** Суммы во всех валютах по [rates]; null, пока rates == null. */
-    val converted: ConvertedAmounts?,
+    override val converted: ConvertedAmounts?,
     val recurringId: Long? = null,
     /**
      * Сколько списано со счёта в его валюте (минорные единицы), если валюты расхода и счёта различаются:
@@ -31,7 +31,7 @@ data class Expense(
     val accountAmountMinor: Long? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
-) {
+) : RatedAmount {
     /** Смена даты: пересчитываем localDate, снапшот курса не трогаем. */
     fun withOccurredAt(instant: Instant, zone: ZoneId, now: Instant): Expense = copy(
         occurredAt = instant,
@@ -48,13 +48,6 @@ data class Expense(
     )
 
     val hasRates: Boolean get() = rates != null
-
-    /**
-     * Сумма в [currency] для отчётов. Без курсов известна только сумма в исходной валюте,
-     * для остальных валют — null (такие расходы считаются отдельно как «без курса»).
-     */
-    fun amountIn(currency: CurrencyCode): Money? =
-        converted?.get(currency) ?: amount.takeIf { it.currency == currency }
 
     /** Явная правка курса этого расхода пользователем или заполнение отложенного снапшота. */
     fun withRates(newRates: RateSnapshot, now: Instant): Expense = copy(
@@ -81,7 +74,7 @@ data class Expense(
             accountId = accountId,
             occurredAt = occurredAt,
             localDate = occurredAt.atZone(zone).toLocalDate(),
-            comment = comment?.trim()?.takeIf { it.isNotEmpty() },
+            comment = cleanComment(comment),
             tags = normalizeTags(tags),
             rates = rates,
             converted = rates?.convertAll(amount),

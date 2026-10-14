@@ -7,6 +7,7 @@ import app.moneytracker.domain.model.ExpenseFilter
 import app.moneytracker.domain.repository.BudgetRepository
 import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.ExpenseRepository
+import app.moneytracker.domain.repository.RefundRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -23,12 +24,14 @@ class ObserveBudgetsUseCase @Inject constructor(
     private val budgets: BudgetRepository,
     private val expenses: ExpenseRepository,
     private val categories: CategoryRepository,
+    private val refunds: RefundRepository,
 ) {
     operator fun invoke(month: YearMonth): Flow<List<BudgetProgress>> = combine(
         budgets.observeAll(),
         expenses.observe(ExpenseFilter(from = month.atDay(1), to = month.atEndOfMonth())),
         categories.observeAll(includeArchived = true),
-    ) { b, e, c -> BudgetProgress.compute(b, e, c.associateBy { it.id }) }
+        refunds.observeBetween(month.atDay(1), month.atEndOfMonth()),
+    ) { b, e, c, r -> BudgetProgress.compute(b, e, c.associateBy { it.id }, r) }
 }
 
 /**

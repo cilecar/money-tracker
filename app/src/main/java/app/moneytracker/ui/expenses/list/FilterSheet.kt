@@ -1,5 +1,7 @@
 package app.moneytracker.ui.expenses.list
 
+import app.moneytracker.domain.model.OperationKind
+import app.moneytracker.ui.operations.labelRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -111,6 +113,17 @@ fun FilterSheet(
                         )
                     },
                 )
+            }
+
+            Section(stringResource(R.string.filter_kinds))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OperationKind.entries.forEach { kind ->
+                    FilterChip(
+                        selected = kind in draft.kinds,
+                        onClick = { draft = draft.copy(kinds = draft.kinds.toggle(kind)) },
+                        label = { Text(stringResource(kind.labelRes())) },
+                    )
+                }
             }
 
             Section(stringResource(R.string.filter_categories))

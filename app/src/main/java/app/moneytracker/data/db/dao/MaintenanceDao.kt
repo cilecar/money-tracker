@@ -20,6 +20,7 @@ abstract class MaintenanceDao {
     @Query("DELETE FROM refund") abstract suspend fun deleteRefunds()
     @Query("DELETE FROM income") abstract suspend fun deleteIncomes()
     @Query("DELETE FROM balance_adjustment") abstract suspend fun deleteAdjustments()
+    @Query("DELETE FROM income_category") abstract suspend fun deleteIncomeCategories()
     @Query("DELETE FROM expense_tag") abstract suspend fun deleteExpenseTags()
     @Query("DELETE FROM expense") abstract suspend fun deleteExpenses()
     @Query("DELETE FROM tag") abstract suspend fun deleteTags()
@@ -44,6 +45,7 @@ abstract class MaintenanceDao {
         deleteRecurring()
         deleteSubcategories()
         deleteCategories()
+        deleteIncomeCategories()
         deleteAccounts()
         deleteRates()
     }

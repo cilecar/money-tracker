@@ -3,6 +3,7 @@ package app.moneytracker.widget
 import android.content.Context
 import androidx.glance.appwidget.updateAll
 import app.moneytracker.domain.repository.ExpenseRepository
+import app.moneytracker.domain.repository.RefundRepository
 import app.moneytracker.domain.repository.SettingsRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +21,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Обновляет виджет при любом изменении расходов текущего месяца или валюты отображения.
+ * Обновляет виджет при любом изменении расходов или возвратов текущего месяца или валюты отображения.
  * Живёт, пока жив процесс: все изменения данных происходят в процессе приложения
  * (UI, WorkManager), так что отдельный механизм оповещения не нужен. Смену месяца
  * без открытия приложения покрывает updatePeriodMillis в описании виджета.
@@ -29,6 +30,7 @@ import javax.inject.Singleton
 class WidgetUpdater @Inject constructor(
     @ApplicationContext private val context: Context,
     private val expenses: ExpenseRepository,
+    private val refunds: RefundRepository,
     private val settings: SettingsRepository,
     private val clock: Clock,
 ) {
@@ -40,8 +42,9 @@ class WidgetUpdater @Inject constructor(
         scope.launch {
             combine(
                 expenses.observeBetween(month.atDay(1), month.atEndOfMonth()),
+                refunds.observeBetween(month.atDay(1), month.atEndOfMonth()),
                 settings.settings.map { it.displayCurrency }.distinctUntilChanged(),
-            ) { list, currency -> list to currency }
+            ) { list, refundList, currency -> Triple(list, refundList, currency) }
                 // Импорт CSV меняет сотни строк подряд — перерисовываем один раз в конце.
                 .debounce(1_000)
                 .collect { MonthTotalWidget().updateAll(context) }

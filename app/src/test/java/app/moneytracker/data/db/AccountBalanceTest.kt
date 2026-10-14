@@ -135,4 +135,36 @@ class AccountBalanceTest {
         spend(id, Money(1_00, CurrencyCode.EUR), "2026-10-02T10:00:00Z")
         assertTrue(accounts.hasOperations(id))
     }
+
+    @Test
+    fun incomesAndRefundsAddToBalance() = runTest {
+        val id = card(opening = 10_00)
+        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(db.incomeDao())
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db.refundDao())
+        val e = spend(id, Money(30_00, CurrencyCode.EUR), "2026-10-02T10:00:00Z")
+        // 11 700 RSD = 100 € по снапшоту.
+        incomes.insert(app.moneytracker.domain.model.Income.create(Money(11700_00, CurrencyCode.RSD), id, 1, Instant.parse("2026-10-03T10:00:00Z"), zone, rates, clock.instant()))
+        refunds.insert(app.moneytracker.domain.model.Refund.create(Money(5_00, CurrencyCode.EUR), id, e, 1, Instant.parse("2026-10-04T10:00:00Z"), zone, null, clock.instant()))
+        // Доход без курса в чужой валюте — в остаток не вошёл.
+        incomes.insert(app.moneytracker.domain.model.Income.create(Money(1_00, CurrencyCode.RUB), id, 1, Instant.parse("2026-10-05T10:00:00Z"), zone, null, clock.instant()))
+
+        val b = balance(id)
+        assertEquals(Money(10_00 - 30_00 + 100_00 + 5_00, CurrencyCode.EUR), b.balance)
+        assertEquals(1, b.unconverted)
+        assertTrue(accounts.hasOperations(id))
+        assertEquals(4, accounts.usage(id).expenses)
+    }
+
+    @Test
+    fun refundOutlivesItsExpense() = runTest {
+        val id = card()
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db.refundDao())
+        val e = spend(id, Money(30_00, CurrencyCode.EUR), "2026-10-02T10:00:00Z")
+        val r = refunds.insert(app.moneytracker.domain.model.Refund.create(Money(5_00, CurrencyCode.EUR), id, e, 1, Instant.parse("2026-10-04T10:00:00Z"), zone, null, clock.instant()))
+        expenses.delete(e)
+        val refund = refunds.get(r)!!
+        assertNull(refund.expenseId)
+        assertEquals(1L, refund.categoryId)
+        assertEquals(Money(5_00, CurrencyCode.EUR), balance(id).balance)
+    }
 }

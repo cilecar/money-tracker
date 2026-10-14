@@ -68,8 +68,8 @@
     <string name="day_today">Today</string>
     <string name="day_yesterday">Yesterday</string>
     <plurals name="expenses_found">
-        <item quantity="one">%1$d expense found</item>
-        <item quantity="other">%1$d expenses found</item>
+        <item quantity="one">%1$d operation found</item>
+        <item quantity="other">%1$d operations found</item>
     </plurals>
     <plurals name="expenses_without_rates">
         <item quantity="one">+ %1$d expense without rate (not counted)</item>
@@ -310,4 +310,38 @@
 
     <string name="widget_name">Monthly spending</string>
     <string name="widget_description">Current month total and quick expense entry</string>
+    <!-- Income, refunds, operations feed -->
+    <string name="operation_expense">Expense</string>
+    <string name="operation_income">Income</string>
+    <string name="operation_refund">Refund</string>
+    <string name="income_new">New income</string>
+    <string name="income_edit">Income</string>
+    <string name="income_deleted">Income deleted</string>
+    <string name="refund_action">Refund</string>
+    <string name="refund_new">New refund</string>
+    <string name="refund_edit">Refund</string>
+    <string name="refund_deleted">Refund deleted</string>
+    <string name="refund_title">Refund · %1$s</string>
+    <string name="refund_for">Refund for “%1$s”</string>
+    <string name="refund_choose_category">Expense category</string>
+    <string name="refund_hint">A refund reduces this category\'s spending in the month of the refund and is not income</string>
+    <string name="summary_income">Income</string>
+    <string name="summary_left">Left until month end</string>
+    <string name="summary_overspent">Spending exceeds this month\'s income</string>
+    <string name="summary_income_line">Income: %1$s</string>
+    <plurals name="summary_per_day">
+        <item quantity="one">You can spend %1$s a day · %2$d day left</item>
+        <item quantity="other">You can spend %1$s a day · %2$d days left</item>
+    </plurals>
+    <string name="filter_kinds">Operation type</string>
+    <string name="analytics_income">Income</string>
+    <string name="analytics_expenses">Expenses</string>
+    <string name="analytics_net">Difference</string>
+    <string name="analytics_by_income">Income by category</string>
+    <string name="income_categories_title">Income categories</string>
+    <string name="income_category_new">New income category</string>
+    <string name="income_category_edit">Income category</string>
+    <string name="income_category_error_last">At least one active income category must remain</string>
+    <string name="income_category_delete_title">Delete “%1$s”?</string>
+    <string name="income_category_delete_move">Income entries in this category: %1$d. Move them to:</string>
 </resources>

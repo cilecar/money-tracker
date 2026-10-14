@@ -8,6 +8,7 @@ import app.moneytracker.domain.model.RecurringExpense
 import app.moneytracker.domain.repository.BudgetRepository
 import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.ExpenseRepository
+import app.moneytracker.domain.repository.RefundRepository
 import app.moneytracker.domain.repository.RecurringRepository
 import app.moneytracker.domain.usecase.BudgetNotifier
 import app.moneytracker.domain.usecase.CheckBudgetsUseCase
@@ -79,5 +80,6 @@ fun checkBudgets(
     categories: CategoryRepository = FakeCategoryRepository(),
     budgets: FakeBudgetRepository = FakeBudgetRepository(),
     notifier: BudgetNotifier = RecordingNotifier(),
-) = CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories), budgets, notifier, clock)
+    refunds: RefundRepository = FakeRefundRepository(),
+) = CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories, refunds), budgets, notifier, clock)
 

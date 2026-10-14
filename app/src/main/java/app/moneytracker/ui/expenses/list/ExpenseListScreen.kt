@@ -1,5 +1,14 @@
 package app.moneytracker.ui.expenses.list
 
+import app.moneytracker.domain.model.ExpenseItem
+import app.moneytracker.domain.model.IncomeItem
+import app.moneytracker.domain.model.Money
+import app.moneytracker.domain.model.MonthSummary
+import app.moneytracker.domain.model.RefundItem
+import app.moneytracker.ui.common.IncomeCategoryAvatar
+import app.moneytracker.ui.operations.IncomeColor
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -84,6 +93,8 @@ import java.time.format.TextStyle
 fun ExpenseListScreen(
     onAdd: () -> Unit,
     onEdit: (Long) -> Unit,
+    onEditIncome: (Long) -> Unit = {},
+    onEditRefund: (Long) -> Unit = {},
     /** Задан — экран открыт из аналитики: показываем «назад» и заголовок фильтра. */
     onBack: (() -> Unit)? = null,
     viewModel: ExpenseListViewModel = hiltViewModel(),
@@ -100,14 +111,13 @@ fun ExpenseListScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is ExpenseListEvent.Deleted -> scope.launch {
-                    // Предыдущий Snackbar закрываем: «Отменить» должно относиться к последнему удалению.
-                    snackbar.currentSnackbarData?.dismiss()
-                    val result = snackbar.showSnackbar(
-                        message = resources.getString(R.string.expense_deleted),
-                        actionLabel = resources.getString(R.string.action_undo),
-                        duration = SnackbarDuration.Long,
-                    )
-                    if (result == SnackbarResult.ActionPerformed) viewModel.restore(event.expense)
+                    if (undo(snackbar, resources.getString(R.string.expense_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.expense)
+                }
+                is ExpenseListEvent.IncomeDeleted -> scope.launch {
+                    if (undo(snackbar, resources.getString(R.string.income_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.income)
+                }
+                is ExpenseListEvent.RefundDeleted -> scope.launch {
+                    if (undo(snackbar, resources.getString(R.string.refund_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.refund)
                 }
             }
         }
@@ -173,9 +183,17 @@ fun ExpenseListScreen(
             }
             state.sections.forEach { section ->
                 stickyHeader(key = "day-${section.date}") { DayHeader(section) }
-                items(section.items, key = { it.expense.id }) { item ->
-                    SwipeToDelete(onDelete = { viewModel.delete(item.expense.id) }) {
-                        ExpenseRow(item, state.displayCurrency, onClick = { onEdit(item.expense.id) })
+                items(section.items, key = { it.key }) { item ->
+                    when (item) {
+                        is ExpenseItem -> SwipeToDelete(onDelete = { viewModel.delete(item.details.expense.id) }) {
+                            ExpenseRow(item.details, state.displayCurrency, onClick = { onEdit(item.details.expense.id) })
+                        }
+                        is IncomeItem -> SwipeToDelete(onDelete = { viewModel.deleteIncome(item.income.id) }) {
+                            IncomeRow(item, state.displayCurrency, onClick = { onEditIncome(item.income.id) })
+                        }
+                        is RefundItem -> SwipeToDelete(onDelete = { viewModel.deleteRefund(item.refund.id) }) {
+                            RefundRow(item, state.displayCurrency, onClick = { onEditRefund(item.refund.id) })
+                        }
                     }
                 }
             }
@@ -248,11 +266,18 @@ private fun SummaryCard(state: ExpenseListUiState, onClearFilter: () -> Unit) {
                     )
                 }
                 TotalText(filtered)
+                state.filteredIncome?.takeIf { !it.total.isZero || it.withoutRates > 0 }?.let {
+                    Text(
+                        stringResource(R.string.summary_income_line, formatMoney(it.total, locale)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = IncomeColor,
+                    )
+                }
             } else {
                 val monthName = state.month.month.getDisplayName(TextStyle.FULL_STANDALONE, locale)
                     .replaceFirstChar { it.titlecase(locale) }
                 Text(monthName, style = MaterialTheme.typography.labelLarge)
-                state.monthTotal?.let { TotalText(it) }
+                state.monthSummary?.let { MonthSummaryBlock(it) }
             }
         }
     }
@@ -354,3 +379,108 @@ private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit)
     }
 }
 
+/** Snackbar «Удалено · Отменить»; предыдущий закрываем — «Отменить» относится к последнему удалению. */
+private suspend fun undo(snackbar: SnackbarHostState, message: String, action: String): Boolean {
+    snackbar.currentSnackbarData?.dismiss()
+    return snackbar.showSnackbar(message = message, actionLabel = action, duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed
+}
+
+@Composable
+private fun MonthSummaryBlock(s: MonthSummary) {
+    val locale = currentLocale()
+    TotalText(s.spent)
+    Spacer(Modifier.height(8.dp))
+    Row(Modifier.fillMaxWidth()) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.summary_income), style = MaterialTheme.typography.labelMedium)
+            Text(formatMoney(s.income.total, locale), style = MaterialTheme.typography.titleMedium, color = IncomeColor)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.summary_left), style = MaterialTheme.typography.labelMedium)
+            Text(
+                formatMoney(s.remaining, locale, approx = s.withoutRates > 0),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (s.overspent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+    val perDay = s.perDay
+    Text(
+        when {
+            s.overspent -> stringResource(R.string.summary_overspent)
+            perDay != null -> pluralStringResource(R.plurals.summary_per_day, s.daysLeft.toInt(), formatMoney(perDay, locale), s.daysLeft.toInt())
+            else -> ""
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = if (s.overspent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun IncomeRow(item: IncomeItem, displayCurrency: CurrencyCode, onClick: () -> Unit) {
+    val i = item.income
+    OperationRow(
+        avatar = { IncomeCategoryAvatar(item.category) },
+        title = item.category?.displayName() ?: stringResource(R.string.operation_income),
+        details = listOfNotNull(time(i.occurredAt), item.account?.displayName(), i.comment),
+        amount = i.amount,
+        converted = i.amountIn(displayCurrency).takeIf { i.amount.currency != displayCurrency },
+        showConverted = i.amount.currency != displayCurrency,
+        positive = true,
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun RefundRow(item: RefundItem, displayCurrency: CurrencyCode, onClick: () -> Unit) {
+    val r = item.refund
+    OperationRow(
+        avatar = { CategoryAvatar(item.category) },
+        title = stringResource(R.string.refund_title, categoryTitle(item.category, item.parentCategory)),
+        details = listOfNotNull(time(r.occurredAt), item.account?.displayName(), r.comment),
+        amount = r.amount,
+        converted = r.amountIn(displayCurrency),
+        showConverted = r.amount.currency != displayCurrency,
+        positive = true,
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun time(at: java.time.Instant): String =
+    at.atZone(ZoneId.systemDefault()).toLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(currentLocale()))
+
+@Composable
+private fun OperationRow(
+    avatar: @Composable () -> Unit,
+    title: String,
+    details: List<String>,
+    amount: Money,
+    converted: Money?,
+    showConverted: Boolean,
+    positive: Boolean,
+    onClick: () -> Unit,
+) {
+    val locale = currentLocale()
+    ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
+        leadingContent = avatar,
+        headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = { Text(details.joinToString(" · "), maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        trailingContent = {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    (if (positive) "+" else "") + formatMoney(amount, locale),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (positive) IncomeColor else MaterialTheme.colorScheme.onSurface,
+                )
+                if (showConverted) {
+                    Text(
+                        converted?.let { formatMoney(it, locale, approx = true) } ?: stringResource(R.string.expense_no_rate_short),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
+    )
+}

@@ -37,7 +37,7 @@ class ExpenseSectionsTest {
         assertEquals(listOf(LocalDate.of(2026, 10, 14), LocalDate.of(2026, 10, 13)), result.map { it.date })
         assertEquals(Money(600, CurrencyCode.EUR), result[0].total.total)
         assertEquals(Money(100, CurrencyCode.EUR), result[1].total.total)
-        assertEquals(18, result[0].items.first().expense.occurredAt.atZone(ZoneOffset.UTC).hour)
+        assertEquals(18, (result[0].items.first() as ExpenseItem).details.expense.occurredAt.atZone(ZoneOffset.UTC).hour)
     }
 
     @Test
@@ -64,7 +64,7 @@ class ExpenseSectionsTest {
     @Test
     fun `details carry category parent and payment method`() {
         val item = sections(listOf(expense(14, 9, Money(100, CurrencyCode.EUR), categoryId = 2)), CurrencyCode.EUR)
-            .single().items.single()
+            .single().items.single().let { (it as ExpenseItem).details }
         assertEquals(cafe, item.category)
         assertEquals(food, item.parentCategory)
         assertEquals(cash, item.account)
