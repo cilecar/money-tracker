@@ -1,6 +1,7 @@
 package app.moneytracker.data.io
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.withTransaction
 import app.moneytracker.data.db.AppDatabase
@@ -20,6 +21,7 @@ import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.model.PaymentMethodType
 import app.moneytracker.domain.model.RateSnapshot
 import app.moneytracker.domain.model.RateSource
+import app.moneytracker.domain.model.RecurringExpense
 import app.moneytracker.domain.model.ThemeMode
 import app.moneytracker.domain.repository.BackupFormatException
 import app.moneytracker.domain.repository.BackupFormatException.Reason
@@ -40,6 +42,8 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.math.BigDecimal
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -262,50 +266,54 @@ class DataTransferImpl @Inject constructor(
     override suspend fun exportJson(out: OutputStream) = withContext(Dispatchers.IO) {
         val s = settings.settings.first()
         val m = db.maintenanceDao()
-        val dto = BackupDto(
-            format = BackupDto.FORMAT,
-            version = BackupDto.VERSION,
-            exportedAt = clock.instant().toString(),
-            settings = SettingsDto(s.inputCurrency.name, s.displayCurrency.name, s.defaultPaymentMethodId, s.themeMode.name, s.dynamicColor),
-            categories = db.categoryDao().getAll(true).map {
-                CategoryDto(it.id, it.name, it.defaultKey, it.iconKey, it.color, it.parentId, it.sortOrder, it.archived)
-            },
-            paymentMethods = db.paymentMethodDao().getAll(true).map {
-                PaymentMethodDto(it.id, it.name, it.type.name, it.currency?.name, it.defaultKey, it.sortOrder, it.archived)
-            },
-            expenses = db.expenseDao().getAll().map { it.toDomain() }.map { e ->
-                ExpenseDto(
-                    id = e.id,
-                    amountMinor = e.amount.minor,
-                    currency = e.amount.currency.name,
-                    categoryId = e.categoryId,
-                    paymentMethodId = e.paymentMethodId,
-                    occurredAt = e.occurredAt.toString(),
-                    localDate = e.localDate.toString(),
-                    comment = e.comment,
-                    tags = e.tags,
-                    rates = e.rates?.let { RatesDto(it.rsdPerEur.toPlainString(), it.rubPerEur.toPlainString(), it.date.toString()) },
-                    amountRsdMinor = e.converted?.rsdMinor,
-                    amountEurMinor = e.converted?.eurMinor,
-                    amountRubMinor = e.converted?.rubMinor,
-                    recurringId = e.recurringId,
-                    createdAt = e.createdAt.toString(),
-                    updatedAt = e.updatedAt.toString(),
-                )
-            },
-            budgets = db.budgetDao().getAll().map { BudgetDto(it.id, it.categoryId, it.limitMinor, it.currency.name) },
-            budgetAlerts = m.allBudgetAlerts().map { BudgetAlertDto(it.budgetId, it.yearMonth, it.level) },
-            recurring = m.allRecurring().map {
-                RecurringDto(
-                    it.id, it.amountMinor, it.currency.name, it.categoryId, it.paymentMethodId, it.comment, it.tags,
-                    it.frequency.name, it.interval, it.dayOfMonth, it.startDate.toString(), it.endDate?.toString(),
-                    it.nextRunDate.toString(), it.active,
-                )
-            },
-            exchangeRates = m.allRates().map {
-                RateDto(it.date.toString(), it.currency.name, it.source.name, it.perEur.toPlainString(), it.fetchedAt.toString())
-            },
-        )
+        // Все чтения — в одной транзакции: иначе запись между запросами (новая категория и расход в ней,
+        // регулярный платёж) даст файл, где расход ссылается на категорию, которой в файле нет.
+        val dto = db.withTransaction {
+            BackupDto(
+                format = BackupDto.FORMAT,
+                version = BackupDto.VERSION,
+                exportedAt = clock.instant().toString(),
+                settings = SettingsDto(s.inputCurrency.name, s.displayCurrency.name, s.defaultPaymentMethodId, s.themeMode.name, s.dynamicColor),
+                categories = db.categoryDao().getAll(true).map {
+                    CategoryDto(it.id, it.name, it.defaultKey, it.iconKey, it.color, it.parentId, it.sortOrder, it.archived)
+                },
+                paymentMethods = db.paymentMethodDao().getAll(true).map {
+                    PaymentMethodDto(it.id, it.name, it.type.name, it.currency?.name, it.defaultKey, it.sortOrder, it.archived)
+                },
+                expenses = db.expenseDao().getAll().map { it.toDomain() }.map { e ->
+                    ExpenseDto(
+                        id = e.id,
+                        amountMinor = e.amount.minor,
+                        currency = e.amount.currency.name,
+                        categoryId = e.categoryId,
+                        paymentMethodId = e.paymentMethodId,
+                        occurredAt = e.occurredAt.toString(),
+                        localDate = e.localDate.toString(),
+                        comment = e.comment,
+                        tags = e.tags,
+                        rates = e.rates?.let { RatesDto(it.rsdPerEur.toPlainString(), it.rubPerEur.toPlainString(), it.date.toString()) },
+                        amountRsdMinor = e.converted?.rsdMinor,
+                        amountEurMinor = e.converted?.eurMinor,
+                        amountRubMinor = e.converted?.rubMinor,
+                        recurringId = e.recurringId,
+                        createdAt = e.createdAt.toString(),
+                        updatedAt = e.updatedAt.toString(),
+                    )
+                },
+                budgets = db.budgetDao().getAll().map { BudgetDto(it.id, it.categoryId, it.limitMinor, it.currency.name) },
+                budgetAlerts = m.allBudgetAlerts().map { BudgetAlertDto(it.budgetId, it.yearMonth, it.level) },
+                recurring = m.allRecurring().map {
+                    RecurringDto(
+                        it.id, it.amountMinor, it.currency.name, it.categoryId, it.paymentMethodId, it.comment, it.tags,
+                        it.frequency.name, it.interval, it.dayOfMonth, it.startDate.toString(), it.endDate?.toString(),
+                        it.nextRunDate.toString(), it.active,
+                    )
+                },
+                exchangeRates = m.allRates().map {
+                    RateDto(it.date.toString(), it.currency.name, it.source.name, it.perEur.toPlainString(), it.fetchedAt.toString())
+                },
+            )
+        }
         out.write(json.encodeToString(BackupDto.serializer(), dto).toByteArray(Charsets.UTF_8))
         out.flush()
     }
@@ -331,16 +339,22 @@ class DataTransferImpl @Inject constructor(
             throw BackupFormatException(Reason.INCONSISTENT, e)
         }
 
-        db.withTransaction {
-            db.maintenanceDao().deleteAll()
-            // Родители раньше подкатегорий — из-за внешнего ключа parent_id.
-            parsed.categories.sortedBy { if (it.parentId == null) 0 else 1 }.forEach { db.categoryDao().upsert(it) }
-            parsed.methods.forEach { db.paymentMethodDao().upsert(it) }
-            parsed.recurring.forEach { db.recurringDao().upsert(it) }
-            parsed.expenses.forEach { db.expenseDao().insertWithTags(it.toEntity(), it.tags) }
-            parsed.budgets.forEach { db.budgetDao().save(it) }
-            parsed.alerts.forEach { db.budgetDao().insertAlert(it) }
-            if (parsed.rates.isNotEmpty()) db.exchangeRateDao().upsert(parsed.rates)
+        try {
+            db.withTransaction {
+                db.maintenanceDao().deleteAll()
+                // Родители раньше подкатегорий — из-за внешнего ключа parent_id.
+                parsed.categories.sortedBy { if (it.parentId == null) 0 else 1 }.forEach { db.categoryDao().upsert(it) }
+                parsed.methods.forEach { db.paymentMethodDao().upsert(it) }
+                parsed.recurring.forEach { db.recurringDao().upsert(it) }
+                parsed.expenses.forEach { db.expenseDao().insertWithTags(it.toEntity(), it.tags) }
+                parsed.budgets.forEach { db.budgetDao().save(it) }
+                parsed.alerts.forEach { db.budgetDao().insertAlert(it) }
+                if (parsed.rates.isNotEmpty()) db.exchangeRateDao().upsert(parsed.rates)
+            }
+        } catch (e: SQLiteConstraintException) {
+            // Известные нарушения ловит parse(); это страховка: транзакция откатилась, данные целы,
+            // и пользователь видит «файл несогласован», а не падение приложения.
+            throw BackupFormatException(Reason.INCONSISTENT, e)
         }
 
         dto.settings.let { s ->
@@ -365,11 +379,16 @@ class DataTransferImpl @Inject constructor(
 
     private fun parse(dto: BackupDto): Parsed {
         fun currency(code: String) = CurrencyCode.valueOf(code)
+        // Повтор id не дошёл бы до проверок ниже: upsert молча склеил бы записи, а insert упал бы на PRIMARY KEY.
+        fun unique(ids: List<Any>) = ids.toSet().also { if (it.size != ids.size) inconsistent() }
+        // Нулевой курс — деление на ноль при пересчёте, отрицательная сумма — отрицательные итоги.
+        fun positive(n: Long) = n.also { if (it <= 0) inconsistent() }
+        fun positive(n: BigDecimal) = n.also { if (it.signum() <= 0) inconsistent() }
 
         val categories = dto.categories.map {
             CategoryEntity(it.id, it.name, it.defaultKey, it.iconKey, it.color, it.parentId, it.sortOrder, it.archived)
         }
-        val categoryIds = categories.map { it.id }.toSet()
+        val categoryIds = unique(categories.map { it.id })
         categories.forEach { c ->
             val parentId = c.parentId ?: return@forEach
             val parent = categories.firstOrNull { it.id == parentId } ?: inconsistent()
@@ -378,22 +397,34 @@ class DataTransferImpl @Inject constructor(
         val methods = dto.paymentMethods.map {
             PaymentMethodEntity(it.id, it.name, PaymentMethodType.valueOf(it.type), it.currency?.let(::currency), it.defaultKey, it.sortOrder, it.archived)
         }
-        val methodIds = methods.map { it.id }.toSet()
+        val methodIds = unique(methods.map { it.id })
         if (categories.none { !it.archived } || methods.none { !it.archived }) inconsistent()
 
         val recurring = dto.recurring.map {
             if (it.categoryId !in categoryIds || it.paymentMethodId !in methodIds) inconsistent()
-            RecurringExpenseEntity(
-                it.id, it.amountMinor, currency(it.currency), it.categoryId, it.paymentMethodId, it.comment, it.tags,
-                Frequency.valueOf(it.frequency), it.interval, it.dayOfMonth, LocalDate.parse(it.startDate),
-                it.endDate?.let(LocalDate::parse), LocalDate.parse(it.nextRunDate), it.active,
-            )
+            // Через доменную модель: её require (interval >= 1, день 1..31) срабатывает здесь, при импорте,
+            // а не при каждом чтении шаблона после него.
+            RecurringExpense(
+                id = it.id,
+                amount = Money(positive(it.amountMinor), currency(it.currency)),
+                categoryId = it.categoryId,
+                paymentMethodId = it.paymentMethodId,
+                comment = it.comment,
+                tags = it.tags,
+                frequency = Frequency.valueOf(it.frequency),
+                interval = it.interval,
+                dayOfMonth = it.dayOfMonth,
+                startDate = LocalDate.parse(it.startDate),
+                endDate = it.endDate?.let(LocalDate::parse),
+                nextRunDate = LocalDate.parse(it.nextRunDate),
+                active = it.active,
+            ).toEntity()
         }
-        val recurringIds = recurring.map { it.id }.toSet()
+        val recurringIds = unique(recurring.map { it.id })
 
         val expenses = dto.expenses.map {
             if (it.categoryId !in categoryIds || it.paymentMethodId !in methodIds) inconsistent()
-            val amount = Money(it.amountMinor, currency(it.currency))
+            val amount = Money(positive(it.amountMinor), currency(it.currency))
             val snapshot = it.rates?.let { r -> RateSnapshot(BigDecimal(r.rsdPerEur), BigDecimal(r.rubPerEur), LocalDate.parse(r.date)) }
             Expense(
                 id = it.id,
@@ -412,17 +443,20 @@ class DataTransferImpl @Inject constructor(
                 updatedAt = Instant.parse(it.updatedAt),
             )
         }
+        unique(expenses.map { it.id })
         val budgets = dto.budgets.map {
             if (it.categoryId !in categoryIds) inconsistent()
-            BudgetEntity(it.id, it.categoryId, it.limitMinor, currency(it.currency))
+            BudgetEntity(it.id, it.categoryId, positive(it.limitMinor), currency(it.currency))
         }
-        val budgetIds = budgets.map { it.id }.toSet()
+        val budgetIds = unique(budgets.map { it.id })
+        // Бюджет на категорию один: второй BudgetDao.save слил бы с первым, и его отметки упали бы на внешнем ключе.
+        unique(budgets.map { it.categoryId })
         val alerts = dto.budgetAlerts.filter { it.budgetId in budgetIds }.map {
             YearMonth.parse(it.yearMonth)
             BudgetAlertEntity(it.budgetId, it.yearMonth, it.level)
         }
         val rates = dto.exchangeRates.map {
-            ExchangeRateEntity(LocalDate.parse(it.date), currency(it.currency), RateSource.valueOf(it.source), BigDecimal(it.perEur), Instant.parse(it.fetchedAt))
+            ExchangeRateEntity(LocalDate.parse(it.date), currency(it.currency), RateSource.valueOf(it.source), positive(BigDecimal(it.perEur)), Instant.parse(it.fetchedAt))
         }
         return Parsed(categories, methods, expenses, budgets, alerts, recurring, rates)
     }
@@ -432,27 +466,46 @@ class DataTransferImpl @Inject constructor(
     // ---------------------------------------------------------------- Файл базы
 
     override suspend fun backupDatabase(out: OutputStream) = withContext(Dispatchers.IO) {
-        // WAL: свежие изменения могут лежать в -wal файле. Checkpoint переносит их в основной файл,
-        // после этого одного .db достаточно для полной копии.
-        db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-        context.getDatabasePath(AppDatabase.NAME).inputStream().use { it.copyTo(out) }
-        out.flush()
+        val source = context.getDatabasePath(AppDatabase.NAME)
+        val dir = File(context.cacheDir, "backup").apply { deleteRecursively(); mkdirs() }
+        val copy = File(dir, AppDatabase.NAME)
+        try {
+            // WAL: свежие изменения лежат в -wal, и checkpoint не всегда может их перенести — открытый
+            // читатель держит старый снимок. Поэтому копируем .db вместе с -wal, держа пишущую транзакцию:
+            // пока она открыта, никто не закоммитит и не сбросит -wal, и пара файлов согласована.
+            db.withTransaction {
+                source.copyTo(copy)
+                File(source.path + "-wal").takeIf { it.exists() }?.copyTo(File(copy.path + "-wal"))
+            }
+            // Копия сама применяет свой -wal; journal_mode=DELETE вливает его в .db и удаляет — получаем один файл.
+            SQLiteDatabase.openDatabase(copy.path, null, SQLiteDatabase.OPEN_READWRITE).use { c ->
+                c.rawQuery("PRAGMA journal_mode=DELETE", null).use { it.moveToFirst() }
+            }
+            copy.inputStream().use { it.copyTo(out) }
+            out.flush()
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 
     override suspend fun restoreDatabase(input: InputStream) = withContext(Dispatchers.IO) {
-        val temp = File(context.cacheDir, "restore.db")
+        val target = context.getDatabasePath(AppDatabase.NAME)
+        // Готовим файл рядом с базой: нехватка места или ошибка записи всплывут, пока живая база ещё открыта,
+        // а в том же каталоге подмена — атомарное переименование, без окна с наполовину записанным файлом.
+        val staged = File(target.path + ".restore")
         try {
-            temp.outputStream().use { input.copyTo(it) }
-            validateBackup(temp)
+            staged.outputStream().use { input.copyTo(it) }
+            validateBackup(staged)
             db.close()
-            val target = context.getDatabasePath(AppDatabase.NAME)
+            // После close SQLite уже перенёс -wal в .db; старые -wal/-shm не должны примениться к новому файлу.
             File(target.path + "-wal").delete()
             File(target.path + "-shm").delete()
-            temp.copyTo(target, overwrite = true)
+            Files.move(staged.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         } finally {
-            temp.delete()
-            File(temp.path + "-wal").delete()
-            File(temp.path + "-shm").delete()
+            staged.delete()
+            File(staged.path + "-wal").delete()
+            File(staged.path + "-shm").delete()
+            File(staged.path + "-journal").delete()
         }
         Unit
     }
@@ -470,8 +523,11 @@ class DataTransferImpl @Inject constructor(
             SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READWRITE).use { backup ->
                 if (backup.version > currentVersion) throw BackupFormatException(Reason.NEWER_VERSION)
                 val hash = backup.rawQuery("SELECT identity_hash FROM room_master_table", null).use { c -> if (c.moveToFirst()) c.getString(0) else null }
-                // Та же версия — схема обязана совпасть. Более старую версию обновят миграции Room при открытии.
+                // Та же версия — схема обязана совпасть.
                 if (hash == null || (backup.version == currentVersion && hash != currentHash)) throw BackupFormatException(Reason.NOT_A_BACKUP)
+                // Более старую версию обновят миграции Room при открытии — но только если цепочка до текущей есть.
+                // Иначе Room упадёт на каждом запуске уже после подмены файла.
+                if (!AppDatabase.hasMigrationPath(backup.version, currentVersion)) throw BackupFormatException(Reason.NOT_A_BACKUP)
                 val integrity = backup.rawQuery("PRAGMA integrity_check", null).use { c -> if (c.moveToFirst()) c.getString(0) else null }
                 if (integrity != "ok") throw BackupFormatException(Reason.INCONSISTENT)
             }

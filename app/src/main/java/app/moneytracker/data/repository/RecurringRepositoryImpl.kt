@@ -3,10 +3,9 @@ package app.moneytracker.data.repository
 import androidx.room.withTransaction
 import app.moneytracker.data.db.AppDatabase
 import app.moneytracker.data.db.dao.RecurringDao
-import app.moneytracker.data.db.entity.RecurringExpenseEntity
+import app.moneytracker.data.db.toDomain
 import app.moneytracker.data.db.toEntity
 import app.moneytracker.domain.model.Expense
-import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.model.RecurringExpense
 import app.moneytracker.domain.repository.RecurringRepository
 import kotlinx.coroutines.flow.Flow
@@ -39,37 +38,4 @@ class RecurringRepositoryImpl @Inject constructor(
             dao.advance(recurringId, nextRunDate, active)
         }
     }
-
-    private fun RecurringExpenseEntity.toDomain() = RecurringExpense(
-        id = id,
-        amount = Money(amountMinor, currency),
-        categoryId = categoryId,
-        paymentMethodId = paymentMethodId,
-        comment = comment,
-        tags = tags,
-        frequency = frequency,
-        interval = interval,
-        dayOfMonth = dayOfMonth,
-        startDate = startDate,
-        endDate = endDate,
-        nextRunDate = nextRunDate,
-        active = active,
-    )
-
-    private fun RecurringExpense.toEntity() = RecurringExpenseEntity(
-        id = id,
-        amountMinor = amount.minor,
-        currency = amount.currency,
-        categoryId = categoryId,
-        paymentMethodId = paymentMethodId,
-        comment = comment,
-        tags = tags,
-        frequency = frequency,
-        interval = interval,
-        dayOfMonth = dayOfMonth,
-        startDate = startDate,
-        endDate = endDate,
-        nextRunDate = nextRunDate,
-        active = active,
-    )
 }

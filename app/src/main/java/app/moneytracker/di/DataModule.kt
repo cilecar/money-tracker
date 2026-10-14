@@ -31,6 +31,7 @@ object DataModule {
     fun database(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
             .addCallback(DatabaseSeeder(context))
+            .addMigrations(*AppDatabase.MIGRATIONS)
             .build()
 
     @Provides fun expenseDao(db: AppDatabase): ExpenseDao = db.expenseDao()

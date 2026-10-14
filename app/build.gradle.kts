@@ -38,6 +38,12 @@ android {
         generateLocaleConfig = true
     }
 
+    sourceSets {
+        // MigrationTestHelper читает экспортированные схемы из assets. Robolectric видит только assets
+        // варианта (mergeDebugAssets), не test, поэтому схемы — в debug: в release-сборку они не попадают.
+        getByName("debug").assets.srcDir("$projectDir/schemas")
+    }
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {

@@ -1,6 +1,7 @@
 package app.moneytracker.data.io
 
 import android.content.Context
+import android.database.sqlite.SQLiteDatabase
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -91,6 +92,35 @@ class DataTransferTest {
 
         fun exportCsv() = ByteArrayOutputStream().also { kotlinx.coroutines.runBlocking { transfer.exportCsv(it) } }.toByteArray()
         fun exportJson() = ByteArrayOutputStream().also { kotlinx.coroutines.runBlocking { transfer.exportJson(it) } }.toByteArray()
+        fun backupDb() = ByteArrayOutputStream().also { kotlinx.coroutines.runBlocking { transfer.backupDatabase(it) } }.toByteArray()
+    }
+
+    private val backupJson = Json { ignoreUnknownKeys = true }
+
+    /** Экспорт с правкой: так собираем «битые» резервные копии. */
+    private fun Env.exportJsonWith(edit: (BackupDto) -> BackupDto): ByteArray {
+        val dto = backupJson.decodeFromString(BackupDto.serializer(), String(exportJson()))
+        return backupJson.encodeToString(BackupDto.serializer(), edit(dto)).toByteArray()
+    }
+
+    private suspend fun Env.assertImportRejected(bytes: ByteArray, reason: BackupFormatException.Reason, what: String) {
+        val before = db.expenseDao().getAll().size
+        try {
+            transfer.importJson(ByteArrayInputStream(bytes))
+            fail("Expected $reason for: $what")
+        } catch (e: BackupFormatException) {
+            assertEquals(what, reason, e.reason)
+        }
+        assertEquals(what, before, db.expenseDao().getAll().size)
+    }
+
+    /** Наполненная база: расход, бюджет с отметкой, регулярный платёж, курс. */
+    private suspend fun filledEnv(fileDb: Boolean = false) = Env(fileDb).apply {
+        add(Money(100, CurrencyCode.EUR), 1, "2026-10-14T10:00:00Z")
+        val budgetId = budgets.upsert(Budget(categoryId = 1, limit = Money(3000000, CurrencyCode.RSD)))
+        budgets.markAlerted(budgetId, java.time.YearMonth.of(2026, 10), app.moneytracker.domain.model.BudgetLevel.WARNING)
+        recurring.upsert(RecurringExpense.create(Money(99900, CurrencyCode.RSD), 9, 1, Frequency.MONTHLY, 1, LocalDate.of(2026, 10, 31)))
+        rateRepo.setManualRate(CurrencyCode.RSD, BigDecimal("117.25"), LocalDate.of(2026, 10, 14))
     }
 
     @After
@@ -245,6 +275,114 @@ class DataTransferTest {
         val garbage = File(context.cacheDir, "garbage.db").apply { writeText("definitely not sqlite") }
         try {
             env.transfer.validateBackup(garbage)
+            fail()
+        } catch (e: BackupFormatException) {
+            assertEquals(BackupFormatException.Reason.NOT_A_BACKUP, e.reason)
+        }
+    }
+
+    @Test
+    fun jsonWithInvalidRecurringIsRejected() = runTest {
+        val env = filledEnv()
+        val inconsistent = BackupFormatException.Reason.INCONSISTENT
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(recurring = d.recurring.map { it.copy(interval = 0) }) }, inconsistent, "interval 0")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(recurring = d.recurring.map { it.copy(dayOfMonth = 40) }) }, inconsistent, "dayOfMonth 40")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(recurring = d.recurring.map { it.copy(amountMinor = 0) }) }, inconsistent, "recurring amount 0")
+    }
+
+    @Test
+    fun jsonWithDuplicateIdsIsRejectedNotCrashing() = runTest {
+        val env = filledEnv()
+        val inconsistent = BackupFormatException.Reason.INCONSISTENT
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(expenses = d.expenses + d.expenses) }, inconsistent, "duplicate expense")
+        env.assertImportRejected(
+            env.exportJsonWith { d -> d.copy(budgets = d.budgets + d.budgets.map { it.copy(id = it.id + 100) }) },
+            inconsistent, "two budgets for one category",
+        )
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(budgets = d.budgets + d.budgets) }, inconsistent, "duplicate budget")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(categories = d.categories + d.categories.last()) }, inconsistent, "duplicate category")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(paymentMethods = d.paymentMethods + d.paymentMethods.last()) }, inconsistent, "duplicate method")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(recurring = d.recurring + d.recurring) }, inconsistent, "duplicate recurring")
+    }
+
+    @Test
+    fun jsonWithNonPositiveNumbersIsRejected() = runTest {
+        val env = filledEnv()
+        val inconsistent = BackupFormatException.Reason.INCONSISTENT
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(exchangeRates = d.exchangeRates.map { it.copy(perEur = "0") }) }, inconsistent, "rate 0")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(exchangeRates = d.exchangeRates.map { it.copy(perEur = "-1") }) }, inconsistent, "rate -1")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(expenses = d.expenses.map { it.copy(amountMinor = -5) }) }, inconsistent, "amount -5")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(expenses = d.expenses.map { it.copy(amountMinor = 0) }) }, inconsistent, "amount 0")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(budgets = d.budgets.map { it.copy(limitMinor = 0) }) }, inconsistent, "limit 0")
+        env.assertImportRejected(
+            env.exportJsonWith { d -> d.copy(expenses = d.expenses.map { it.copy(rates = RatesDto("0", "95", "2026-10-01")) }) },
+            inconsistent, "snapshot rate 0",
+        )
+    }
+
+    @Test
+    fun databaseBackupIncludesDataStuckInWal() = runTest {
+        val env = Env(fileDb = true)
+        env.add(Money(100, CurrencyCode.EUR), 1, "2026-10-14T10:00:00Z")
+        // Читатель держит старый снимок — checkpoint не сможет перенести новые страницы из -wal в .db.
+        val reader = SQLiteDatabase.openDatabase(context.getDatabasePath(AppDatabase.NAME).path, null, SQLiteDatabase.OPEN_READWRITE)
+        try {
+            reader.beginTransactionReadOnly()
+            reader.rawQuery("SELECT count(*) FROM expense", null).use { it.moveToFirst() }
+            env.add(Money(200, CurrencyCode.EUR), 1, "2026-10-14T11:00:00Z")
+            val bytes = env.backupDb()
+            reader.endTransaction()
+
+            val copy = File(context.cacheDir, "wal-copy.db").apply { writeBytes(bytes) }
+            SQLiteDatabase.openDatabase(copy.path, null, SQLiteDatabase.OPEN_READONLY).use { c ->
+                assertEquals(2L, android.database.DatabaseUtils.longForQuery(c, "SELECT count(*) FROM expense", null))
+            }
+        } finally {
+            if (reader.inTransaction()) reader.endTransaction()
+            reader.close()
+        }
+    }
+
+    @Test
+    fun databaseRestoreReplacesData() = runTest {
+        val env = Env(fileDb = true)
+        env.add(Money(100, CurrencyCode.EUR), 1, "2026-10-14T10:00:00Z")
+        val backup = env.backupDb()
+        env.add(Money(200, CurrencyCode.EUR), 1, "2026-10-14T11:00:00Z")
+
+        env.transfer.restoreDatabase(ByteArrayInputStream(backup))
+
+        val reopened = Env(fileDb = true)
+        assertEquals(listOf(100L), reopened.db.expenseDao().getAll().map { it.expense.amountMinor })
+        assertEquals(emptyList<String>(), context.getDatabasePath(AppDatabase.NAME).parentFile!!.list()!!.filter { it.endsWith(".restore") })
+    }
+
+    @Test
+    fun failedDatabaseRestoreKeepsCurrentDatabaseOpen() = runTest {
+        val env = Env(fileDb = true)
+        env.add(Money(100, CurrencyCode.EUR), 1, "2026-10-14T10:00:00Z")
+        val backup = env.backupDb()
+        val dir = context.getDatabasePath(AppDatabase.NAME).parentFile!!
+        // Каталог базы только для чтения — подменить файл не получится (как при нехватке места).
+        dir.setWritable(false)
+        try {
+            env.transfer.restoreDatabase(ByteArrayInputStream(backup))
+            fail("Expected IOException")
+        } catch (_: IOException) {
+        } finally {
+            dir.setWritable(true)
+        }
+        assertTrue(env.db.isOpen)
+        assertEquals(1, env.db.expenseDao().getAll().size)
+    }
+
+    @Test
+    fun olderDatabaseBackupWithoutMigrationIsRejected() = runTest {
+        val env = Env(fileDb = true)
+        val copy = File(context.cacheDir, "old.db").apply { writeBytes(env.backupDb()) }
+        SQLiteDatabase.openDatabase(copy.path, null, SQLiteDatabase.OPEN_READWRITE).use { it.version = 0 }
+        try {
+            env.transfer.validateBackup(copy)
             fail()
         } catch (e: BackupFormatException) {
             assertEquals(BackupFormatException.Reason.NOT_A_BACKUP, e.reason)
