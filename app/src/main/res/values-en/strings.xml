@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Expenses</string>
+
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_later">Later</string>
+
+    <string name="category_food">Eating out</string>
+    <string name="category_groceries">Groceries</string>
+    <string name="category_transport">Transport</string>
+    <string name="category_housing">Housing</string>
+    <string name="category_communication">Phone &amp; internet</string>
+    <string name="category_entertainment">Entertainment</string>
+    <string name="category_health">Health</string>
+    <string name="category_clothes">Clothes</string>
+    <string name="category_subscriptions">Subscriptions</string>
+    <string name="category_other">Other</string>
+
+    <string name="payment_cash">Cash</string>
+
+    <string name="rates_title">Exchange rates</string>
+    <string name="rates_refresh">Refresh</string>
+    <string name="rates_updated">Rates updated</string>
+    <string name="rates_as_of">Rates as of %1$s</string>
+    <string name="rates_last_sync">Downloaded: %1$s</string>
+    <string name="rates_never_synced">Never downloaded</string>
+    <string name="rates_source_primary">currency-api</string>
+    <string name="rates_source_fallback">open.er-api.com</string>
+    <string name="rates_source_manual">Manual</string>
+    <string name="rates_cross">Cross rate via EUR</string>
+    <string name="rates_enter_manually">Enter manually</string>
+    <string name="rates_reset_manual">Reset</string>
+    <string name="rates_manual_title">Manual rate</string>
+    <string name="rates_one_eur_in">1 EUR in %1$s</string>
+    <string name="rates_manual_hint">A manual rate applies until a rate for a later date is downloaded. Existing expenses are not recalculated.</string>
+    <string name="rates_empty_title">No rates yet</string>
+    <string name="rates_empty_text">Download rates or enter them manually. You can add expenses without rates — they will be converted once rates are available.</string>
+    <string name="rates_error_network">No connection. Using saved rates</string>
+    <string name="rates_error_bad_response">The rates service returned invalid data</string>
+    <string name="rates_prompt_title">Couldn\'t load exchange rates</string>
+    <string name="rates_prompt_text">Looks like you\'re offline. Enter a rate manually or just add expenses now — conversions will be filled in once rates are downloaded.</string>
+    <string name="rates_manual_first_launch">How many dinars and rubles is 1 euro?</string>
+
+    <string name="action_undo">Undo</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_search">Search</string>
+    <string name="action_filter">Filters</string>
+    <string name="action_close">Close</string>
+    <string name="action_clear">Clear</string>
+
+    <string name="nav_expenses">Expenses</string>
+    <string name="nav_analytics">Analytics</string>
+    <string name="nav_budgets">Budgets</string>
+    <string name="nav_more">More</string>
+
+    <string name="expenses_empty">No expenses yet.\nTap “+” to add the first one.</string>
+    <string name="expenses_not_found">Nothing found</string>
+    <string name="expense_deleted">Expense deleted</string>
+    <string name="search_hint">Comment or tag</string>
+    <string name="day_today">Today</string>
+    <string name="day_yesterday">Yesterday</string>
+    <plurals name="expenses_found">
+        <item quantity="one">%1$d expense found</item>
+        <item quantity="other">%1$d expenses found</item>
+    </plurals>
+    <plurals name="expenses_without_rates">
+        <item quantity="one">+ %1$d expense without rate (not counted)</item>
+        <item quantity="other">+ %1$d expenses without rate (not counted)</item>
+    </plurals>
+
+    <string name="filter_period">Period</string>
+    <string name="filter_this_month">This month</string>
+    <string name="filter_last_month">Last month</string>
+    <string name="filter_this_year">This year</string>
+    <string name="filter_custom_period">Pick dates…</string>
+    <string name="filter_categories">Categories</string>
+    <string name="filter_payment_methods">Payment methods</string>
+    <string name="filter_tags">Tags</string>
+    <string name="filter_amount">Amount, %1$s</string>
+    <string name="filter_from">from</string>
+    <string name="filter_to">to</string>
+    <string name="filter_reset">Reset</string>
+    <string name="filter_apply">Apply</string>
+
+    <string name="expense_new">New expense</string>
+    <string name="expense_edit">Edit expense</string>
+    <string name="expense_comment">Comment</string>
+    <string name="expense_tags">Tags (comma-separated)</string>
+    <string name="expense_all_categories">All</string>
+    <string name="expense_no_rates">No rates yet — will convert later</string>
+    <string name="expense_no_rate_short">no rate</string>
+    <string name="keypad_backspace">Delete</string>
+
+    <string name="action_archive">Archive</string>
+    <string name="action_restore">Restore</string>
+    <string name="archive_title">Archive (%1$d)</string>
+    <string name="error_empty_name">Enter a name</string>
+    <string name="error_duplicate_name">This name is already taken</string>
+    <string name="delete_move_and_delete">Move and delete</string>
+    <string name="delete_choose_target">Choose where to move the expenses</string>
+    <string name="delete_budget_removed">The category budget will be deleted.</string>
+    <plurals name="delete_has_expenses">
+        <item quantity="one">%1$d record uses it. Where should it go?</item>
+        <item quantity="other">%1$d records use it. Where should they go?</item>
+    </plurals>
+
+    <string name="categories_title">Categories</string>
+    <string name="category_new">New category</string>
+    <string name="category_edit">Category</string>
+    <string name="category_add_sub">Add subcategory</string>
+    <string name="category_name">Name</string>
+    <string name="category_parent">Parent category</string>
+    <string name="category_no_parent">None (top level)</string>
+    <string name="category_parent_disabled">This category has subcategories, so it can\'t be nested</string>
+    <string name="category_color">Color</string>
+    <string name="category_icon">Icon</string>
+    <string name="category_delete_title">Delete “%1$s”?</string>
+    <string name="category_error_parent">Only a top-level category can be a parent</string>
+    <string name="category_error_has_children">Delete or move its subcategories first. You can archive it together with them instead.</string>
+    <string name="category_error_last">At least one active category must remain</string>
+    <plurals name="subcategories_count">
+        <item quantity="one">%1$d subcategory</item>
+        <item quantity="other">%1$d subcategories</item>
+    </plurals>
+
+    <string name="payment_methods_title">Payment methods</string>
+    <string name="payment_method_new">New payment method</string>
+    <string name="payment_method_edit">Payment method</string>
+    <string name="payment_method_name">Name</string>
+    <string name="payment_method_currency">Currency</string>
+    <string name="payment_method_any_currency">Any</string>
+    <string name="payment_method_currency_hint">Choosing this method sets the expense currency automatically</string>
+    <string name="payment_method_default">default</string>
+    <string name="payment_method_delete_title">Delete “%1$s”?</string>
+    <string name="payment_method_error_last">At least one active payment method must remain</string>
+    <string name="payment_type_cash">Cash</string>
+    <string name="payment_type_card">Card</string>
+    <string name="payment_type_transfer">Transfer</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_default_payment">Default payment method</string>
+    <string name="settings_default_payment_first">First in the list</string>
+    <string name="settings_input_currency">Input currency</string>
+    <string name="settings_input_currency_hint">Remembered from your last expense. A card\'s currency takes priority.</string>
+    <string name="settings_display_currency">Display currency</string>
+    <string name="settings_display_currency_hint">Used for totals and charts</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_dynamic_color">Wallpaper colors</string>
+    <string name="settings_dynamic_color_hint">Material You: palette follows your wallpaper</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_hint">Russian or English — in the system app settings</string>
+
+    <string name="period_week">Week</string>
+    <string name="period_month">Month</string>
+    <string name="period_year">Year</string>
+    <string name="period_custom">Custom</string>
+    <string name="period_previous">Previous period</string>
+    <string name="period_next">Next period</string>
+    <string name="analytics_empty">No expenses in this period</string>
+    <string name="analytics_total">Total</string>
+    <string name="analytics_change">%1$s vs previous period (%2$s)</string>
+    <string name="analytics_change_to_date">%1$s vs previous period to date (%2$s)</string>
+    <string name="analytics_per_day">%1$s per day on average</string>
+    <string name="analytics_by_time">Spending over time</string>
+    <string name="analytics_by_category">By category</string>
+    <string name="analytics_by_payment">By payment method</string>
+    <string name="analytics_comparison">Compared with previous period</string>
+    <string name="analytics_new">new</string>
+
+    <string name="budgets_empty">No budgets yet.\nTap “+” to set a monthly limit for a category.</string>
+    <string name="budget_new">New budget</string>
+    <string name="budget_edit">Budget</string>
+    <string name="budget_category">Category</string>
+    <string name="budget_limit">Monthly limit</string>
+    <string name="budget_hint">A category budget includes its subcategories. You\'ll be notified at 80% and 100%.</string>
+    <string name="budget_spent_of">%1$s of %2$s</string>
+    <string name="budget_remaining">%1$s left</string>
+    <string name="budget_per_day">~%1$s per day</string>
+    <string name="budget_over">Over by %1$s</string>
+    <string name="notification_channel_budgets">Budgets</string>
+    <string name="notification_channel_budgets_description">Alerts when you approach or exceed a limit</string>
+    <string name="notification_budget_warning">“%1$s”: 80%% of budget spent</string>
+    <string name="notification_budget_exceeded">“%1$s”: budget exceeded</string>
+    <string name="notification_budget_text">%1$s of %2$s this month</string>
+
+    <string name="recurring_title">Recurring expenses</string>
+    <string name="recurring_new">New recurring expense</string>
+    <string name="recurring_edit">Recurring expense</string>
+    <string name="recurring_empty">Subscriptions, rent, phone —\nadd them once and expenses will be created automatically.</string>
+    <string name="recurring_amount">Amount</string>
+    <string name="recurring_choose_category">Choose a category</string>
+    <string name="recurring_schedule">Schedule</string>
+    <string name="recurring_every">Repeat every N</string>
+    <string name="recurring_start">From %1$s</string>
+    <string name="recurring_end">Until %1$s</string>
+    <string name="recurring_no_end">No end date</string>
+    <string name="recurring_end_before_start">End date is before start date</string>
+    <string name="recurring_past_start_hint">Start date is in the past: missed payments will be added right away.</string>
+    <string name="recurring_name">Name (e.g. “Netflix”)</string>
+    <string name="recurring_next">Next: %1$s</string>
+    <string name="recurring_paused">Paused</string>
+    <string name="recurring_finished">Finished</string>
+    <string name="frequency_daily">Day</string>
+    <string name="frequency_weekly">Week</string>
+    <string name="frequency_monthly">Month</string>
+    <string name="frequency_yearly">Year</string>
+    <string name="schedule_every_day">Every day</string>
+    <string name="schedule_every_week">Every week</string>
+    <string name="schedule_every_month">Every month</string>
+    <string name="schedule_every_year">Every year</string>
+    <string name="schedule_day_of_month">on day %1$d</string>
+    <plurals name="schedule_days">
+        <item quantity="one">Every day</item>
+        <item quantity="other">Every %1$d days</item>
+    </plurals>
+    <plurals name="schedule_weeks">
+        <item quantity="one">Every week</item>
+        <item quantity="other">Every %1$d weeks</item>
+    </plurals>
+    <plurals name="schedule_months">
+        <item quantity="one">Every month</item>
+        <item quantity="other">Every %1$d months</item>
+    </plurals>
+    <plurals name="schedule_years">
+        <item quantity="one">Every year</item>
+        <item quantity="other">Every %1$d years</item>
+    </plurals>
+
+    <string name="data_title">Import &amp; export</string>
+    <string name="data_section_export">Export</string>
+    <string name="data_section_import">Import</string>
+    <string name="data_section_backup">Backup</string>
+    <string name="data_export_csv">Expenses to CSV</string>
+    <string name="data_export_csv_hint">For Excel and Google Sheets</string>
+    <string name="data_export_json">All data to JSON</string>
+    <string name="data_export_json_hint">Expenses, categories, budgets, recurring payments, rates and settings</string>
+    <string name="data_import_csv">Add expenses from CSV</string>
+    <string name="data_import_csv_hint">Requires date, amount, currency, category columns. Duplicates are skipped</string>
+    <string name="data_import_json">Restore from JSON</string>
+    <string name="data_import_json_hint">Replaces all current data</string>
+    <string name="data_backup">Save database copy</string>
+    <string name="data_backup_hint">The whole database file — the most reliable backup</string>
+    <string name="data_restore">Restore database copy</string>
+    <string name="data_restore_hint">Replaces all data, the app will restart</string>
+    <string name="data_replace_title">Replace all data?</string>
+    <string name="data_replace_text">Current expenses, categories and settings will be replaced with the file contents. If unsure, save a copy first.</string>
+    <string name="data_choose_file">Choose file</string>
+    <string name="data_done">Done</string>
+    <string name="data_failed">Something went wrong</string>
+    <string name="data_restart">Restart</string>
+    <string name="data_exported">File saved</string>
+    <plurals name="data_exported_expenses">
+        <item quantity="one">%1$d expense exported</item>
+        <item quantity="other">%1$d expenses exported</item>
+    </plurals>
+    <string name="data_json_imported">Restored. Expenses: %1$d, categories: %2$d, budgets: %3$d, recurring: %4$d</string>
+    <plurals name="data_csv_imported">
+        <item quantity="one">%1$d expense added</item>
+        <item quantity="other">%1$d expenses added</item>
+    </plurals>
+    <plurals name="data_csv_duplicates">
+        <item quantity="one">%1$d duplicate skipped</item>
+        <item quantity="other">%1$d duplicates skipped</item>
+    </plurals>
+    <string name="data_csv_created_categories">Categories created: %1$d</string>
+    <string name="data_csv_created_methods">Payment methods created: %1$d</string>
+    <plurals name="data_csv_errors">
+        <item quantity="one">%1$d row with an error:</item>
+        <item quantity="other">%1$d rows with errors:</item>
+    </plurals>
+    <string name="data_csv_error_line">line %1$d — %2$s</string>
+    <string name="csv_error_date">unrecognized date</string>
+    <string name="csv_error_amount">invalid amount</string>
+    <string name="csv_error_currency">currency is not RSD/EUR/RUB</string>
+    <string name="csv_error_category">no category</string>
+    <string name="csv_error_rate">invalid rate</string>
+    <string name="data_restored">Database copy restored. The app will restart.</string>
+    <string name="data_error_not_backup">This is not a backup of this app</string>
+    <string name="data_error_newer">The file was created by a newer app version — please update</string>
+    <string name="data_error_inconsistent">The file is damaged or incomplete. Your data was not changed</string>
+    <string name="data_error_no_header">The CSV lacks required columns: date, amount, currency, category</string>
+    <string name="data_error_io">Couldn\'t read or write the file</string>
+
+    <string name="widget_name">Monthly spending</string>
+    <string name="widget_description">Current month total and quick expense entry</string>
+</resources>

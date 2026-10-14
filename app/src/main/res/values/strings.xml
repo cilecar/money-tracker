@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Расходы</string>
+
+    <string name="action_save">Сохранить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_later">Позже</string>
+
+    <!-- Категории по умолчанию -->
+    <string name="category_food">Еда</string>
+    <string name="category_groceries">Продукты</string>
+    <string name="category_transport">Транспорт</string>
+    <string name="category_housing">Жильё</string>
+    <string name="category_communication">Связь</string>
+    <string name="category_entertainment">Развлечения</string>
+    <string name="category_health">Здоровье</string>
+    <string name="category_clothes">Одежда</string>
+    <string name="category_subscriptions">Подписки</string>
+    <string name="category_other">Другое</string>
+
+    <!-- Способы оплаты по умолчанию -->
+    <string name="payment_cash">Наличные</string>
+
+    <!-- Курсы валют -->
+    <string name="rates_title">Курсы валют</string>
+    <string name="rates_refresh">Обновить</string>
+    <string name="rates_updated">Курсы обновлены</string>
+    <string name="rates_as_of">Курс от %1$s</string>
+    <string name="rates_last_sync">Загружено: %1$s</string>
+    <string name="rates_never_synced">Из сети ещё не загружались</string>
+    <string name="rates_source_primary">currency-api</string>
+    <string name="rates_source_fallback">open.er-api.com</string>
+    <string name="rates_source_manual">Вручную</string>
+    <string name="rates_cross">Кросс-курс через EUR</string>
+    <string name="rates_enter_manually">Ввести вручную</string>
+    <string name="rates_reset_manual">Сбросить</string>
+    <string name="rates_manual_title">Курс вручную</string>
+    <string name="rates_one_eur_in">1 EUR в %1$s</string>
+    <string name="rates_manual_hint">Ручной курс действует, пока из сети не придёт курс на более позднюю дату. Уже добавленные расходы не пересчитываются.</string>
+    <string name="rates_empty_title">Курсов пока нет</string>
+    <string name="rates_empty_text">Загрузите курсы из сети или введите вручную. Расходы можно добавлять и без курсов — они пересчитаются, когда курсы появятся.</string>
+    <string name="rates_error_network">Нет соединения. Работаем на сохранённых курсах</string>
+    <string name="rates_error_bad_response">Сервис курсов вернул некорректные данные</string>
+    <string name="rates_prompt_title">Не удалось загрузить курсы</string>
+    <string name="rates_prompt_text">Похоже, нет интернета. Можно ввести курс вручную или добавить расходы сейчас — суммы в других валютах посчитаются, когда курсы загрузятся.</string>
+    <string name="rates_manual_first_launch">Сколько динаров и рублей стоит 1 евро?</string>
+
+    <string name="action_undo">Отменить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_remove">Убрать</string>
+    <string name="action_search">Поиск</string>
+    <string name="action_filter">Фильтры</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_clear">Очистить</string>
+
+    <!-- Навигация -->
+    <string name="nav_expenses">Расходы</string>
+    <string name="nav_analytics">Аналитика</string>
+    <string name="nav_budgets">Бюджеты</string>
+    <string name="nav_more">Ещё</string>
+
+    <!-- Список расходов -->
+    <string name="expenses_empty">Пока нет расходов.\nНажмите «+», чтобы добавить первый.</string>
+    <string name="expenses_not_found">Ничего не найдено</string>
+    <string name="expense_deleted">Расход удалён</string>
+    <string name="search_hint">Комментарий или тег</string>
+    <string name="day_today">Сегодня</string>
+    <string name="day_yesterday">Вчера</string>
+    <plurals name="expenses_found">
+        <item quantity="one">Найден %1$d расход</item>
+        <item quantity="few">Найдено %1$d расхода</item>
+        <item quantity="many">Найдено %1$d расходов</item>
+        <item quantity="other">Найдено %1$d расхода</item>
+    </plurals>
+    <plurals name="expenses_without_rates">
+        <item quantity="one">+ %1$d расход без курса (не учтён)</item>
+        <item quantity="few">+ %1$d расхода без курса (не учтены)</item>
+        <item quantity="many">+ %1$d расходов без курса (не учтены)</item>
+        <item quantity="other">+ %1$d расхода без курса (не учтены)</item>
+    </plurals>
+
+    <!-- Фильтры -->
+    <string name="filter_period">Период</string>
+    <string name="filter_this_month">Этот месяц</string>
+    <string name="filter_last_month">Прошлый месяц</string>
+    <string name="filter_this_year">Этот год</string>
+    <string name="filter_custom_period">Выбрать даты…</string>
+    <string name="filter_categories">Категории</string>
+    <string name="filter_payment_methods">Способы оплаты</string>
+    <string name="filter_tags">Теги</string>
+    <string name="filter_amount">Сумма, %1$s</string>
+    <string name="filter_from">от</string>
+    <string name="filter_to">до</string>
+    <string name="filter_reset">Сбросить</string>
+    <string name="filter_apply">Применить</string>
+
+    <!-- Добавление расхода -->
+    <string name="expense_new">Новый расход</string>
+    <string name="expense_edit">Редактирование</string>
+    <string name="expense_comment">Комментарий</string>
+    <string name="expense_tags">Теги (через запятую)</string>
+    <string name="expense_all_categories">Все</string>
+    <string name="expense_no_rates">Курсов пока нет — пересчитаем позже</string>
+    <string name="expense_no_rate_short">без курса</string>
+    <string name="keypad_backspace">Стереть</string>
+
+    <string name="action_archive">В архив</string>
+    <string name="action_restore">Вернуть из архива</string>
+    <string name="archive_title">Архив (%1$d)</string>
+    <string name="error_empty_name">Введите название</string>
+    <string name="error_duplicate_name">Такое название уже есть</string>
+    <string name="delete_move_and_delete">Перенести и удалить</string>
+    <string name="delete_choose_target">Выберите, куда перенести расходы</string>
+    <string name="delete_budget_removed">Бюджет категории будет удалён.</string>
+    <plurals name="delete_has_expenses">
+        <item quantity="one">На неё ссылается %1$d запись. Куда её перенести?</item>
+        <item quantity="few">На неё ссылаются %1$d записи. Куда их перенести?</item>
+        <item quantity="many">На неё ссылаются %1$d записей. Куда их перенести?</item>
+        <item quantity="other">На неё ссылаются %1$d записи. Куда их перенести?</item>
+    </plurals>
+
+    <!-- Категории -->
+    <string name="categories_title">Категории</string>
+    <string name="category_new">Новая категория</string>
+    <string name="category_edit">Категория</string>
+    <string name="category_add_sub">Добавить подкатегорию</string>
+    <string name="category_name">Название</string>
+    <string name="category_parent">Входит в категорию</string>
+    <string name="category_no_parent">Нет (верхний уровень)</string>
+    <string name="category_parent_disabled">У категории есть подкатегории — вложить её нельзя</string>
+    <string name="category_color">Цвет</string>
+    <string name="category_icon">Иконка</string>
+    <string name="category_delete_title">Удалить «%1$s»?</string>
+    <string name="category_error_parent">Можно выбрать только категорию верхнего уровня</string>
+    <string name="category_error_has_children">Сначала удалите или перенесите подкатегории. Можно отправить категорию в архив вместе с ними.</string>
+    <string name="category_error_last">Должна остаться хотя бы одна активная категория</string>
+    <plurals name="subcategories_count">
+        <item quantity="one">%1$d подкатегория</item>
+        <item quantity="few">%1$d подкатегории</item>
+        <item quantity="many">%1$d подкатегорий</item>
+        <item quantity="other">%1$d подкатегории</item>
+    </plurals>
+
+    <!-- Способы оплаты -->
+    <string name="payment_methods_title">Способы оплаты</string>
+    <string name="payment_method_new">Новый способ оплаты</string>
+    <string name="payment_method_edit">Способ оплаты</string>
+    <string name="payment_method_name">Название</string>
+    <string name="payment_method_currency">Валюта</string>
+    <string name="payment_method_any_currency">Любая</string>
+    <string name="payment_method_currency_hint">При выборе этого способа валюта подставится в расход автоматически</string>
+    <string name="payment_method_default">по умолчанию</string>
+    <string name="payment_method_delete_title">Удалить «%1$s»?</string>
+    <string name="payment_method_error_last">Должен остаться хотя бы один активный способ оплаты</string>
+    <string name="payment_type_cash">Наличные</string>
+    <string name="payment_type_card">Карта</string>
+    <string name="payment_type_transfer">Перевод</string>
+
+    <!-- Настройки -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_default_payment">Способ оплаты по умолчанию</string>
+    <string name="settings_default_payment_first">Первый в списке</string>
+    <string name="settings_input_currency">Валюта ввода</string>
+    <string name="settings_input_currency_hint">Запоминается автоматически по последнему расходу. Валюта карты важнее.</string>
+    <string name="settings_display_currency">Валюта отображения</string>
+    <string name="settings_display_currency_hint">В ней показываются итоги и графики</string>
+    <string name="settings_theme">Тема</string>
+    <string name="theme_system">Системная</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="settings_dynamic_color">Цвета обоев</string>
+    <string name="settings_dynamic_color_hint">Material You: палитра подстраивается под обои</string>
+    <string name="settings_language">Язык</string>
+    <string name="settings_language_hint">Русский или английский — в системных настройках приложения</string>
+
+    <!-- Аналитика -->
+    <string name="period_week">Неделя</string>
+    <string name="period_month">Месяц</string>
+    <string name="period_year">Год</string>
+    <string name="period_custom">Период</string>
+    <string name="period_previous">Предыдущий период</string>
+    <string name="period_next">Следующий период</string>
+    <string name="analytics_empty">За этот период расходов нет</string>
+    <string name="analytics_total">Всего</string>
+    <string name="analytics_change">%1$s к прошлому периоду (%2$s)</string>
+    <string name="analytics_change_to_date">%1$s к прошлому периоду на это же число (%2$s)</string>
+    <string name="analytics_per_day">В среднем %1$s в день</string>
+    <string name="analytics_by_time">Расходы по времени</string>
+    <string name="analytics_by_category">По категориям</string>
+    <string name="analytics_by_payment">По способам оплаты</string>
+    <string name="analytics_comparison">Сравнение с прошлым периодом</string>
+    <string name="analytics_new">новое</string>
+
+    <!-- Бюджеты -->
+    <string name="budgets_empty">Бюджетов пока нет.\nНажмите «+», чтобы задать месячный лимит для категории.</string>
+    <string name="budget_new">Новый бюджет</string>
+    <string name="budget_edit">Бюджет</string>
+    <string name="budget_category">Категория</string>
+    <string name="budget_limit">Лимит в месяц</string>
+    <string name="budget_hint">Бюджет категории включает её подкатегории. Уведомим при 80% и 100%.</string>
+    <string name="budget_spent_of">%1$s из %2$s</string>
+    <string name="budget_remaining">Осталось %1$s</string>
+    <string name="budget_per_day">~%1$s в день</string>
+    <string name="budget_over">Перерасход %1$s</string>
+    <string name="notification_channel_budgets">Бюджеты</string>
+    <string name="notification_channel_budgets_description">Предупреждения о приближении к лимиту и его превышении</string>
+    <string name="notification_budget_warning">«%1$s»: потрачено 80%% бюджета</string>
+    <string name="notification_budget_exceeded">«%1$s»: бюджет превышен</string>
+    <string name="notification_budget_text">%1$s из %2$s в этом месяце</string>
+
+    <!-- Регулярные расходы -->
+    <string name="recurring_title">Регулярные расходы</string>
+    <string name="recurring_new">Новый регулярный расход</string>
+    <string name="recurring_edit">Регулярный расход</string>
+    <string name="recurring_empty">Подписки, аренда, связь —\nдобавьте их один раз, и расходы будут создаваться сами.</string>
+    <string name="recurring_amount">Сумма</string>
+    <string name="recurring_choose_category">Выберите категорию</string>
+    <string name="recurring_schedule">Расписание</string>
+    <string name="recurring_every">Повторять каждые N</string>
+    <string name="recurring_start">С %1$s</string>
+    <string name="recurring_end">По %1$s</string>
+    <string name="recurring_no_end">Без даты окончания</string>
+    <string name="recurring_end_before_start">Дата окончания раньше даты начала</string>
+    <string name="recurring_past_start_hint">Дата начала в прошлом: пропущенные платежи будут добавлены сразу.</string>
+    <string name="recurring_name">Название (например, «Netflix»)</string>
+    <string name="recurring_next">Следующий: %1$s</string>
+    <string name="recurring_paused">На паузе</string>
+    <string name="recurring_finished">Завершён</string>
+    <string name="frequency_daily">День</string>
+    <string name="frequency_weekly">Неделя</string>
+    <string name="frequency_monthly">Месяц</string>
+    <string name="frequency_yearly">Год</string>
+    <string name="schedule_every_day">Каждый день</string>
+    <string name="schedule_every_week">Каждую неделю</string>
+    <string name="schedule_every_month">Каждый месяц</string>
+    <string name="schedule_every_year">Каждый год</string>
+    <string name="schedule_day_of_month">%1$d-го числа</string>
+    <plurals name="schedule_days">
+        <item quantity="one">Каждый %1$d-й день</item>
+        <item quantity="few">Каждые %1$d дня</item>
+        <item quantity="many">Каждые %1$d дней</item>
+        <item quantity="other">Каждые %1$d дня</item>
+    </plurals>
+    <plurals name="schedule_weeks">
+        <item quantity="one">Каждую %1$d-ю неделю</item>
+        <item quantity="few">Каждые %1$d недели</item>
+        <item quantity="many">Каждые %1$d недель</item>
+        <item quantity="other">Каждые %1$d недели</item>
+    </plurals>
+    <plurals name="schedule_months">
+        <item quantity="one">Каждый %1$d-й месяц</item>
+        <item quantity="few">Каждые %1$d месяца</item>
+        <item quantity="many">Каждые %1$d месяцев</item>
+        <item quantity="other">Каждые %1$d месяца</item>
+    </plurals>
+    <plurals name="schedule_years">
+        <item quantity="one">Каждый %1$d-й год</item>
+        <item quantity="few">Каждые %1$d года</item>
+        <item quantity="many">Каждые %1$d лет</item>
+        <item quantity="other">Каждые %1$d года</item>
+    </plurals>
+
+    <!-- Данные -->
+    <string name="data_title">Импорт и экспорт</string>
+    <string name="data_section_export">Экспорт</string>
+    <string name="data_section_import">Импорт</string>
+    <string name="data_section_backup">Резервная копия</string>
+    <string name="data_export_csv">Расходы в CSV</string>
+    <string name="data_export_csv_hint">Для Excel и Google Таблиц</string>
+    <string name="data_export_json">Все данные в JSON</string>
+    <string name="data_export_json_hint">Расходы, категории, бюджеты, регулярные платежи, курсы и настройки</string>
+    <string name="data_import_csv">Добавить расходы из CSV</string>
+    <string name="data_import_csv_hint">Нужны колонки date, amount, currency, category. Дубли пропускаются</string>
+    <string name="data_import_json">Восстановить из JSON</string>
+    <string name="data_import_json_hint">Заменяет все текущие данные</string>
+    <string name="data_backup">Сохранить копию базы</string>
+    <string name="data_backup_hint">Файл базы целиком — самый надёжный бэкап</string>
+    <string name="data_restore">Восстановить из копии базы</string>
+    <string name="data_restore_hint">Заменяет все данные, приложение перезапустится</string>
+    <string name="data_replace_title">Заменить все данные?</string>
+    <string name="data_replace_text">Текущие расходы, категории и настройки будут заменены содержимым файла. Если не уверены, сначала сохраните копию.</string>
+    <string name="data_choose_file">Выбрать файл</string>
+    <string name="data_done">Готово</string>
+    <string name="data_failed">Не получилось</string>
+    <string name="data_restart">Перезапустить</string>
+    <string name="data_exported">Файл сохранён</string>
+    <plurals name="data_exported_expenses">
+        <item quantity="one">Выгружен %1$d расход</item>
+        <item quantity="few">Выгружено %1$d расхода</item>
+        <item quantity="many">Выгружено %1$d расходов</item>
+        <item quantity="other">Выгружено %1$d расхода</item>
+    </plurals>
+    <string name="data_json_imported">Восстановлено: расходов — %1$d, категорий — %2$d, бюджетов — %3$d, регулярных — %4$d</string>
+    <plurals name="data_csv_imported">
+        <item quantity="one">Добавлен %1$d расход</item>
+        <item quantity="few">Добавлено %1$d расхода</item>
+        <item quantity="many">Добавлено %1$d расходов</item>
+        <item quantity="other">Добавлено %1$d расхода</item>
+    </plurals>
+    <plurals name="data_csv_duplicates">
+        <item quantity="one">Пропущен %1$d дубль</item>
+        <item quantity="few">Пропущено %1$d дубля</item>
+        <item quantity="many">Пропущено %1$d дублей</item>
+        <item quantity="other">Пропущено %1$d дубля</item>
+    </plurals>
+    <string name="data_csv_created_categories">Создано категорий: %1$d</string>
+    <string name="data_csv_created_methods">Создано способов оплаты: %1$d</string>
+    <plurals name="data_csv_errors">
+        <item quantity="one">%1$d строка с ошибкой:</item>
+        <item quantity="few">%1$d строки с ошибками:</item>
+        <item quantity="many">%1$d строк с ошибками:</item>
+        <item quantity="other">%1$d строки с ошибками:</item>
+    </plurals>
+    <string name="data_csv_error_line">строка %1$d — %2$s</string>
+    <string name="csv_error_date">непонятная дата</string>
+    <string name="csv_error_amount">неверная сумма</string>
+    <string name="csv_error_currency">валюта не RSD/EUR/RUB</string>
+    <string name="csv_error_category">нет категории</string>
+    <string name="csv_error_rate">неверный курс</string>
+    <string name="data_restored">Копия базы восстановлена. Приложение перезапустится.</string>
+    <string name="data_error_not_backup">Это не резервная копия этого приложения</string>
+    <string name="data_error_newer">Файл создан более новой версией приложения — обновите приложение</string>
+    <string name="data_error_inconsistent">Файл повреждён или неполный. Текущие данные не изменены</string>
+    <string name="data_error_no_header">В CSV нет обязательных колонок: date, amount, currency, category</string>
+    <string name="data_error_io">Не удалось прочитать или записать файл</string>
+
+    <!-- Виджет -->
+    <string name="widget_name">Расходы за месяц</string>
+    <string name="widget_description">Сумма за текущий месяц и быстрое добавление расхода</string>
+</resources>
