@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
 /** id = 0 — новый расход. */
 @Serializable data class ExpenseEditRoute(val id: Long = 0)
 @Serializable data object CategoriesRoute
-@Serializable data object PaymentMethodsRoute
+@Serializable data object AccountsRoute
 @Serializable data object SettingsRoute
 
 /** id = 0 — новая категория; parentId != 0 — сразу как подкатегория. */
@@ -23,7 +23,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class FilteredExpensesRoute(
     val categoryId: Long = 0,
-    val paymentMethodId: Long = 0,
+    val accountId: Long = 0,
     val fromEpochDay: Long,
     val toEpochDay: Long,
 )

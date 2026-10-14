@@ -125,12 +125,12 @@ fun FilterSheet(
                 }
             }
 
-            Section(stringResource(R.string.filter_payment_methods))
+            Section(stringResource(R.string.filter_accounts))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.paymentMethods.forEach { m ->
+                state.accounts.forEach { m ->
                     FilterChip(
-                        selected = m.id in draft.paymentMethodIds,
-                        onClick = { draft = draft.copy(paymentMethodIds = draft.paymentMethodIds.toggle(m.id)) },
+                        selected = m.id in draft.accountIds,
+                        onClick = { draft = draft.copy(accountIds = draft.accountIds.toggle(m.id)) },
                         label = { Text(m.displayName()) },
                         leadingIcon = { Icon(CategoryIcons.forPaymentType(m.type), null, Modifier.size(18.dp)) },
                     )

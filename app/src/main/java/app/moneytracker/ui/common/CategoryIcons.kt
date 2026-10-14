@@ -44,7 +44,7 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.Work
 import androidx.compose.ui.graphics.vector.ImageVector
-import app.moneytracker.domain.model.PaymentMethodType
+import app.moneytracker.domain.model.AccountType
 
 /**
  * В БД хранится строковый ключ иконки, а не ресурс/ImageVector: ключ стабилен
@@ -95,9 +95,9 @@ object CategoryIcons {
 
     fun forKey(key: String): ImageVector = all[key] ?: Icons.Filled.MoreHoriz
 
-    fun forPaymentType(type: PaymentMethodType): ImageVector = when (type) {
-        PaymentMethodType.CASH -> Icons.Filled.Payments
-        PaymentMethodType.CARD -> Icons.Filled.CreditCard
-        PaymentMethodType.TRANSFER -> Icons.Filled.SwapHoriz
+    fun forPaymentType(type: AccountType): ImageVector = when (type) {
+        AccountType.CASH -> Icons.Filled.Payments
+        AccountType.CARD -> Icons.Filled.CreditCard
+        AccountType.TRANSFER -> Icons.Filled.SwapHoriz
     }
 }

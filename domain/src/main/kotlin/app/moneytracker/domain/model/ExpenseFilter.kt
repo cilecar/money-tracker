@@ -6,7 +6,7 @@ data class ExpenseFilter(
     /** Поиск по комментарию и тегам (без учёта регистра). */
     val query: String = "",
     val categoryIds: Set<Long> = emptySet(),
-    val paymentMethodIds: Set<Long> = emptySet(),
+    val accountIds: Set<Long> = emptySet(),
     val tags: Set<String> = emptySet(),
     /** Диапазон сумм; обе границы в одной валюте, сравнение по сумме в этой валюте. */
     val minAmount: Money? = null,
@@ -26,7 +26,7 @@ data class ExpenseFilter(
     val activeCount: Int get() = listOf(
         query.isNotBlank(),
         categoryIds.isNotEmpty(),
-        paymentMethodIds.isNotEmpty(),
+        accountIds.isNotEmpty(),
         tags.isNotEmpty(),
         minAmount != null || maxAmount != null,
         from != null || to != null,

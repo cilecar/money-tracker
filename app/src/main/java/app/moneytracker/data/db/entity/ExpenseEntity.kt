@@ -16,14 +16,14 @@ import java.time.LocalDate
         // RESTRICT: нельзя случайно удалить категорию со всей историей — только архивировать
         // или перенести расходы.
         ForeignKey(CategoryEntity::class, ["id"], ["category_id"], onDelete = ForeignKey.RESTRICT),
-        ForeignKey(PaymentMethodEntity::class, ["id"], ["payment_method_id"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(AccountEntity::class, ["id"], ["account_id"], onDelete = ForeignKey.RESTRICT),
         // Удаление шаблона регулярного расхода не удаляет уже созданные расходы.
         ForeignKey(RecurringExpenseEntity::class, ["id"], ["recurring_id"], onDelete = ForeignKey.SET_NULL),
     ],
     indices = [
         Index("local_date"),
         Index("category_id"),
-        Index("payment_method_id"),
+        Index("account_id"),
         Index("recurring_id"),
         Index("rate_date"),
     ],
@@ -33,7 +33,7 @@ data class ExpenseEntity(
     @ColumnInfo(name = "amount_minor") val amountMinor: Long,
     val currency: CurrencyCode,
     @ColumnInfo(name = "category_id") val categoryId: Long,
-    @ColumnInfo(name = "payment_method_id") val paymentMethodId: Long,
+    @ColumnInfo(name = "account_id") val accountId: Long,
     @ColumnInfo(name = "occurred_at") val occurredAt: Instant,
     @ColumnInfo(name = "local_date") val localDate: LocalDate,
     val comment: String?,
@@ -46,6 +46,8 @@ data class ExpenseEntity(
     @ColumnInfo(name = "eur_minor") val eurMinor: Long?,
     @ColumnInfo(name = "rub_minor") val rubMinor: Long?,
     @ColumnInfo(name = "recurring_id") val recurringId: Long?,
+    /** Сколько списано со счёта в его валюте, если валюты расхода и счёта различаются; NULL — считаем по снапшоту. */
+    @ColumnInfo(name = "account_amount_minor") val accountAmountMinor: Long? = null,
     @ColumnInfo(name = "created_at") val createdAt: Instant,
     @ColumnInfo(name = "updated_at") val updatedAt: Instant,
 )

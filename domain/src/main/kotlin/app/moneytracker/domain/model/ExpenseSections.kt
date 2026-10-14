@@ -8,7 +8,7 @@ data class ExpenseDetails(
     val category: Category?,
     /** Родитель, если [category] — подкатегория. */
     val parentCategory: Category?,
-    val paymentMethod: PaymentMethod?,
+    val account: Account?,
 )
 
 /** Итог с учётом расходов без курса: они не входят в [total], а считаются отдельно. */
@@ -40,7 +40,7 @@ object ExpenseSections {
     fun byDay(
         expenses: List<Expense>,
         categories: Map<Long, Category>,
-        paymentMethods: Map<Long, PaymentMethod>,
+        accounts: Map<Long, Account>,
         currency: CurrencyCode,
     ): List<DaySection> = expenses
         .groupBy { it.localDate }
@@ -55,7 +55,7 @@ object ExpenseSections {
                         expense = e,
                         category = category,
                         parentCategory = category?.parentId?.let(categories::get),
-                        paymentMethod = paymentMethods[e.paymentMethodId],
+                        account = accounts[e.accountId],
                     )
                 },
             )

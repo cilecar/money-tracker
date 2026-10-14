@@ -55,7 +55,7 @@ class ExpenseDaoTest {
     private fun expense(tags: List<String> = emptyList(), at: Instant = now) = Expense.create(
         amount = Money(250000, CurrencyCode.RSD),
         categoryId = 1,
-        paymentMethodId = 1,
+        accountId = 1,
         occurredAt = at,
         zone = zone,
         rates = rates,
@@ -71,7 +71,7 @@ class ExpenseDaoTest {
         assertEquals(DefaultData.categories.size, all.size)
         assertEquals("Еда", all.first().name)
         assertEquals("food", all.first().defaultKey)
-        assertEquals(1, db.paymentMethodDao().observeAll(false).first().size)
+        assertEquals(1, db.accountDao().observeAll(false).first().size)
     }
 
     @Test

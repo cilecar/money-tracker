@@ -17,6 +17,11 @@
     <string name="category_clothes">Одежда</string>
     <string name="category_subscriptions">Подписки</string>
     <string name="category_other">Другое</string>
+    <string name="category_fees">Комиссии</string>
+    <string name="income_category_salary">Зарплата</string>
+    <string name="income_category_freelance">Фриланс</string>
+    <string name="income_category_gift">Подарок</string>
+    <string name="income_category_other">Другое</string>
 
     <!-- Способы оплаты по умолчанию -->
     <string name="payment_cash">Наличные</string>
@@ -87,7 +92,7 @@
     <string name="filter_this_year">Этот год</string>
     <string name="filter_custom_period">Выбрать даты…</string>
     <string name="filter_categories">Категории</string>
-    <string name="filter_payment_methods">Способы оплаты</string>
+    <string name="filter_accounts">Счета</string>
     <string name="filter_tags">Теги</string>
     <string name="filter_amount">Сумма, %1$s</string>
     <string name="filter_from">от</string>
@@ -143,23 +148,39 @@
     </plurals>
 
     <!-- Способы оплаты -->
-    <string name="payment_methods_title">Способы оплаты</string>
-    <string name="payment_method_new">Новый способ оплаты</string>
-    <string name="payment_method_edit">Способ оплаты</string>
-    <string name="payment_method_name">Название</string>
-    <string name="payment_method_currency">Валюта</string>
-    <string name="payment_method_any_currency">Любая</string>
-    <string name="payment_method_currency_hint">При выборе этого способа валюта подставится в расход автоматически</string>
-    <string name="payment_method_default">по умолчанию</string>
-    <string name="payment_method_delete_title">Удалить «%1$s»?</string>
-    <string name="payment_method_error_last">Должен остаться хотя бы один активный способ оплаты</string>
+    <string name="accounts_title">Счета</string>
+    <string name="account_new">Новый счёт</string>
+    <string name="account_edit">Счёт</string>
+    <string name="account_name">Название</string>
+    <string name="account_currency">Валюта</string>
+    <string name="account_currency_hint">В этой валюте считается остаток. При выборе счёта она подставится в расход</string>
+    <string name="account_default">по умолчанию</string>
+    <string name="account_opening_balance">Начальный остаток</string>
+    <string name="account_opening_date">Остаток на %1$s</string>
+    <string name="account_opening_hint">Операции раньше этой даты в остаток не входят</string>
+    <string name="account_error_currency_locked">По счёту уже есть операции — валюту не изменить</string>
+    <string name="account_error_bad_amount">Некорректная сумма</string>
+    <string name="accounts_total">Всего</string>
+    <string name="accounts_total_no_rates">Нет курсов — счета в других валютах не вошли</string>
+    <string name="account_unconverted">без курса: %1$d</string>
+    <string name="account_reconcile">Сверить</string>
+    <string name="account_reconcile_title">Сверка «%1$s»</string>
+    <string name="account_reconcile_calculated">По записям: %1$s</string>
+    <string name="account_reconcile_actual">Фактический остаток</string>
+    <string name="account_reconcile_difference">Корректировка: %1$s</string>
+    <string name="account_reconcile_same">Остаток совпадает</string>
+    <string name="account_reconcile_inexact">Часть операций без курса — остаток по записям приблизительный</string>
+    <string name="account_reconcile_hint">Разница запишется корректировкой — это не расход и не доход</string>
+    <string name="account_adjustment_comment">Сверка</string>
+    <string name="account_delete_title">Удалить «%1$s»?</string>
+    <string name="account_error_last">Должен остаться хотя бы один активный счёт</string>
     <string name="payment_type_cash">Наличные</string>
     <string name="payment_type_card">Карта</string>
     <string name="payment_type_transfer">Перевод</string>
 
     <!-- Настройки -->
     <string name="settings_title">Настройки</string>
-    <string name="settings_default_payment">Способ оплаты по умолчанию</string>
+    <string name="settings_default_payment">Счёт по умолчанию</string>
     <string name="settings_default_payment_first">Первый в списке</string>
     <string name="settings_input_currency">Валюта ввода</string>
     <string name="settings_input_currency_hint">Запоминается автоматически по последнему расходу. Валюта карты важнее.</string>
@@ -188,7 +209,7 @@
     <string name="analytics_per_day">В среднем %1$s в день</string>
     <string name="analytics_by_time">Расходы по времени</string>
     <string name="analytics_by_category">По категориям</string>
-    <string name="analytics_by_payment">По способам оплаты</string>
+    <string name="analytics_by_payment">По счетам</string>
     <string name="analytics_comparison">Сравнение с прошлым периодом</string>
     <string name="analytics_new">новое</string>
 
@@ -305,7 +326,7 @@
         <item quantity="other">Пропущено %1$d дубля</item>
     </plurals>
     <string name="data_csv_created_categories">Создано категорий: %1$d</string>
-    <string name="data_csv_created_methods">Создано способов оплаты: %1$d</string>
+    <string name="data_csv_created_methods">Создано счетов: %1$d</string>
     <plurals name="data_csv_errors">
         <item quantity="one">%1$d строка с ошибкой:</item>
         <item quantity="few">%1$d строки с ошибками:</item>

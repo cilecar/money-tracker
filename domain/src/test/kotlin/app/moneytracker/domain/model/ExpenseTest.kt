@@ -15,7 +15,7 @@ class ExpenseTest {
     private val now = Instant.parse("2026-10-14T10:00:00Z")
 
     private fun expense(at: Instant = now, amount: Money = Money(117150, CurrencyCode.RSD)) =
-        Expense.create(amount, categoryId = 1, paymentMethodId = 1, occurredAt = at, zone = belgrade, rates = rates, now = now)
+        Expense.create(amount, categoryId = 1, accountId = 1, occurredAt = at, zone = belgrade, rates = rates, now = now)
 
     @Test
     fun `local date uses user zone`() {

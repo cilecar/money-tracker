@@ -8,10 +8,10 @@ import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Frequency
 import app.moneytracker.domain.model.Money
-import app.moneytracker.domain.model.PaymentMethod
+import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.RecurringExpense
 import app.moneytracker.domain.repository.CategoryRepository
-import app.moneytracker.domain.repository.PaymentMethodRepository
+import app.moneytracker.domain.repository.AccountRepository
 import app.moneytracker.domain.repository.RecurringRepository
 import app.moneytracker.domain.repository.SettingsRepository
 import app.moneytracker.domain.usecase.SaveRecurringUseCase
@@ -37,7 +37,7 @@ data class RecurringForm(
     val amountText: String = "",
     val currency: CurrencyCode = CurrencyCode.RSD,
     val categoryId: Long? = null,
-    val paymentMethodId: Long? = null,
+    val accountId: Long? = null,
     val frequency: Frequency = Frequency.MONTHLY,
     val interval: Int = 1,
     val startDate: LocalDate,
@@ -47,13 +47,13 @@ data class RecurringForm(
 ) {
     val amount: Money? get() = Money.parse(amountText, currency)?.takeIf { it.minor > 0 }
     val endBeforeStart: Boolean get() = endDate != null && endDate.isBefore(startDate)
-    val valid: Boolean get() = amount != null && categoryId != null && paymentMethodId != null && !endBeforeStart
+    val valid: Boolean get() = amount != null && categoryId != null && accountId != null && !endBeforeStart
 }
 
 data class RecurringEditUiState(
     val form: RecurringForm,
     val categories: List<Category> = emptyList(),
-    val paymentMethods: List<PaymentMethod> = emptyList(),
+    val accounts: List<Account> = emptyList(),
     val today: LocalDate,
 )
 
@@ -62,7 +62,7 @@ class RecurringEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: RecurringRepository,
     categories: CategoryRepository,
-    private val paymentMethods: PaymentMethodRepository,
+    private val accounts: AccountRepository,
     private val settings: SettingsRepository,
     private val save: SaveRecurringUseCase,
     private val clock: Clock,
@@ -77,12 +77,12 @@ class RecurringEditViewModel @Inject constructor(
     val state: StateFlow<RecurringEditUiState> = combine(
         form,
         categories.observeAll(includeArchived = true),
-        paymentMethods.observeAll(includeArchived = true),
+        accounts.observeAll(includeArchived = true),
     ) { f, cats, methods ->
         RecurringEditUiState(
             form = f,
             categories = cats.filter { !it.archived || it.id == f.categoryId },
-            paymentMethods = methods.filter { !it.archived || it.id == f.paymentMethodId },
+            accounts = methods.filter { !it.archived || it.id == f.accountId },
             today = LocalDate.now(clock),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RecurringEditUiState(form.value, today = LocalDate.now(clock)))
@@ -97,7 +97,7 @@ class RecurringEditViewModel @Inject constructor(
                     amountText = r.amount.amount.stripTrailingZeros().toPlainString(),
                     currency = r.amount.currency,
                     categoryId = r.categoryId,
-                    paymentMethodId = r.paymentMethodId,
+                    accountId = r.accountId,
                     frequency = r.frequency,
                     interval = r.interval,
                     startDate = r.startDate,
@@ -107,16 +107,16 @@ class RecurringEditViewModel @Inject constructor(
                 )
             } else {
                 val s = settings.settings.first()
-                val methods = paymentMethods.getAll(includeArchived = false)
-                val method = methods.firstOrNull { it.id == s.defaultPaymentMethodId } ?: methods.firstOrNull()
-                form.value.copy(loaded = true, paymentMethodId = method?.id, currency = method?.currency ?: s.inputCurrency)
+                val methods = accounts.getAll(includeArchived = false)
+                val method = methods.firstOrNull { it.id == s.defaultAccountId } ?: methods.firstOrNull()
+                form.value.copy(loaded = true, accountId = method?.id, currency = method?.currency ?: s.inputCurrency)
             }
         }
     }
 
     fun update(transform: (RecurringForm) -> RecurringForm) = form.update(transform)
 
-    fun onPaymentMethod(method: PaymentMethod) = form.update { it.copy(paymentMethodId = method.id, currency = method.currency ?: it.currency) }
+    fun onAccount(method: Account) = form.update { it.copy(accountId = method.id, currency = method.currency) }
 
     fun save() {
         val f = form.value
@@ -125,7 +125,7 @@ class RecurringEditViewModel @Inject constructor(
         val template = RecurringExpense.create(
             amount = amount,
             categoryId = f.categoryId!!,
-            paymentMethodId = f.paymentMethodId!!,
+            accountId = f.accountId!!,
             frequency = f.frequency,
             interval = f.interval,
             startDate = f.startDate,

@@ -33,7 +33,7 @@ class SettingsRepositoryImpl @Inject constructor(
             AppSettings(
                 inputCurrency = prefs[INPUT_CURRENCY].toEnumOr(defaults.inputCurrency),
                 displayCurrency = prefs[DISPLAY_CURRENCY].toEnumOr(defaults.displayCurrency),
-                defaultPaymentMethodId = prefs[DEFAULT_PAYMENT_METHOD],
+                defaultAccountId = prefs[DEFAULT_ACCOUNT],
                 themeMode = prefs[THEME_MODE].toEnumOr(defaults.themeMode),
                 dynamicColor = prefs[DYNAMIC_COLOR] ?: defaults.dynamicColor,
             )
@@ -45,8 +45,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setThemeMode(mode: ThemeMode) = set(THEME_MODE, mode.name)
     override suspend fun setDynamicColor(enabled: Boolean) = set(DYNAMIC_COLOR, enabled)
 
-    override suspend fun setDefaultPaymentMethod(id: Long?) {
-        dataStore.edit { if (id == null) it.remove(DEFAULT_PAYMENT_METHOD) else it[DEFAULT_PAYMENT_METHOD] = id }
+    override suspend fun setDefaultAccount(id: Long?) {
+        dataStore.edit { if (id == null) it.remove(DEFAULT_ACCOUNT) else it[DEFAULT_ACCOUNT] = id }
     }
 
     private suspend fun <T> set(key: Preferences.Key<T>, value: T) {
@@ -60,7 +60,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private companion object {
         val INPUT_CURRENCY = stringPreferencesKey("input_currency")
         val DISPLAY_CURRENCY = stringPreferencesKey("display_currency")
-        val DEFAULT_PAYMENT_METHOD = longPreferencesKey("default_payment_method_id")
+        val DEFAULT_ACCOUNT = longPreferencesKey("default_payment_method_id")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
     }

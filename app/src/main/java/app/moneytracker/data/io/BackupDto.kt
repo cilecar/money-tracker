@@ -1,11 +1,18 @@
+@file:OptIn(ExperimentalSerializationApi::class)
+
 package app.moneytracker.data.io
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
 /**
  * Формат JSON-выгрузки. Отдельные DTO, а не entity Room: формат файла — это контракт,
  * он не должен ломаться от переименования колонки в БД. Деньги — минорные единицы,
  * курсы — строки (BigDecimal без потерь), даты — ISO-8601.
+ *
+ * Версия 2: способы оплаты стали счетами. @JsonNames читает старые имена полей из файлов версии 1,
+ * а недостающие поля (валюта, начальный остаток) достраивает импорт — так же, как миграция базы 1→2.
  */
 @Serializable
 data class BackupDto(
@@ -14,16 +21,17 @@ data class BackupDto(
     val exportedAt: String,
     val settings: SettingsDto,
     val categories: List<CategoryDto>,
-    val paymentMethods: List<PaymentMethodDto>,
+    @JsonNames("paymentMethods") val accounts: List<AccountDto>,
     val expenses: List<ExpenseDto>,
     val budgets: List<BudgetDto>,
     val budgetAlerts: List<BudgetAlertDto> = emptyList(),
     val recurring: List<RecurringDto>,
     val exchangeRates: List<RateDto>,
+    val balanceAdjustments: List<BalanceAdjustmentDto> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "money-tracker-backup"
-        const val VERSION = 1
+        const val VERSION = 2
     }
 }
 
@@ -31,7 +39,7 @@ data class BackupDto(
 data class SettingsDto(
     val inputCurrency: String,
     val displayCurrency: String,
-    val defaultPaymentMethodId: Long? = null,
+    @JsonNames("defaultPaymentMethodId") val defaultAccountId: Long? = null,
     val themeMode: String,
     val dynamicColor: Boolean,
 )
@@ -49,14 +57,29 @@ data class CategoryDto(
 )
 
 @Serializable
-data class PaymentMethodDto(
+data class AccountDto(
     val id: Long,
     val name: String,
     val type: String,
+    /** null только в версии 1 (наличные без валюты). */
     val currency: String? = null,
+    val openingBalanceMinor: Long = 0,
+    /** null только в версии 1. */
+    val openingDate: String? = null,
     val defaultKey: String? = null,
     val sortOrder: Int,
     val archived: Boolean,
+)
+
+@Serializable
+data class BalanceAdjustmentDto(
+    val id: Long,
+    val accountId: Long,
+    val amountMinor: Long,
+    val occurredAt: String,
+    val localDate: String,
+    val comment: String? = null,
+    val createdAt: String,
 )
 
 @Serializable
@@ -68,7 +91,7 @@ data class ExpenseDto(
     val amountMinor: Long,
     val currency: String,
     val categoryId: Long,
-    val paymentMethodId: Long,
+    @JsonNames("paymentMethodId") val accountId: Long,
     val occurredAt: String,
     val localDate: String,
     val comment: String? = null,
@@ -79,6 +102,7 @@ data class ExpenseDto(
     val amountEurMinor: Long? = null,
     val amountRubMinor: Long? = null,
     val recurringId: Long? = null,
+    val accountAmountMinor: Long? = null,
     val createdAt: String,
     val updatedAt: String,
 )
@@ -95,7 +119,7 @@ data class RecurringDto(
     val amountMinor: Long,
     val currency: String,
     val categoryId: Long,
-    val paymentMethodId: Long,
+    @JsonNames("paymentMethodId") val accountId: Long,
     val comment: String? = null,
     val tags: List<String> = emptyList(),
     val frequency: String,

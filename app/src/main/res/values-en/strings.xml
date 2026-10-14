@@ -16,6 +16,11 @@
     <string name="category_clothes">Clothes</string>
     <string name="category_subscriptions">Subscriptions</string>
     <string name="category_other">Other</string>
+    <string name="category_fees">Fees</string>
+    <string name="income_category_salary">Salary</string>
+    <string name="income_category_freelance">Freelance</string>
+    <string name="income_category_gift">Gift</string>
+    <string name="income_category_other">Other</string>
 
     <string name="payment_cash">Cash</string>
 
@@ -77,7 +82,7 @@
     <string name="filter_this_year">This year</string>
     <string name="filter_custom_period">Pick dates…</string>
     <string name="filter_categories">Categories</string>
-    <string name="filter_payment_methods">Payment methods</string>
+    <string name="filter_accounts">Accounts</string>
     <string name="filter_tags">Tags</string>
     <string name="filter_amount">Amount, %1$s</string>
     <string name="filter_from">from</string>
@@ -126,22 +131,38 @@
         <item quantity="other">%1$d subcategories</item>
     </plurals>
 
-    <string name="payment_methods_title">Payment methods</string>
-    <string name="payment_method_new">New payment method</string>
-    <string name="payment_method_edit">Payment method</string>
-    <string name="payment_method_name">Name</string>
-    <string name="payment_method_currency">Currency</string>
-    <string name="payment_method_any_currency">Any</string>
-    <string name="payment_method_currency_hint">Choosing this method sets the expense currency automatically</string>
-    <string name="payment_method_default">default</string>
-    <string name="payment_method_delete_title">Delete “%1$s”?</string>
-    <string name="payment_method_error_last">At least one active payment method must remain</string>
+    <string name="accounts_title">Accounts</string>
+    <string name="account_new">New account</string>
+    <string name="account_edit">Account</string>
+    <string name="account_name">Name</string>
+    <string name="account_currency">Currency</string>
+    <string name="account_currency_hint">The balance is kept in this currency. Choosing the account sets the expense currency</string>
+    <string name="account_default">default</string>
+    <string name="account_opening_balance">Opening balance</string>
+    <string name="account_opening_date">Balance as of %1$s</string>
+    <string name="account_opening_hint">Operations before this date are not counted</string>
+    <string name="account_error_currency_locked">The account already has operations — its currency can\'t change</string>
+    <string name="account_error_bad_amount">Invalid amount</string>
+    <string name="accounts_total">Total</string>
+    <string name="accounts_total_no_rates">No rates — accounts in other currencies are not included</string>
+    <string name="account_unconverted">no rate: %1$d</string>
+    <string name="account_reconcile">Reconcile</string>
+    <string name="account_reconcile_title">Reconcile “%1$s”</string>
+    <string name="account_reconcile_calculated">Calculated: %1$s</string>
+    <string name="account_reconcile_actual">Actual balance</string>
+    <string name="account_reconcile_difference">Adjustment: %1$s</string>
+    <string name="account_reconcile_same">The balance matches</string>
+    <string name="account_reconcile_inexact">Some operations have no rate — the calculated balance is approximate</string>
+    <string name="account_reconcile_hint">The difference is recorded as an adjustment — neither an expense nor income</string>
+    <string name="account_adjustment_comment">Reconciliation</string>
+    <string name="account_delete_title">Delete “%1$s”?</string>
+    <string name="account_error_last">At least one active account must remain</string>
     <string name="payment_type_cash">Cash</string>
     <string name="payment_type_card">Card</string>
     <string name="payment_type_transfer">Transfer</string>
 
     <string name="settings_title">Settings</string>
-    <string name="settings_default_payment">Default payment method</string>
+    <string name="settings_default_payment">Default account</string>
     <string name="settings_default_payment_first">First in the list</string>
     <string name="settings_input_currency">Input currency</string>
     <string name="settings_input_currency_hint">Remembered from your last expense. A card\'s currency takes priority.</string>
@@ -169,7 +190,7 @@
     <string name="analytics_per_day">%1$s per day on average</string>
     <string name="analytics_by_time">Spending over time</string>
     <string name="analytics_by_category">By category</string>
-    <string name="analytics_by_payment">By payment method</string>
+    <string name="analytics_by_payment">By account</string>
     <string name="analytics_comparison">Compared with previous period</string>
     <string name="analytics_new">new</string>
 
@@ -269,7 +290,7 @@
         <item quantity="other">%1$d duplicates skipped</item>
     </plurals>
     <string name="data_csv_created_categories">Categories created: %1$d</string>
-    <string name="data_csv_created_methods">Payment methods created: %1$d</string>
+    <string name="data_csv_created_methods">Accounts created: %1$d</string>
     <plurals name="data_csv_errors">
         <item quantity="one">%1$d row with an error:</item>
         <item quantity="other">%1$d rows with errors:</item>

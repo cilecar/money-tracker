@@ -26,7 +26,7 @@ class CategoryRepositoryTest {
 
     private lateinit var db: AppDatabase
     private lateinit var categories: CategoryRepositoryImpl
-    private lateinit var methods: PaymentMethodRepositoryImpl
+    private lateinit var methods: AccountRepositoryImpl
     private lateinit var expenses: ExpenseRepositoryImpl
     private val now = Instant.parse("2026-10-14T10:00:00Z")
 
@@ -38,7 +38,7 @@ class CategoryRepositoryTest {
             .allowMainThreadQueries()
             .build()
         categories = CategoryRepositoryImpl(db.categoryDao())
-        methods = PaymentMethodRepositoryImpl(db.paymentMethodDao())
+        methods = AccountRepositoryImpl(db.accountDao())
         expenses = ExpenseRepositoryImpl(db, db.expenseDao())
     }
 
@@ -74,23 +74,23 @@ class CategoryRepositoryTest {
         val sub = categories.upsert(Category(name = "Кафе", iconKey = "local_cafe", color = 0, parentId = 1, sortOrder = categories.nextSortOrder(1)))
         assertEquals(1, categories.usage(1).children)
         assertEquals(0, categories.get(sub)!!.sortOrder)
-        assertEquals(10, categories.nextSortOrder(null)) // 10 категорий по умолчанию: 0..9
+        assertEquals(11, categories.nextSortOrder(null)) // 11 категорий по умолчанию: 0..10
         assertEquals(1, categories.nextSortOrder(1))
     }
 
     @Test
     fun archiveSeveral() = runTest {
         categories.setArchived(listOf(1, 2), true)
-        assertEquals(8, categories.getAll(includeArchived = false).size)
-        assertEquals(10, categories.getAll(includeArchived = true).size)
+        assertEquals(9, categories.getAll(includeArchived = false).size)
+        assertEquals(11, categories.getAll(includeArchived = true).size)
     }
 
     @Test
-    fun paymentMethodDeleteWithMove() = runTest {
-        val card = methods.upsert(app.moneytracker.domain.model.PaymentMethod(name = "Карта", type = app.moneytracker.domain.model.PaymentMethodType.CARD, currency = CurrencyCode.RUB))
+    fun accountDeleteWithMove() = runTest {
+        val card = methods.upsert(app.moneytracker.domain.model.Account(name = "Карта", type = app.moneytracker.domain.model.AccountType.CARD, currency = CurrencyCode.RUB, openingDate = java.time.LocalDate.of(2026, 1, 1)))
         val e = addExpense(1, methodId = card)
         assertEquals(1, methods.usage(card).expenses)
         methods.delete(card, moveTo = 1)
-        assertEquals(1L, expenses.get(e)!!.paymentMethodId)
+        assertEquals(1L, expenses.get(e)!!.accountId)
     }
 }

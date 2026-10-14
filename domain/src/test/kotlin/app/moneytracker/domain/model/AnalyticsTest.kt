@@ -1,5 +1,6 @@
 package app.moneytracker.domain.model
 
+import app.moneytracker.domain.model.CurrencyCode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -16,8 +17,8 @@ class AnalyticsTest {
     private val food = Category(id = 1, name = "Еда", iconKey = "", color = 0)
     private val cafe = Category(id = 2, name = "Кафе", iconKey = "", color = 0, parentId = 1)
     private val transport = Category(id = 3, name = "Транспорт", iconKey = "", color = 0)
-    private val cash = PaymentMethod(id = 1, name = "Наличные", type = PaymentMethodType.CASH)
-    private val card = PaymentMethod(id = 2, name = "Карта", type = PaymentMethodType.CARD)
+    private val cash = Account(id = 1, name = "Наличные", type = AccountType.CASH, currency = CurrencyCode.RSD, openingDate = OPENING)
+    private val card = Account(id = 2, name = "Карта", type = AccountType.CARD, currency = CurrencyCode.RSD, openingDate = OPENING)
 
     private val october = AnalyticsPeriod.Month(YearMonth.of(2026, 10))
     private val today = LocalDate.of(2026, 10, 14)
@@ -131,7 +132,7 @@ class AnalyticsTest {
 
     @Test
     fun `payment method slices`() {
-        val slices = report().paymentMethods
+        val slices = report().accounts
         assertEquals(listOf(card, cash), slices.map { it.method })
         assertEquals(eur(2500), slices[0].amount)
         assertEquals(eur(1700), slices[1].amount)
@@ -154,3 +155,5 @@ class AnalyticsTest {
         assertNull(Analytics.percentChange(eur(100), eur(0)))
     }
 }
+
+private val OPENING: LocalDate = LocalDate.of(2020, 1, 1)

@@ -15,7 +15,7 @@ data class ExpenseInput(
     val id: Long = 0,
     val amount: Money,
     val categoryId: Long,
-    val paymentMethodId: Long,
+    val accountId: Long,
     val occurredAt: Instant,
     val comment: String? = null,
     val tags: List<String> = emptyList(),
@@ -39,7 +39,7 @@ class SaveExpenseUseCase @Inject constructor(
                 Expense.create(
                     amount = input.amount,
                     categoryId = input.categoryId,
-                    paymentMethodId = input.paymentMethodId,
+                    accountId = input.accountId,
                     occurredAt = input.occurredAt,
                     zone = zone,
                     rates = rates.current()?.snapshot,
@@ -56,7 +56,9 @@ class SaveExpenseUseCase @Inject constructor(
             if (input.amount != old.amount) updated = updated.withAmount(input.amount, now)
             updated = updated.copy(
                 categoryId = input.categoryId,
-                paymentMethodId = input.paymentMethodId,
+                accountId = input.accountId,
+                // Сумма списания относится к прежнему счёту.
+                accountAmountMinor = updated.accountAmountMinor.takeIf { input.accountId == old.accountId },
                 comment = input.comment?.trim()?.takeIf { it.isNotEmpty() },
                 tags = Expense.normalizeTags(input.tags),
                 updatedAt = now,

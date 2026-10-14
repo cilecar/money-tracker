@@ -9,12 +9,12 @@ import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.CurrentRates
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.Money
-import app.moneytracker.domain.model.PaymentMethod
+import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.RateSnapshot
 import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.ExchangeRateRepository
 import app.moneytracker.domain.repository.ExpenseRepository
-import app.moneytracker.domain.repository.PaymentMethodRepository
+import app.moneytracker.domain.repository.AccountRepository
 import app.moneytracker.domain.repository.SettingsRepository
 import app.moneytracker.domain.usecase.ExpenseInput
 import app.moneytracker.domain.usecase.SaveExpenseUseCase
@@ -42,7 +42,7 @@ data class ExpenseForm(
     val amount: AmountInput = AmountInput(),
     val currency: CurrencyCode = CurrencyCode.RSD,
     val categoryId: Long? = null,
-    val paymentMethodId: Long? = null,
+    val accountId: Long? = null,
     val dateTime: LocalDateTime,
     val comment: String = "",
     val tags: List<String> = emptyList(),
@@ -63,11 +63,11 @@ data class ExpenseEditUiState(
     /** Чипы быстрого выбора: недавние + выбранная. */
     val quickCategories: List<Category>,
     val selectedCategory: Category?,
-    val paymentMethods: List<PaymentMethod>,
+    val accounts: List<Account>,
     val tagSuggestions: List<String>,
 ) {
     val canSave: Boolean get() = form.loaded && !form.saving && !form.amount.isEmpty &&
-        form.amount.toMoney(form.currency).minor > 0 && form.categoryId != null && form.paymentMethodId != null
+        form.amount.toMoney(form.currency).minor > 0 && form.categoryId != null && form.accountId != null
 }
 
 sealed interface ExpenseEditEvent {
@@ -79,7 +79,7 @@ class ExpenseEditViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val expenses: ExpenseRepository,
     private val categoryRepository: CategoryRepository,
-    private val paymentMethodRepository: PaymentMethodRepository,
+    private val accountRepository: AccountRepository,
     ratesRepository: ExchangeRateRepository,
     private val settings: SettingsRepository,
     private val saveExpense: SaveExpenseUseCase,
@@ -95,7 +95,7 @@ class ExpenseEditViewModel @Inject constructor(
     // С архивными: у старого расхода категория могла уйти в архив, но в форме она должна отображаться.
     private val references = combine(
         categoryRepository.observeAll(includeArchived = true),
-        paymentMethodRepository.observeAll(includeArchived = true),
+        accountRepository.observeAll(includeArchived = true),
         expenses.observeRecentCategoryIds(QUICK_CATEGORIES),
         expenses.observeTags(),
     ) { categories, methods, recent, tags -> References(categories, methods, recent, tags) }
@@ -121,7 +121,7 @@ class ExpenseEditViewModel @Inject constructor(
                 amount = AmountInput.from(e.amount),
                 currency = e.amount.currency,
                 categoryId = e.categoryId,
-                paymentMethodId = e.paymentMethodId,
+                accountId = e.accountId,
                 dateTime = LocalDateTime.ofInstant(e.occurredAt, clock.zone),
                 comment = e.comment.orEmpty(),
                 tags = e.tags,
@@ -129,10 +129,10 @@ class ExpenseEditViewModel @Inject constructor(
             )
         } else {
             val s = settings.settings.first()
-            val methods = paymentMethodRepository.getAll(includeArchived = false)
-            val method = methods.firstOrNull { it.id == s.defaultPaymentMethodId } ?: methods.firstOrNull()
+            val methods = accountRepository.getAll(includeArchived = false)
+            val method = methods.firstOrNull { it.id == s.defaultAccountId } ?: methods.firstOrNull()
             form.update {
-                it.copy(loaded = true, paymentMethodId = method?.id, currency = method?.currency ?: s.inputCurrency)
+                it.copy(loaded = true, accountId = method?.id, currency = method?.currency ?: s.inputCurrency)
             }
         }
     }
@@ -159,7 +159,7 @@ class ExpenseEditViewModel @Inject constructor(
             categories = activeCategories,
             quickCategories = quick,
             selectedCategory = selected,
-            paymentMethods = refs.paymentMethods.filter { !it.archived || it.id == form.paymentMethodId },
+            accounts = refs.accounts.filter { !it.archived || it.id == form.accountId },
             tagSuggestions = refs.tags
                 .filter { t -> form.tags.none { it.equals(t, ignoreCase = true) } }
                 .filter { draft.isEmpty() || it.lowercase().startsWith(draft) }
@@ -173,10 +173,10 @@ class ExpenseEditViewModel @Inject constructor(
 
     fun onCategory(id: Long) = form.update { it.copy(categoryId = id) }
 
-    /** Выбор способа оплаты с заданной валютой (например, рублёвой карты) переключает валюту ввода. */
-    fun onPaymentMethod(method: PaymentMethod) = form.update {
-        val currency = method.currency ?: it.currency
-        it.copy(paymentMethodId = method.id, currency = currency, amount = it.amount.fitTo(currency))
+    /** Выбор счёта переключает валюту ввода на валюту счёта (её можно сменить вручную). */
+    fun onAccount(method: Account) = form.update {
+        val currency = method.currency
+        it.copy(accountId = method.id, currency = currency, amount = it.amount.fitTo(currency))
     }
 
     fun onDate(date: LocalDate) = form.update { it.copy(dateTime = LocalDateTime.of(date, it.dateTime.toLocalTime())) }
@@ -225,7 +225,7 @@ class ExpenseEditViewModel @Inject constructor(
                     id = expenseId,
                     amount = f.amount.toMoney(f.currency),
                     categoryId = f.categoryId!!,
-                    paymentMethodId = f.paymentMethodId!!,
+                    accountId = f.accountId!!,
                     occurredAt = occurredAt,
                     comment = f.comment,
                     // Недописанный тег в поле тоже сохраняем — иначе он молча потеряется.
@@ -238,7 +238,7 @@ class ExpenseEditViewModel @Inject constructor(
 
     private data class References(
         val categories: List<Category>,
-        val paymentMethods: List<PaymentMethod>,
+        val accounts: List<Account>,
         val recentCategoryIds: List<Long>,
         val tags: List<String>,
     )

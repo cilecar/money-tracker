@@ -36,7 +36,7 @@ class RunRecurringUseCaseTest {
         RecurringExpense.create(
             amount = Money(120000, CurrencyCode.RSD),
             categoryId = 4,
-            paymentMethodId = 2,
+            accountId = 2,
             frequency = frequency,
             interval = 1,
             startDate = LocalDate.parse(start),

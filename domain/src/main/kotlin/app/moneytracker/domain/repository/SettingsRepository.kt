@@ -10,7 +10,7 @@ interface SettingsRepository {
 
     suspend fun setInputCurrency(currency: CurrencyCode)
     suspend fun setDisplayCurrency(currency: CurrencyCode)
-    suspend fun setDefaultPaymentMethod(id: Long?)
+    suspend fun setDefaultAccount(id: Long?)
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDynamicColor(enabled: Boolean)
 }

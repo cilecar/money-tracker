@@ -19,7 +19,7 @@ data class CategorySlice(
     val share: Float,
 )
 
-data class PaymentSlice(val method: PaymentMethod?, val amount: Money, val share: Float)
+data class PaymentSlice(val method: Account?, val amount: Money, val share: Float)
 
 data class AnalyticsReport(
     val period: AnalyticsPeriod,
@@ -38,7 +38,7 @@ data class AnalyticsReport(
     val cumulative: List<Money>,
     val previousCumulative: List<Money>,
     val categories: List<CategorySlice>,
-    val paymentMethods: List<PaymentSlice>,
+    val accounts: List<PaymentSlice>,
 ) {
     /** С чем сравнивать: «на это же число», если период идёт, иначе весь прошлый период. */
     val comparisonBase: Money get() = previousToDate ?: previousTotal.total
@@ -58,7 +58,7 @@ object Analytics {
         period: AnalyticsPeriod,
         currency: CurrencyCode,
         categories: Map<Long, Category>,
-        paymentMethods: Map<Long, PaymentMethod>,
+        accounts: Map<Long, Account>,
         today: LocalDate,
     ): AnalyticsReport {
         val previousPeriod = period.previous()
@@ -91,7 +91,7 @@ object Analytics {
             cumulative = cumulative(buckets.take(visibleBuckets), currency),
             previousCumulative = cumulative(previousBuckets, currency),
             categories = categorySlices(current, previous, currency, categories, total.total),
-            paymentMethods = paymentSlices(current, currency, paymentMethods, total.total),
+            accounts = paymentSlices(current, currency, accounts, total.total),
         )
     }
 
@@ -140,9 +140,9 @@ object Analytics {
     private fun paymentSlices(
         current: List<Expense>,
         currency: CurrencyCode,
-        methods: Map<Long, PaymentMethod>,
+        methods: Map<Long, Account>,
         total: Money,
-    ): List<PaymentSlice> = current.groupBy { it.paymentMethodId }
+    ): List<PaymentSlice> = current.groupBy { it.accountId }
         .map { (id, list) ->
             val amount = sum(list, currency)
             PaymentSlice(methods[id], amount, share(amount, total))

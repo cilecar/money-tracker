@@ -157,7 +157,7 @@ private fun messageText(message: DataMessage): String = when (message) {
         append(pluralStringResource(R.plurals.data_csv_imported, r.imported, r.imported))
         if (r.duplicates > 0) append('\n').append(pluralStringResource(R.plurals.data_csv_duplicates, r.duplicates, r.duplicates))
         if (r.createdCategories > 0) append('\n').append(stringResource(R.string.data_csv_created_categories, r.createdCategories))
-        if (r.createdPaymentMethods > 0) append('\n').append(stringResource(R.string.data_csv_created_methods, r.createdPaymentMethods))
+        if (r.createdAccounts > 0) append('\n').append(stringResource(R.string.data_csv_created_methods, r.createdAccounts))
         if (r.errors.isNotEmpty()) {
             append("\n\n").append(pluralStringResource(R.plurals.data_csv_errors, r.errors.size, r.errors.size))
             // Первые несколько — с номерами строк, чтобы было что поправить в таблице.

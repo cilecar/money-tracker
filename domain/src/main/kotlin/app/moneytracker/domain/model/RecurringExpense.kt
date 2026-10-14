@@ -9,7 +9,7 @@ data class RecurringExpense(
     val id: Long = 0,
     val amount: Money,
     val categoryId: Long,
-    val paymentMethodId: Long,
+    val accountId: Long,
     val comment: String? = null,
     val tags: List<String> = emptyList(),
     val frequency: Frequency,
@@ -63,7 +63,7 @@ data class RecurringExpense(
         fun create(
             amount: Money,
             categoryId: Long,
-            paymentMethodId: Long,
+            accountId: Long,
             frequency: Frequency,
             interval: Int,
             startDate: LocalDate,
@@ -73,7 +73,7 @@ data class RecurringExpense(
         ) = RecurringExpense(
             amount = amount,
             categoryId = categoryId,
-            paymentMethodId = paymentMethodId,
+            accountId = accountId,
             comment = comment?.trim()?.takeIf { it.isNotEmpty() },
             tags = Expense.normalizeTags(tags),
             frequency = frequency,

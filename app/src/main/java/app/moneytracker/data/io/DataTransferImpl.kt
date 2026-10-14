@@ -6,11 +6,12 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.room.withTransaction
 import app.moneytracker.data.db.AppDatabase
 import app.moneytracker.data.db.DefaultNames
+import app.moneytracker.data.db.entity.BalanceAdjustmentEntity
 import app.moneytracker.data.db.entity.BudgetAlertEntity
 import app.moneytracker.data.db.entity.BudgetEntity
 import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
-import app.moneytracker.data.db.entity.PaymentMethodEntity
+import app.moneytracker.data.db.entity.AccountEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
 import app.moneytracker.data.db.toDomain
 import app.moneytracker.data.db.toEntity
@@ -18,7 +19,7 @@ import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.Frequency
 import app.moneytracker.domain.model.Money
-import app.moneytracker.domain.model.PaymentMethodType
+import app.moneytracker.domain.model.AccountType
 import app.moneytracker.domain.model.RateSnapshot
 import app.moneytracker.domain.model.RateSource
 import app.moneytracker.domain.model.RecurringExpense
@@ -76,7 +77,7 @@ class DataTransferImpl @Inject constructor(
 
     override suspend fun exportCsv(out: OutputStream): Int = withContext(Dispatchers.IO) {
         val categories = db.categoryDao().getAll(true).associateBy { it.id }
-        val methods = db.paymentMethodDao().getAll(true).associateBy { it.id }
+        val methods = db.accountDao().getAll(true).associateBy { it.id }
         val expenses = db.expenseDao().getAll().map { it.toDomain() }
         val writer = out.bufferedWriter(Charsets.UTF_8)
         writer.write(Csv.BOM.code)
@@ -92,7 +93,7 @@ class DataTransferImpl @Inject constructor(
                     e.amount.currency.name,
                     (parent ?: category)?.let { defaultNames.resolve(it.defaultKey, it.name) },
                     if (parent != null) category?.name else null,
-                    methods[e.paymentMethodId]?.let { defaultNames.resolve(it.defaultKey, it.name) },
+                    methods[e.accountId]?.let { defaultNames.resolve(it.defaultKey, it.name) },
                     e.comment,
                     e.tags.joinToString(";"),
                     e.converted?.rsdMinor?.let { Money(it, CurrencyCode.RSD).amount.toPlainString() },
@@ -117,7 +118,8 @@ class DataTransferImpl @Inject constructor(
         val iCurrency = col("currency") ?: throw BackupFormatException(Reason.NO_HEADER)
         val iCategory = col("category") ?: throw BackupFormatException(Reason.NO_HEADER)
         val iSub = col("subcategory")
-        val iMethod = col("payment_method")
+        // «payment_method» — заголовок файлов, выгруженных до появления счетов.
+        val iMethod = col("account") ?: col("payment_method")
         val iComment = col("comment")
         val iTags = col("tags")
         val iRateRsd = col("rate_rsd_per_eur")
@@ -127,8 +129,8 @@ class DataTransferImpl @Inject constructor(
         val now = clock.instant()
         val currentRates = rates.current()?.snapshot
         val categories = CategoryResolver(db.categoryDao().getAll(true).toMutableList())
-        val methods = db.paymentMethodDao().getAll(true).toMutableList()
-        val defaultMethodId = settings.settings.first().defaultPaymentMethodId?.takeIf { id -> methods.any { it.id == id } }
+        val methods = db.accountDao().getAll(true).toMutableList()
+        val defaultMethodId = settings.settings.first().defaultAccountId?.takeIf { id -> methods.any { it.id == id } }
             ?: methods.firstOrNull { !it.archived }?.id
             ?: methods.first().id
         val existingKeys = db.expenseDao().getAll().map { dedupeKey(it.expense.occurredAt, it.expense.amountMinor, it.expense.currency, it.expense.categoryId) }.toMutableSet()
@@ -136,6 +138,8 @@ class DataTransferImpl @Inject constructor(
         var imported = 0
         var duplicates = 0
         var createdMethods = 0
+        // Начальная дата нового счёта — самый ранний расход из файла, иначе его же расходы не попали бы в баланс.
+        val createdOpening = mutableMapOf<Long, LocalDate>()
         val errors = mutableListOf<CsvRowError>()
 
         db.withTransaction {
@@ -171,13 +175,25 @@ class DataTransferImpl @Inject constructor(
                     defaultMethodId
                 } else {
                     methods.firstOrNull { matches(it.name, it.defaultKey, methodName) }?.id ?: run {
-                        val entity = PaymentMethodEntity(0, methodName, PaymentMethodType.CASH, null, null, methods.size, false)
-                        val id = db.paymentMethodDao().upsert(entity)
+                        val entity = AccountEntity(
+                            id = 0,
+                            name = methodName,
+                            type = AccountType.CASH,
+                            currency = currency,
+                            openingBalanceMinor = 0,
+                            openingDate = occurredAt.atZone(zone).toLocalDate(),
+                            defaultKey = null,
+                            sortOrder = methods.size,
+                            archived = false,
+                        )
+                        val id = db.accountDao().upsert(entity)
                         methods += entity.copy(id = id)
+                        createdOpening[id] = entity.openingDate
                         createdMethods++
                         id
                     }
                 }
+                createdOpening.computeIfPresent(methodId) { _, first -> minOf(first, occurredAt.atZone(zone).toLocalDate()) }
 
                 val key = dedupeKey(occurredAt, amount.minor, currency, categoryId)
                 if (!existingKeys.add(key)) {
@@ -187,7 +203,7 @@ class DataTransferImpl @Inject constructor(
                 val expense = Expense.create(
                     amount = amount,
                     categoryId = categoryId,
-                    paymentMethodId = methodId,
+                    accountId = methodId,
                     occurredAt = occurredAt,
                     zone = zone,
                     rates = snapshot,
@@ -197,6 +213,9 @@ class DataTransferImpl @Inject constructor(
                 )
                 db.expenseDao().insertWithTags(expense.toEntity(), expense.tags)
                 imported++
+            }
+            createdOpening.forEach { (id, date) ->
+                methods.first { it.id == id }.let { db.accountDao().upsert(it.copy(openingDate = date)) }
             }
         }
         CsvImportResult(imported, duplicates, categories.created, createdMethods, errors)
@@ -275,12 +294,15 @@ class DataTransferImpl @Inject constructor(
                 format = BackupDto.FORMAT,
                 version = BackupDto.VERSION,
                 exportedAt = clock.instant().toString(),
-                settings = SettingsDto(s.inputCurrency.name, s.displayCurrency.name, s.defaultPaymentMethodId, s.themeMode.name, s.dynamicColor),
+                settings = SettingsDto(s.inputCurrency.name, s.displayCurrency.name, s.defaultAccountId, s.themeMode.name, s.dynamicColor),
                 categories = db.categoryDao().getAll(true).map {
                     CategoryDto(it.id, it.name, it.defaultKey, it.iconKey, it.color, it.parentId, it.sortOrder, it.archived)
                 },
-                paymentMethods = db.paymentMethodDao().getAll(true).map {
-                    PaymentMethodDto(it.id, it.name, it.type.name, it.currency?.name, it.defaultKey, it.sortOrder, it.archived)
+                accounts = db.accountDao().getAll(true).map {
+                    AccountDto(
+                        it.id, it.name, it.type.name, it.currency.name, it.openingBalanceMinor, it.openingDate.toString(),
+                        it.defaultKey, it.sortOrder, it.archived,
+                    )
                 },
                 expenses = db.expenseDao().getAll().map { it.toDomain() }.map { e ->
                     ExpenseDto(
@@ -288,7 +310,7 @@ class DataTransferImpl @Inject constructor(
                         amountMinor = e.amount.minor,
                         currency = e.amount.currency.name,
                         categoryId = e.categoryId,
-                        paymentMethodId = e.paymentMethodId,
+                        accountId = e.accountId,
                         occurredAt = e.occurredAt.toString(),
                         localDate = e.localDate.toString(),
                         comment = e.comment,
@@ -298,6 +320,7 @@ class DataTransferImpl @Inject constructor(
                         amountEurMinor = e.converted?.eurMinor,
                         amountRubMinor = e.converted?.rubMinor,
                         recurringId = e.recurringId,
+                        accountAmountMinor = e.accountAmountMinor,
                         createdAt = e.createdAt.toString(),
                         updatedAt = e.updatedAt.toString(),
                     )
@@ -306,13 +329,16 @@ class DataTransferImpl @Inject constructor(
                 budgetAlerts = m.allBudgetAlerts().map { BudgetAlertDto(it.budgetId, it.yearMonth, it.level) },
                 recurring = m.allRecurring().map {
                     RecurringDto(
-                        it.id, it.amountMinor, it.currency.name, it.categoryId, it.paymentMethodId, it.comment, it.tags,
+                        it.id, it.amountMinor, it.currency.name, it.categoryId, it.accountId, it.comment, it.tags,
                         it.frequency.name, it.interval, it.dayOfMonth, it.startDate.toString(), it.endDate?.toString(),
                         it.nextRunDate.toString(), it.active,
                     )
                 },
                 exchangeRates = m.allRates().map {
                     RateDto(it.date.toString(), it.currency.name, it.source.name, it.perEur.toPlainString(), it.fetchedAt.toString())
+                },
+                balanceAdjustments = m.allAdjustments().map {
+                    BalanceAdjustmentDto(it.id, it.accountId, it.amountMinor, it.occurredAt.toString(), it.localDate.toString(), it.comment, it.createdAt.toString())
                 },
             )
         }
@@ -349,7 +375,8 @@ class DataTransferImpl @Inject constructor(
                     db.maintenanceDao().deleteAll()
                     // Родители раньше подкатегорий — из-за внешнего ключа parent_id.
                     parsed.categories.sortedBy { if (it.parentId == null) 0 else 1 }.forEach { db.categoryDao().upsert(it) }
-                    parsed.methods.forEach { db.paymentMethodDao().upsert(it) }
+                    parsed.methods.forEach { db.accountDao().upsert(it) }
+                    parsed.adjustments.forEach { db.accountDao().insertAdjustment(it) }
                     parsed.recurring.forEach { db.recurringDao().upsert(it) }
                     parsed.expenses.forEach { db.expenseDao().insertWithTags(it.toEntity(), it.tags) }
                     parsed.budgets.forEach { db.budgetDao().save(it) }
@@ -368,19 +395,20 @@ class DataTransferImpl @Inject constructor(
             CurrencyCode.entries.firstOrNull { it.name == s.displayCurrency }?.let { settings.setDisplayCurrency(it) }
             ThemeMode.entries.firstOrNull { it.name == s.themeMode }?.let { settings.setThemeMode(it) }
             settings.setDynamicColor(s.dynamicColor)
-            settings.setDefaultPaymentMethod(s.defaultPaymentMethodId?.takeIf { id -> parsed.methods.any { it.id == id } })
+            settings.setDefaultAccount(s.defaultAccountId?.takeIf { id -> parsed.methods.any { it.id == id } })
         }
         JsonImportResult(parsed.expenses.size, parsed.categories.size, parsed.methods.size, parsed.budgets.size, parsed.recurring.size)
     }
 
     private class Parsed(
         val categories: List<CategoryEntity>,
-        val methods: List<PaymentMethodEntity>,
+        val methods: List<AccountEntity>,
         val expenses: List<Expense>,
         val budgets: List<BudgetEntity>,
         val alerts: List<BudgetAlertEntity>,
         val recurring: List<RecurringExpenseEntity>,
         val rates: List<ExchangeRateEntity>,
+        val adjustments: List<BalanceAdjustmentEntity>,
     )
 
     private fun parse(dto: BackupDto): Parsed {
@@ -400,21 +428,37 @@ class DataTransferImpl @Inject constructor(
             val parent = categories.firstOrNull { it.id == parentId } ?: inconsistent()
             if (parent.parentId != null) inconsistent()
         }
-        val methods = dto.paymentMethods.map {
-            PaymentMethodEntity(it.id, it.name, PaymentMethodType.valueOf(it.type), it.currency?.let(::currency), it.defaultKey, it.sortOrder, it.archived)
+        val today = LocalDate.now(clock)
+        val methods = dto.accounts.map { a ->
+            val own = dto.expenses.filter { it.accountId == a.id }
+            AccountEntity(
+                id = a.id,
+                name = a.name,
+                type = AccountType.valueOf(a.type),
+                // Файл версии 1: как миграция 1→2 — самая частая валюта расходов счёта, затем регулярных, иначе RSD.
+                currency = a.currency?.let(::currency)
+                    ?: own.groupingBy { it.currency }.eachCount().maxByOrNull { it.value }?.key?.let(::currency)
+                    ?: dto.recurring.firstOrNull { it.accountId == a.id }?.currency?.let(::currency)
+                    ?: CurrencyCode.RSD,
+                openingBalanceMinor = a.openingBalanceMinor,
+                openingDate = a.openingDate?.let(LocalDate::parse) ?: own.minOfOrNull { LocalDate.parse(it.localDate) } ?: today,
+                defaultKey = a.defaultKey,
+                sortOrder = a.sortOrder,
+                archived = a.archived,
+            )
         }
         val methodIds = unique(methods.map { it.id })
         if (categories.none { !it.archived } || methods.none { !it.archived }) inconsistent()
 
         val recurring = dto.recurring.map {
-            if (it.categoryId !in categoryIds || it.paymentMethodId !in methodIds) inconsistent()
+            if (it.categoryId !in categoryIds || it.accountId !in methodIds) inconsistent()
             // Через доменную модель: её require (interval >= 1, день 1..31) срабатывает здесь, при импорте,
             // а не при каждом чтении шаблона после него.
             RecurringExpense(
                 id = it.id,
                 amount = Money(positive(it.amountMinor), currency(it.currency)),
                 categoryId = it.categoryId,
-                paymentMethodId = it.paymentMethodId,
+                accountId = it.accountId,
                 comment = it.comment,
                 tags = it.tags,
                 frequency = Frequency.valueOf(it.frequency),
@@ -429,14 +473,14 @@ class DataTransferImpl @Inject constructor(
         val recurringIds = unique(recurring.map { it.id })
 
         val expenses = dto.expenses.map {
-            if (it.categoryId !in categoryIds || it.paymentMethodId !in methodIds) inconsistent()
+            if (it.categoryId !in categoryIds || it.accountId !in methodIds) inconsistent()
             val amount = Money(positive(it.amountMinor), currency(it.currency))
             val snapshot = it.rates?.let { r -> RateSnapshot(BigDecimal(r.rsdPerEur), BigDecimal(r.rubPerEur), LocalDate.parse(r.date)) }
             Expense(
                 id = it.id,
                 amount = amount,
                 categoryId = it.categoryId,
-                paymentMethodId = it.paymentMethodId,
+                accountId = it.accountId,
                 occurredAt = Instant.parse(it.occurredAt),
                 localDate = LocalDate.parse(it.localDate),
                 comment = it.comment,
@@ -445,6 +489,7 @@ class DataTransferImpl @Inject constructor(
                 // Пересчитываем по снапшоту, а не доверяем полям файла: так суммы гарантированно согласованы.
                 converted = snapshot?.convertAll(amount),
                 recurringId = it.recurringId?.takeIf { id -> id in recurringIds },
+                accountAmountMinor = it.accountAmountMinor,
                 createdAt = Instant.parse(it.createdAt),
                 updatedAt = Instant.parse(it.updatedAt),
             )
@@ -464,7 +509,12 @@ class DataTransferImpl @Inject constructor(
         val rates = dto.exchangeRates.map {
             ExchangeRateEntity(LocalDate.parse(it.date), currency(it.currency), RateSource.valueOf(it.source), positive(BigDecimal(it.perEur)), Instant.parse(it.fetchedAt))
         }
-        return Parsed(categories, methods, expenses, budgets, alerts, recurring, rates)
+        val adjustments = dto.balanceAdjustments.map {
+            if (it.accountId !in methodIds) inconsistent()
+            BalanceAdjustmentEntity(it.id, it.accountId, it.amountMinor, Instant.parse(it.occurredAt), LocalDate.parse(it.localDate), it.comment, Instant.parse(it.createdAt))
+        }
+        unique(adjustments.map { it.id })
+        return Parsed(categories, methods, expenses, budgets, alerts, recurring, rates, adjustments)
     }
 
     private fun inconsistent(): Nothing = throw BackupFormatException(Reason.INCONSISTENT)
@@ -546,7 +596,7 @@ class DataTransferImpl @Inject constructor(
 
     companion object {
         val CSV_HEADER = listOf(
-            "date", "amount", "currency", "category", "subcategory", "payment_method", "comment", "tags",
+            "date", "amount", "currency", "category", "subcategory", "account", "comment", "tags",
             "amount_rsd", "amount_eur", "amount_rub", "rate_rsd_per_eur", "rate_rub_per_eur", "rate_date",
         )
         private val CSV_DATE_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")

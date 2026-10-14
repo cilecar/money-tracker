@@ -10,11 +10,11 @@ import app.moneytracker.domain.model.DaySection
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
 import app.moneytracker.domain.model.ExpenseSections
-import app.moneytracker.domain.model.PaymentMethod
+import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.Total
 import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.ExpenseRepository
-import app.moneytracker.domain.repository.PaymentMethodRepository
+import app.moneytracker.domain.repository.AccountRepository
 import app.moneytracker.domain.repository.SettingsRepository
 import app.moneytracker.domain.usecase.CheckBudgetsUseCase
 import app.moneytracker.data.db.DefaultNames
@@ -48,7 +48,7 @@ data class ExpenseListUiState(
     val filteredCount: Int = 0,
     val filter: ExpenseFilter = ExpenseFilter(),
     val categories: List<Category> = emptyList(),
-    val paymentMethods: List<PaymentMethod> = emptyList(),
+    val accounts: List<Account> = emptyList(),
     val tags: List<String> = emptyList(),
     /** Заголовок для списка, открытого из аналитики (название категории или способа оплаты). */
     val title: String? = null,
@@ -64,7 +64,7 @@ class ExpenseListViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val expenses: ExpenseRepository,
     categoryRepository: CategoryRepository,
-    paymentMethodRepository: PaymentMethodRepository,
+    accountRepository: AccountRepository,
     private val settingsRepository: SettingsRepository,
     clock: Clock,
     private val defaultNames: DefaultNames,
@@ -81,10 +81,10 @@ class ExpenseListViewModel @Inject constructor(
         val from = savedStateHandle.get<Long>("fromEpochDay") ?: return@run ExpenseFilter()
         val to = savedStateHandle.get<Long>("toEpochDay") ?: return@run ExpenseFilter()
         val categoryId = savedStateHandle.get<Long>("categoryId") ?: 0
-        val methodId = savedStateHandle.get<Long>("paymentMethodId") ?: 0
+        val methodId = savedStateHandle.get<Long>("accountId") ?: 0
         ExpenseFilter(
             categoryIds = if (categoryId != 0L) setOf(categoryId) else emptySet(),
-            paymentMethodIds = if (methodId != 0L) setOf(methodId) else emptySet(),
+            accountIds = if (methodId != 0L) setOf(methodId) else emptySet(),
             from = LocalDate.ofEpochDay(from),
             to = LocalDate.ofEpochDay(to),
         )
@@ -101,7 +101,7 @@ class ExpenseListViewModel @Inject constructor(
 
     // Архивные категории/способы тоже нужны: старые расходы могут ссылаться на них.
     private val categories = categoryRepository.observeAll(includeArchived = true)
-    private val paymentMethods = paymentMethodRepository.observeAll(includeArchived = true)
+    private val accounts = accountRepository.observeAll(includeArchived = true)
 
     private val effectiveFilter = combine(
         filter,
@@ -113,7 +113,7 @@ class ExpenseListViewModel @Inject constructor(
 
     private val monthExpenses = expenses.observeBetween(month.atDay(1), month.atEndOfMonth())
 
-    private val references = combine(categories, paymentMethods, expenses.observeTags()) { c, p, t -> Triple(c, p, t) }
+    private val references = combine(categories, accounts, expenses.observeTags()) { c, p, t -> Triple(c, p, t) }
 
     val state: StateFlow<ExpenseListUiState> = combine(
         filtered,
@@ -134,15 +134,15 @@ class ExpenseListViewModel @Inject constructor(
             filteredCount = list.size,
             filter = rawFilter,
             categories = cats.filter { !it.archived },
-            paymentMethods = methods.filter { !it.archived },
+            accounts = methods.filter { !it.archived },
             tags = tags,
             title = titleFor(cats, methods),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExpenseListUiState())
 
-    private fun titleFor(cats: List<Category>, methods: List<PaymentMethod>): String? {
+    private fun titleFor(cats: List<Category>, methods: List<Account>): String? {
         val categoryId = initialFilter.categoryIds.singleOrNull()
-        val methodId = initialFilter.paymentMethodIds.singleOrNull()
+        val methodId = initialFilter.accountIds.singleOrNull()
         return when {
             categoryId != null -> cats.firstOrNull { it.id == categoryId }?.let { defaultNames.resolve(it.defaultKey, it.name) }
             methodId != null -> methods.firstOrNull { it.id == methodId }?.let { defaultNames.resolve(it.defaultKey, it.name) }

@@ -9,7 +9,7 @@ data class Expense(
     /** Исходная сумма в валюте ввода. */
     val amount: Money,
     val categoryId: Long,
-    val paymentMethodId: Long,
+    val accountId: Long,
     val occurredAt: Instant,
     /** Календарный день расхода в часовом поясе пользователя — для группировки по дням. */
     val localDate: LocalDate,
@@ -24,6 +24,11 @@ data class Expense(
     /** Суммы во всех валютах по [rates]; null, пока rates == null. */
     val converted: ConvertedAmounts?,
     val recurringId: Long? = null,
+    /**
+     * Сколько списано со счёта в его валюте (минорные единицы), если валюты расхода и счёта различаются:
+     * покупка 1 250 RSD с EUR-карты → 10.68 EUR по курсу банка. null — баланс считается по снапшоту [rates].
+     */
+    val accountAmountMinor: Long? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
 ) {
@@ -34,10 +39,11 @@ data class Expense(
         updatedAt = now,
     )
 
-    /** Смена суммы или валюты: пересчитываем converted по тому же снапшоту. */
+    /** Смена суммы или валюты: пересчитываем converted по тому же снапшоту, сумма списания устарела. */
     fun withAmount(newAmount: Money, now: Instant): Expense = copy(
         amount = newAmount,
         converted = rates?.convertAll(newAmount),
+        accountAmountMinor = null,
         updatedAt = now,
     )
 
@@ -61,7 +67,7 @@ data class Expense(
         fun create(
             amount: Money,
             categoryId: Long,
-            paymentMethodId: Long,
+            accountId: Long,
             occurredAt: Instant,
             zone: ZoneId,
             rates: RateSnapshot?,
@@ -72,7 +78,7 @@ data class Expense(
         ) = Expense(
             amount = amount,
             categoryId = categoryId,
-            paymentMethodId = paymentMethodId,
+            accountId = accountId,
             occurredAt = occurredAt,
             localDate = occurredAt.atZone(zone).toLocalDate(),
             comment = comment?.trim()?.takeIf { it.isNotEmpty() },

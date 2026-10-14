@@ -305,7 +305,7 @@ private fun ExpenseRow(item: ExpenseDetails, displayCurrency: CurrencyCode, onCl
         .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))
     val details = listOfNotNull(
         time,
-        item.paymentMethod?.displayName(),
+        item.account?.displayName(),
         e.comment,
         e.tags.takeIf { it.isNotEmpty() }?.joinToString(" ") { "#$it" },
     ).joinToString(" · ")

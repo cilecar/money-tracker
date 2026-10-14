@@ -16,11 +16,11 @@ data class CsvImportResult(
     /** Строки, уже существующие в базе (дата+время, сумма, валюта, категория совпадают). */
     val duplicates: Int,
     val createdCategories: Int,
-    val createdPaymentMethods: Int,
+    val createdAccounts: Int,
     val errors: List<CsvRowError>,
 )
 
-data class JsonImportResult(val expenses: Int, val categories: Int, val paymentMethods: Int, val budgets: Int, val recurring: Int)
+data class JsonImportResult(val expenses: Int, val categories: Int, val accounts: Int, val budgets: Int, val recurring: Int)
 
 /** Файл не того формата, повреждён или из более новой версии приложения. */
 class BackupFormatException(val reason: Reason, cause: Throwable? = null) : Exception(reason.name, cause) {

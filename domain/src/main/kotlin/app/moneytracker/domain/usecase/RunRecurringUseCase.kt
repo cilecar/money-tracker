@@ -68,7 +68,7 @@ class RunRecurringUseCase @Inject constructor(
                     expense = Expense.create(
                         amount = item.amount,
                         categoryId = item.categoryId,
-                        paymentMethodId = item.paymentMethodId,
+                        accountId = item.accountId,
                         // Полдень: дата не «уплывёт» на соседний день при смене часового пояса.
                         occurredAt = date.atTime(LocalTime.NOON).atZone(zone).toInstant(),
                         zone = zone,

@@ -36,7 +36,7 @@ import app.moneytracker.ui.data.DataScreen
 import app.moneytracker.ui.expenses.edit.ExpenseEditScreen
 import app.moneytracker.ui.expenses.list.ExpenseListScreen
 import app.moneytracker.ui.more.MoreScreen
-import app.moneytracker.ui.paymentmethods.PaymentMethodsScreen
+import app.moneytracker.ui.accounts.AccountsScreen
 import app.moneytracker.ui.rates.RatesScreen
 import app.moneytracker.ui.recurring.RecurringEditScreen
 import app.moneytracker.ui.recurring.RecurringListScreen
@@ -114,8 +114,8 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                     onCategory = { id, from, to ->
                         navController.navigate(FilteredExpensesRoute(categoryId = id, fromEpochDay = from.toEpochDay(), toEpochDay = to.toEpochDay()))
                     },
-                    onPaymentMethod = { id, from, to ->
-                        navController.navigate(FilteredExpensesRoute(paymentMethodId = id, fromEpochDay = from.toEpochDay(), toEpochDay = to.toEpochDay()))
+                    onAccount = { id, from, to ->
+                        navController.navigate(FilteredExpensesRoute(accountId = id, fromEpochDay = from.toEpochDay(), toEpochDay = to.toEpochDay()))
                     },
                 )
             }
@@ -137,7 +137,7 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
             composable<MoreRoute> {
                 MoreScreen(
                     onCategories = { navController.navigate(CategoriesRoute) },
-                    onPaymentMethods = { navController.navigate(PaymentMethodsRoute) },
+                    onAccounts = { navController.navigate(AccountsRoute) },
                     onRecurring = { navController.navigate(RecurringListRoute) },
                     onRates = { navController.navigate(RatesRoute) },
                     onData = { navController.navigate(DataRoute) },
@@ -152,7 +152,7 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                 )
             }
             composable<CategoryEditRoute> { CategoryEditScreen(onClose = { navController.popBackStack() }) }
-            composable<PaymentMethodsRoute> { PaymentMethodsScreen(onBack = { navController.popBackStack() }) }
+            composable<AccountsRoute> { AccountsScreen(onBack = { navController.popBackStack() }) }
             composable<DataRoute> { DataScreen(onBack = { navController.popBackStack() }) }
             composable<SettingsRoute> { SettingsScreen(onBack = { navController.popBackStack() }) }
             composable<RatesRoute> { RatesScreen(onBack = { navController.popBackStack() }) }

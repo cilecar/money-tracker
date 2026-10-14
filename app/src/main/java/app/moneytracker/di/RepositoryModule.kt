@@ -6,14 +6,14 @@ import app.moneytracker.data.repository.BudgetRepositoryImpl
 import app.moneytracker.data.repository.CategoryRepositoryImpl
 import app.moneytracker.data.repository.ExchangeRateRepositoryImpl
 import app.moneytracker.data.repository.ExpenseRepositoryImpl
-import app.moneytracker.data.repository.PaymentMethodRepositoryImpl
+import app.moneytracker.data.repository.AccountRepositoryImpl
 import app.moneytracker.data.repository.RecurringRepositoryImpl
 import app.moneytracker.domain.repository.BudgetRepository
 import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.DataTransfer
 import app.moneytracker.domain.repository.ExchangeRateRepository
 import app.moneytracker.domain.repository.ExpenseRepository
-import app.moneytracker.domain.repository.PaymentMethodRepository
+import app.moneytracker.domain.repository.AccountRepository
 import app.moneytracker.domain.repository.RecurringRepository
 import app.moneytracker.domain.repository.SettingsRepository
 import app.moneytracker.domain.usecase.BudgetNotifier
@@ -29,7 +29,7 @@ import javax.inject.Singleton
 interface RepositoryModule {
     @Binds @Singleton fun expenses(impl: ExpenseRepositoryImpl): ExpenseRepository
     @Binds @Singleton fun categories(impl: CategoryRepositoryImpl): CategoryRepository
-    @Binds @Singleton fun paymentMethods(impl: PaymentMethodRepositoryImpl): PaymentMethodRepository
+    @Binds @Singleton fun accounts(impl: AccountRepositoryImpl): AccountRepository
     @Binds @Singleton fun exchangeRates(impl: ExchangeRateRepositoryImpl): ExchangeRateRepository
     @Binds @Singleton fun budgets(impl: BudgetRepositoryImpl): BudgetRepository
     @Binds @Singleton fun recurring(impl: RecurringRepositoryImpl): RecurringRepository

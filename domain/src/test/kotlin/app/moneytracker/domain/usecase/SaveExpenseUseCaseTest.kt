@@ -27,7 +27,7 @@ class SaveExpenseUseCaseTest {
     private val save = SaveExpenseUseCase(expenses, rates, settings, checkBudgets(clock, expenses), clock)
 
     private fun input(id: Long = 0, amount: Money = Money(100000, CurrencyCode.RSD), at: Instant = now) =
-        ExpenseInput(id = id, amount = amount, categoryId = 1, paymentMethodId = 1, occurredAt = at, comment = " кофе ", tags = listOf("a", "A"))
+        ExpenseInput(id = id, amount = amount, categoryId = 1, accountId = 1, occurredAt = at, comment = " кофе ", tags = listOf("a", "A"))
 
     @Test
     fun `new expense takes current rates and remembers currency`() = runTest {

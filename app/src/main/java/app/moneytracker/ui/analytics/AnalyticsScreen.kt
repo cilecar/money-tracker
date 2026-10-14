@@ -75,7 +75,7 @@ import java.util.Locale
 @Composable
 fun AnalyticsScreen(
     onCategory: (categoryId: Long, from: LocalDate, to: LocalDate) -> Unit,
-    onPaymentMethod: (methodId: Long, from: LocalDate, to: LocalDate) -> Unit,
+    onAccount: (methodId: Long, from: LocalDate, to: LocalDate) -> Unit,
     viewModel: AnalyticsViewModel = hiltViewModel(),
 ) {
     val s by viewModel.state.collectAsStateWithLifecycle()
@@ -113,10 +113,10 @@ fun AnalyticsScreen(
                 CategoriesCard(report) { slice ->
                     slice.category?.let { onCategory(it.id, report.period.from, report.period.to) }
                 }
-                if (report.paymentMethods.isNotEmpty()) {
+                if (report.accounts.isNotEmpty()) {
                     ChartCard(stringResource(R.string.analytics_by_payment)) {
-                        PaymentBars(report.paymentMethods) { slice ->
-                            slice.method?.let { onPaymentMethod(it.id, report.period.from, report.period.to) }
+                        PaymentBars(report.accounts) { slice ->
+                            slice.method?.let { onAccount(it.id, report.period.from, report.period.to) }
                         }
                     }
                 }

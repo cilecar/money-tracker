@@ -69,7 +69,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
-            DefaultPaymentMethod(s, viewModel::setDefaultPaymentMethod)
+            DefaultAccount(s, viewModel::setDefaultAccount)
 
             Labeled(stringResource(R.string.settings_input_currency), stringResource(R.string.settings_input_currency_hint)) {
                 CurrencySegments(s.settings.inputCurrency, viewModel::setInputCurrency)
@@ -127,9 +127,9 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DefaultPaymentMethod(s: SettingsUiState, onSelect: (Long?) -> Unit) {
+private fun DefaultAccount(s: SettingsUiState, onSelect: (Long?) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val selected = s.paymentMethods.firstOrNull { it.id == s.settings.defaultPaymentMethodId }
+    val selected = s.accounts.firstOrNull { it.id == s.settings.defaultAccountId }
     ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
         OutlinedTextField(
             value = selected?.displayName() ?: stringResource(R.string.settings_default_payment_first),
@@ -147,9 +147,9 @@ private fun DefaultPaymentMethod(s: SettingsUiState, onSelect: (Long?) -> Unit) 
                     expanded = false
                 },
             )
-            s.paymentMethods.forEach { m ->
+            s.accounts.forEach { m ->
                 DropdownMenuItem(
-                    text = { Text(m.displayName() + (m.currency?.let { " · ${it.name}" } ?: "")) },
+                    text = { Text(m.displayName() + " · " + m.currency.name) },
                     onClick = {
                         onSelect(m.id)
                         expanded = false

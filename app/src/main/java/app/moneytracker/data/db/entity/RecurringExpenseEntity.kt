@@ -13,16 +13,16 @@ import java.time.LocalDate
     tableName = "recurring_expense",
     foreignKeys = [
         ForeignKey(CategoryEntity::class, ["id"], ["category_id"], onDelete = ForeignKey.RESTRICT),
-        ForeignKey(PaymentMethodEntity::class, ["id"], ["payment_method_id"], onDelete = ForeignKey.RESTRICT),
+        ForeignKey(AccountEntity::class, ["id"], ["account_id"], onDelete = ForeignKey.RESTRICT),
     ],
-    indices = [Index("category_id"), Index("payment_method_id"), Index("next_run_date")],
+    indices = [Index("category_id"), Index("account_id"), Index("next_run_date")],
 )
 data class RecurringExpenseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     @ColumnInfo(name = "amount_minor") val amountMinor: Long,
     val currency: CurrencyCode,
     @ColumnInfo(name = "category_id") val categoryId: Long,
-    @ColumnInfo(name = "payment_method_id") val paymentMethodId: Long,
+    @ColumnInfo(name = "account_id") val accountId: Long,
     val comment: String?,
     /** JSON-массив: теги шаблона нужны только при создании расхода, отдельная таблица избыточна. */
     val tags: List<String>,

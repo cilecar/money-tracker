@@ -1,5 +1,6 @@
 package app.moneytracker.domain.model
 
+import app.moneytracker.domain.model.CurrencyCode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -13,7 +14,7 @@ class ExpenseSectionsTest {
     private val rates = RateSnapshot(BigDecimal("117"), BigDecimal("100"), LocalDate.of(2026, 10, 1))
     private val food = Category(id = 1, name = "Еда", iconKey = "restaurant", color = 0)
     private val cafe = Category(id = 2, name = "Кафе", iconKey = "local_cafe", color = 0, parentId = 1)
-    private val cash = PaymentMethod(id = 1, name = "Наличные", type = PaymentMethodType.CASH)
+    private val cash = Account(id = 1, name = "Наличные", type = AccountType.CASH, currency = CurrencyCode.RSD, openingDate = OPENING)
 
     private fun expense(day: Int, hour: Int, amount: Money, categoryId: Long = 1, withRates: Boolean = true): Expense {
         val at = Instant.parse("2026-10-%02dT%02d:00:00Z".format(day, hour))
@@ -66,7 +67,7 @@ class ExpenseSectionsTest {
             .single().items.single()
         assertEquals(cafe, item.category)
         assertEquals(food, item.parentCategory)
-        assertEquals(cash, item.paymentMethod)
+        assertEquals(cash, item.account)
     }
 
     @Test
@@ -81,3 +82,5 @@ class ExpenseSectionsTest {
         assertNull(pending.amountIn(CurrencyCode.EUR))
     }
 }
+
+private val OPENING: LocalDate = LocalDate.of(2020, 1, 1)

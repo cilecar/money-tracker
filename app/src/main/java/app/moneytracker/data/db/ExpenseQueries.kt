@@ -25,9 +25,9 @@ object ExpenseQueries {
             where += "category_id IN (${placeholders(filter.categoryIds.size)})"
             args.addAll(filter.categoryIds)
         }
-        if (filter.paymentMethodIds.isNotEmpty()) {
-            where += "payment_method_id IN (${placeholders(filter.paymentMethodIds.size)})"
-            args.addAll(filter.paymentMethodIds)
+        if (filter.accountIds.isNotEmpty()) {
+            where += "account_id IN (${placeholders(filter.accountIds.size)})"
+            args.addAll(filter.accountIds)
         }
         if (filter.tags.isNotEmpty()) {
             where += """

@@ -26,7 +26,7 @@ import app.moneytracker.R
 @Composable
 fun MoreScreen(
     onCategories: () -> Unit,
-    onPaymentMethods: () -> Unit,
+    onAccounts: () -> Unit,
     onRecurring: () -> Unit,
     onRates: () -> Unit,
     onData: () -> Unit,
@@ -35,7 +35,7 @@ fun MoreScreen(
     Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_more)) }) }) { padding ->
         Column(Modifier.padding(padding)) {
             Item(Icons.Default.Category, stringResource(R.string.categories_title), onCategories)
-            Item(Icons.Default.CreditCard, stringResource(R.string.payment_methods_title), onPaymentMethods)
+            Item(Icons.Default.CreditCard, stringResource(R.string.accounts_title), onAccounts)
             Item(Icons.Default.EventRepeat, stringResource(R.string.recurring_title), onRecurring)
             Item(Icons.Default.CurrencyExchange, stringResource(R.string.rates_title), onRates)
             Item(Icons.Default.ImportExport, stringResource(R.string.data_title), onData)

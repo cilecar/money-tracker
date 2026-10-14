@@ -94,7 +94,7 @@ class FakeSettingsRepository : SettingsRepository {
     override val settings = MutableStateFlow(AppSettings())
     override suspend fun setInputCurrency(currency: CurrencyCode) { settings.value = settings.value.copy(inputCurrency = currency) }
     override suspend fun setDisplayCurrency(currency: CurrencyCode) { settings.value = settings.value.copy(displayCurrency = currency) }
-    override suspend fun setDefaultPaymentMethod(id: Long?) { settings.value = settings.value.copy(defaultPaymentMethodId = id) }
+    override suspend fun setDefaultAccount(id: Long?) { settings.value = settings.value.copy(defaultAccountId = id) }
     override suspend fun setThemeMode(mode: ThemeMode) { settings.value = settings.value.copy(themeMode = mode) }
     override suspend fun setDynamicColor(enabled: Boolean) { settings.value = settings.value.copy(dynamicColor = enabled) }
 }

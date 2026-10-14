@@ -1,17 +1,20 @@
 package app.moneytracker.data.db
 
 import app.moneytracker.data.db.dao.ExpenseWithTags
+import app.moneytracker.data.db.entity.BalanceAdjustmentEntity
 import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
 import app.moneytracker.data.db.entity.ExpenseEntity
-import app.moneytracker.data.db.entity.PaymentMethodEntity
+import app.moneytracker.data.db.entity.AccountEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
+import app.moneytracker.domain.model.BalanceAdjustment
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.ConvertedAmounts
+import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.ExchangeRate
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.Money
-import app.moneytracker.domain.model.PaymentMethod
+import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.RateSnapshot
 import app.moneytracker.domain.model.RecurringExpense
 
@@ -20,7 +23,7 @@ fun ExpenseWithTags.toDomain(): Expense = with(expense) {
         id = id,
         amount = Money(amountMinor, currency),
         categoryId = categoryId,
-        paymentMethodId = paymentMethodId,
+        accountId = accountId,
         occurredAt = occurredAt,
         localDate = localDate,
         comment = comment,
@@ -36,6 +39,7 @@ fun ExpenseWithTags.toDomain(): Expense = with(expense) {
             null
         },
         recurringId = recurringId,
+        accountAmountMinor = accountAmountMinor,
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
@@ -46,7 +50,7 @@ fun Expense.toEntity() = ExpenseEntity(
     amountMinor = amount.minor,
     currency = amount.currency,
     categoryId = categoryId,
-    paymentMethodId = paymentMethodId,
+    accountId = accountId,
     occurredAt = occurredAt,
     localDate = localDate,
     comment = comment,
@@ -57,6 +61,7 @@ fun Expense.toEntity() = ExpenseEntity(
     eurMinor = converted?.eurMinor,
     rubMinor = converted?.rubMinor,
     recurringId = recurringId,
+    accountAmountMinor = accountAmountMinor,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
@@ -65,9 +70,17 @@ fun CategoryEntity.toDomain() = Category(id, name, defaultKey, iconKey, color, p
 
 fun Category.toEntity() = CategoryEntity(id, name, defaultKey, iconKey, color, parentId, sortOrder, archived)
 
-fun PaymentMethodEntity.toDomain() = PaymentMethod(id, name, type, currency, defaultKey, sortOrder, archived)
+fun AccountEntity.toDomain() =
+    Account(id, name, type, currency, openingBalanceMinor, openingDate, defaultKey, sortOrder, archived)
 
-fun PaymentMethod.toEntity() = PaymentMethodEntity(id, name, type, currency, defaultKey, sortOrder, archived)
+fun Account.toEntity() =
+    AccountEntity(id, name, type, currency, openingBalanceMinor, openingDate, defaultKey, sortOrder, archived)
+
+fun BalanceAdjustmentEntity.toDomain(currency: CurrencyCode) =
+    BalanceAdjustment(id, accountId, Money(amountMinor, currency), occurredAt, localDate, comment, createdAt)
+
+fun BalanceAdjustment.toEntity() =
+    BalanceAdjustmentEntity(id, accountId, amount.minor, occurredAt, localDate, comment, createdAt)
 
 fun ExchangeRateEntity.toDomain() = ExchangeRate(date, currency, perEur, source, fetchedAt)
 
@@ -75,7 +88,7 @@ fun RecurringExpenseEntity.toDomain() = RecurringExpense(
     id = id,
     amount = Money(amountMinor, currency),
     categoryId = categoryId,
-    paymentMethodId = paymentMethodId,
+    accountId = accountId,
     comment = comment,
     tags = tags,
     frequency = frequency,
@@ -92,7 +105,7 @@ fun RecurringExpense.toEntity() = RecurringExpenseEntity(
     amountMinor = amount.minor,
     currency = amount.currency,
     categoryId = categoryId,
-    paymentMethodId = paymentMethodId,
+    accountId = accountId,
     comment = comment,
     tags = tags,
     frequency = frequency,

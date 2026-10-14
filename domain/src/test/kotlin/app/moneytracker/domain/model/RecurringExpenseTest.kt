@@ -11,7 +11,7 @@ class RecurringExpenseTest {
     private fun template(frequency: Frequency, start: String, interval: Int = 1, end: String? = null) = RecurringExpense.create(
         amount = Money(100, CurrencyCode.EUR),
         categoryId = 1,
-        paymentMethodId = 1,
+        accountId = 1,
         frequency = frequency,
         interval = interval,
         startDate = LocalDate.parse(start),

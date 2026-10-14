@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.moneytracker.data.db.DefaultData
 import app.moneytracker.domain.model.Category
-import app.moneytracker.domain.model.PaymentMethod
+import app.moneytracker.domain.model.Account
 
 /** Название с учётом локали: для нетронутых категорий по умолчанию — из ресурсов. */
 @Composable
@@ -29,7 +29,7 @@ fun Category.displayName(): String =
     defaultKey?.let(DefaultData::nameResFor)?.let { stringResource(it) } ?: name
 
 @Composable
-fun PaymentMethod.displayName(): String =
+fun Account.displayName(): String =
     defaultKey?.let(DefaultData::nameResFor)?.let { stringResource(it) } ?: name
 
 /** «Еда › Кафе» для подкатегории. */

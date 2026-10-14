@@ -221,7 +221,7 @@ class DataTransferTest {
         val result = env.transfer.importCsv(ByteArrayInputStream(csv.toByteArray()))
         assertEquals(2, result.imported)
         assertEquals(2, result.createdCategories) // «Подарки» и «Подарки › Цветы»
-        assertEquals(1, result.createdPaymentMethods)
+        assertEquals(1, result.createdAccounts)
         assertEquals(
             listOf(
                 CsvRowError(4, CsvErrorReason.BAD_DATE),
@@ -255,14 +255,14 @@ class DataTransferTest {
         source.budgets.markAlerted(budgetId, java.time.YearMonth.of(2026, 10), app.moneytracker.domain.model.BudgetLevel.WARNING)
         source.rateRepo.setManualRate(CurrencyCode.RSD, BigDecimal("117.25"), LocalDate.of(2026, 10, 14))
         source.settings.setDisplayCurrency(CurrencyCode.EUR)
-        source.settings.setDefaultPaymentMethod(1)
+        source.settings.setDefaultAccount(1)
         val json = source.exportJson()
 
         val target = Env()
         target.add(Money(1, CurrencyCode.RSD), 1, "2026-01-01T00:00:00Z") // будет заменено
         val result = target.transfer.importJson(ByteArrayInputStream(json))
         assertEquals(2, result.expenses)
-        assertEquals(11, result.categories)
+        assertEquals(12, result.categories)
 
         assertEquals(source.expenses.get(e1), target.expenses.get(e1))
         assertEquals(source.db.expenseDao().getAll().map { it.expense }, target.db.expenseDao().getAll().map { it.expense })
@@ -271,7 +271,7 @@ class DataTransferTest {
         assertEquals(rec, target.recurring.get(rec)!!.id)
         assertEquals(BigDecimal("117.25"), target.rateRepo.current()?.snapshot?.rsdPerEur ?: target.db.maintenanceDao().allRates().single().perEur)
         assertEquals(CurrencyCode.EUR, target.settings.settings.first().displayCurrency)
-        assertEquals(1L, target.settings.settings.first().defaultPaymentMethodId)
+        assertEquals(1L, target.settings.settings.first().defaultAccountId)
         // Отметка об уведомлении тоже переехала — повторного «80%» не будет
         assertTrue(!target.budgets.markAlerted(budgetId, java.time.YearMonth.of(2026, 10), app.moneytracker.domain.model.BudgetLevel.WARNING))
     }
@@ -289,14 +289,14 @@ class DataTransferTest {
             } catch (_: BackupFormatException) {
             }
             assertEquals(1, env.db.expenseDao().getAll().size)
-            assertEquals(10, env.categories.getAll().size)
+            assertEquals(11, env.categories.getAll().size)
         }
     }
 
     @Test
     fun newerVersionIsRejected() = runTest {
         val env = Env()
-        val newer = String(env.exportJson()).replace("\"version\":1", "\"version\":99")
+        val newer = String(env.exportJson()).replace("\"version\":${BackupDto.VERSION}", "\"version\":99")
         try {
             env.transfer.importJson(ByteArrayInputStream(newer.toByteArray()))
             fail()
@@ -346,7 +346,7 @@ class DataTransferTest {
         )
         env.assertImportRejected(env.exportJsonWith { d -> d.copy(budgets = d.budgets + d.budgets) }, inconsistent, "duplicate budget")
         env.assertImportRejected(env.exportJsonWith { d -> d.copy(categories = d.categories + d.categories.last()) }, inconsistent, "duplicate category")
-        env.assertImportRejected(env.exportJsonWith { d -> d.copy(paymentMethods = d.paymentMethods + d.paymentMethods.last()) }, inconsistent, "duplicate method")
+        env.assertImportRejected(env.exportJsonWith { d -> d.copy(accounts = d.accounts + d.accounts.last()) }, inconsistent, "duplicate method")
         env.assertImportRejected(env.exportJsonWith { d -> d.copy(recurring = d.recurring + d.recurring) }, inconsistent, "duplicate recurring")
     }
 
@@ -432,5 +432,69 @@ class DataTransferTest {
         } catch (e: BackupFormatException) {
             assertEquals(BackupFormatException.Reason.NOT_A_BACKUP, e.reason)
         }
+    }
+
+    /** Файл версии 1: старые имена полей, у наличных нет валюты — импорт достраивает счёт, как миграция 1→2. */
+    @Test
+    fun jsonVersion1BecomesAccounts() = runTest {
+        val v1 = """
+            {"format":"money-tracker-backup","version":1,"exportedAt":"2026-10-01T00:00:00Z",
+             "settings":{"inputCurrency":"EUR","displayCurrency":"RSD","defaultPaymentMethodId":5,"themeMode":"SYSTEM","dynamicColor":true},
+             "categories":[{"id":1,"name":"Еда","defaultKey":"food","iconKey":"restaurant","color":1,"sortOrder":0,"archived":false}],
+             "paymentMethods":[
+               {"id":5,"name":"Наличные","type":"CASH","defaultKey":"cash","sortOrder":0,"archived":false},
+               {"id":6,"name":"Пустой","type":"CARD","sortOrder":1,"archived":false}],
+             "expenses":[
+               {"id":1,"amountMinor":1000,"currency":"EUR","categoryId":1,"paymentMethodId":5,"occurredAt":"2026-09-02T10:00:00Z","localDate":"2026-09-02","createdAt":"2026-09-02T10:00:00Z","updatedAt":"2026-09-02T10:00:00Z"},
+               {"id":2,"amountMinor":500,"currency":"EUR","categoryId":1,"paymentMethodId":5,"occurredAt":"2026-08-20T10:00:00Z","localDate":"2026-08-20","createdAt":"2026-08-20T10:00:00Z","updatedAt":"2026-08-20T10:00:00Z"},
+               {"id":3,"amountMinor":90000,"currency":"RSD","categoryId":1,"paymentMethodId":5,"occurredAt":"2026-09-05T10:00:00Z","localDate":"2026-09-05","createdAt":"2026-09-05T10:00:00Z","updatedAt":"2026-09-05T10:00:00Z"}],
+             "budgets":[],"recurring":[],"exchangeRates":[]}
+        """.trimIndent()
+        val env = Env()
+        env.transfer.importJson(ByteArrayInputStream(v1.toByteArray()))
+
+        val accounts = env.db.accountDao().getAll(true).associateBy { it.id }
+        assertEquals(CurrencyCode.EUR, accounts.getValue(5).currency)
+        assertEquals(LocalDate.of(2026, 8, 20), accounts.getValue(5).openingDate)
+        assertEquals(0L, accounts.getValue(5).openingBalanceMinor)
+        assertEquals(CurrencyCode.RSD, accounts.getValue(6).currency)
+        assertEquals(LocalDate.now(clock), accounts.getValue(6).openingDate)
+        assertEquals(listOf(5L, 5L, 5L), env.db.expenseDao().getAll().map { it.expense.accountId })
+        assertEquals(5L, env.settings.settings.first().defaultAccountId)
+    }
+
+    @Test
+    fun jsonRoundTripKeepsAccountsAndAdjustments() = runTest {
+        val source = Env()
+        val dao = source.db.accountDao()
+        val cash = dao.get(1)!!
+        dao.upsert(cash.copy(currency = CurrencyCode.EUR, openingBalanceMinor = 12345, openingDate = LocalDate.of(2026, 3, 1)))
+        dao.insertAdjustment(
+            app.moneytracker.data.db.entity.BalanceAdjustmentEntity(0, 1, -500, Instant.parse("2026-10-01T10:00:00Z"), LocalDate.of(2026, 10, 1), "Сверка", Instant.parse("2026-10-01T10:00:00Z")),
+        )
+        val e = source.add(Money(1000, CurrencyCode.RSD), 1, "2026-10-02T10:00:00Z")
+        source.db.openHelper.writableDatabase.execSQL("UPDATE expense SET account_amount_minor = 9 WHERE id = $e")
+
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(source.exportJson()))
+        assertEquals(dao.getAll(true), target.db.accountDao().getAll(true))
+        assertEquals(source.db.maintenanceDao().allAdjustments(), target.db.maintenanceDao().allAdjustments())
+        assertEquals(9L, target.db.expenseDao().getAll().single().expense.accountAmountMinor)
+    }
+
+    /** Заголовок старых выгрузок «payment_method»; новый счёт берёт валюту и самую раннюю дату своих строк. */
+    @Test
+    fun csvWithOldHeaderCreatesAccountWithCurrency() = runTest {
+        val csv = """
+            date,amount,currency,category,payment_method
+            2026-09-10 12:00,10,EUR,Еда,Revolut
+            2026-09-01 12:00,5,EUR,Еда,Revolut
+        """.trimIndent()
+        val env = Env()
+        val result = env.transfer.importCsv(ByteArrayInputStream(csv.toByteArray()))
+        assertEquals(2, result.imported)
+        val revolut = env.db.accountDao().getAll(true).single { it.name == "Revolut" }
+        assertEquals(CurrencyCode.EUR, revolut.currency)
+        assertEquals(LocalDate.of(2026, 9, 1), revolut.openingDate)
     }
 }

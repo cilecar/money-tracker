@@ -114,7 +114,7 @@ fun ExpenseEditScreen(onClose: () -> Unit, viewModel: ExpenseEditViewModel = hil
             ) {
                 AmountHeader(s, onCurrency = viewModel::onCurrency)
                 CategoryRow(s, onSelect = viewModel::onCategory)
-                PaymentMethodRow(s, onSelect = viewModel::onPaymentMethod)
+                AccountRow(s, onSelect = viewModel::onAccount)
                 DateTimeRow(s, onDate = viewModel::onDate, onTime = viewModel::onTime)
                 OutlinedTextField(
                     value = s.form.comment,
@@ -218,14 +218,14 @@ private fun CategoryRow(s: ExpenseEditUiState, onSelect: (Long) -> Unit) {
 }
 
 @Composable
-private fun PaymentMethodRow(s: ExpenseEditUiState, onSelect: (app.moneytracker.domain.model.PaymentMethod) -> Unit) {
+private fun AccountRow(s: ExpenseEditUiState, onSelect: (app.moneytracker.domain.model.Account) -> Unit) {
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        s.paymentMethods.forEach { method ->
+        s.accounts.forEach { method ->
             FilterChip(
-                selected = method.id == s.form.paymentMethodId,
+                selected = method.id == s.form.accountId,
                 onClick = { onSelect(method) },
                 label = {
-                    Text(method.displayName() + (method.currency?.let { " · ${it.name}" } ?: ""))
+                    Text(method.displayName() + " · " + method.currency.name)
                 },
                 leadingIcon = { Icon(CategoryIcons.forPaymentType(method.type), contentDescription = null, Modifier.size(18.dp)) },
             )

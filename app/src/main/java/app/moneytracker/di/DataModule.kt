@@ -14,7 +14,7 @@ import app.moneytracker.data.db.dao.BudgetDao
 import app.moneytracker.data.db.dao.CategoryDao
 import app.moneytracker.data.db.dao.ExchangeRateDao
 import app.moneytracker.data.db.dao.ExpenseDao
-import app.moneytracker.data.db.dao.PaymentMethodDao
+import app.moneytracker.data.db.dao.AccountDao
 import app.moneytracker.data.db.dao.RecurringDao
 import dagger.Module
 import dagger.Provides
@@ -38,7 +38,7 @@ object DataModule {
 
     @Provides fun expenseDao(db: AppDatabase): ExpenseDao = db.expenseDao()
     @Provides fun categoryDao(db: AppDatabase): CategoryDao = db.categoryDao()
-    @Provides fun paymentMethodDao(db: AppDatabase): PaymentMethodDao = db.paymentMethodDao()
+    @Provides fun accountDao(db: AppDatabase): AccountDao = db.accountDao()
     @Provides fun exchangeRateDao(db: AppDatabase): ExchangeRateDao = db.exchangeRateDao()
     @Provides fun budgetDao(db: AppDatabase): BudgetDao = db.budgetDao()
     @Provides fun recurringDao(db: AppDatabase): RecurringDao = db.recurringDao()

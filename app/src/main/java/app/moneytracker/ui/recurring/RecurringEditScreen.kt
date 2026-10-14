@@ -129,11 +129,11 @@ fun RecurringEditScreen(onClose: () -> Unit, viewModel: RecurringEditViewModel =
                 )
 
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    s.paymentMethods.forEach { m ->
+                    s.accounts.forEach { m ->
                         FilterChip(
-                            selected = m.id == f.paymentMethodId,
-                            onClick = { viewModel.onPaymentMethod(m) },
-                            label = { Text(m.displayName() + (m.currency?.let { " · ${it.name}" } ?: "")) },
+                            selected = m.id == f.accountId,
+                            onClick = { viewModel.onAccount(m) },
+                            label = { Text(m.displayName() + " · " + m.currency.name) },
                             leadingIcon = { Icon(CategoryIcons.forPaymentType(m.type), null, Modifier.size(18.dp)) },
                         )
                     }

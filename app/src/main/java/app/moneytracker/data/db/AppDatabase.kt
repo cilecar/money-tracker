@@ -9,15 +9,20 @@ import app.moneytracker.data.db.dao.CategoryDao
 import app.moneytracker.data.db.dao.ExchangeRateDao
 import app.moneytracker.data.db.dao.ExpenseDao
 import app.moneytracker.data.db.dao.MaintenanceDao
-import app.moneytracker.data.db.dao.PaymentMethodDao
+import app.moneytracker.data.db.dao.AccountDao
 import app.moneytracker.data.db.dao.RecurringDao
+import app.moneytracker.data.db.entity.BalanceAdjustmentEntity
 import app.moneytracker.data.db.entity.BudgetAlertEntity
 import app.moneytracker.data.db.entity.BudgetEntity
 import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
 import app.moneytracker.data.db.entity.ExpenseEntity
 import app.moneytracker.data.db.entity.ExpenseTagCrossRef
-import app.moneytracker.data.db.entity.PaymentMethodEntity
+import app.moneytracker.data.db.entity.IncomeCategoryEntity
+import app.moneytracker.data.db.entity.IncomeEntity
+import app.moneytracker.data.db.entity.RefundEntity
+import app.moneytracker.data.db.entity.TransferEntity
+import app.moneytracker.data.db.entity.AccountEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
 import app.moneytracker.data.db.entity.TagEntity
 
@@ -25,13 +30,18 @@ import app.moneytracker.data.db.entity.TagEntity
     entities = [
         ExpenseEntity::class,
         CategoryEntity::class,
-        PaymentMethodEntity::class,
+        AccountEntity::class,
         TagEntity::class,
         ExpenseTagCrossRef::class,
         ExchangeRateEntity::class,
         BudgetEntity::class,
         BudgetAlertEntity::class,
         RecurringExpenseEntity::class,
+        BalanceAdjustmentEntity::class,
+        IncomeCategoryEntity::class,
+        IncomeEntity::class,
+        RefundEntity::class,
+        TransferEntity::class,
     ],
     version = AppDatabase.VERSION,
     exportSchema = true,
@@ -40,7 +50,7 @@ import app.moneytracker.data.db.entity.TagEntity
 abstract class AppDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
     abstract fun categoryDao(): CategoryDao
-    abstract fun paymentMethodDao(): PaymentMethodDao
+    abstract fun accountDao(): AccountDao
     abstract fun exchangeRateDao(): ExchangeRateDao
     abstract fun budgetDao(): BudgetDao
     abstract fun recurringDao(): RecurringDao
@@ -48,13 +58,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "money_tracker.db"
-        const val VERSION = 1
+        const val VERSION = 2
 
         /**
          * Миграции схемы, регистрируются в DataModule. Новая версия базы = миграция сюда
          * (MigrationTest прогонит её по экспортированным схемам из app/schemas).
          */
-        val MIGRATIONS: Array<Migration> = emptyArray()
+        val MIGRATIONS: Array<Migration> = arrayOf(Migration1To2)
 
         /** Есть ли цепочка миграций from → to. Нужна, чтобы не принять резервную копию, которую Room не откроет. */
         fun hasMigrationPath(from: Int, to: Int): Boolean {
