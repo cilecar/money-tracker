@@ -63,6 +63,10 @@ fun FilterSheet(
     val currency = state.displayCurrency
     var minText by remember { mutableStateOf(draft.minAmount?.amount?.stripTrailingZeros()?.toPlainString().orEmpty()) }
     var maxText by remember { mutableStateOf(draft.maxAmount?.amount?.stripTrailingZeros()?.toPlainString().orEmpty()) }
+    val minAmount = Money.parse(minText, currency)
+    val maxAmount = Money.parse(maxText, currency)
+    val minError = minText.isNotBlank() && minAmount == null
+    val maxError = maxText.isNotBlank() && maxAmount == null
     var rangeOpen by remember { mutableStateOf(false) }
     val today = LocalDate.now()
     val locale = currentLocale()
@@ -154,6 +158,7 @@ fun FilterSheet(
                 OutlinedTextField(
                     value = minText,
                     onValueChange = { minText = it },
+                    isError = minError,
                     label = { Text(stringResource(R.string.filter_from)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -162,6 +167,7 @@ fun FilterSheet(
                 OutlinedTextField(
                     value = maxText,
                     onValueChange = { maxText = it },
+                    isError = maxError,
                     label = { Text(stringResource(R.string.filter_to)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -178,11 +184,12 @@ fun FilterSheet(
                     onClick = {
                         onApply(
                             draft.copy(
-                                minAmount = Money.parse(minText, currency),
-                                maxAmount = Money.parse(maxText, currency),
+                                minAmount = minAmount,
+                                maxAmount = maxAmount,
                             ),
                         )
                     },
+                    enabled = !minError && !maxError,
                     modifier = Modifier.weight(1f),
                 ) { Text(stringResource(R.string.filter_apply)) }
             }

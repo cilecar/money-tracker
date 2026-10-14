@@ -50,7 +50,8 @@ class MoneyTest {
         assertEquals(123400L, Money.parse("1.234", c)?.minor)
         assertEquals(100000000L, Money.parse("1.000.000", c)?.minor)
         assertEquals(50L, Money.parse(",5", c)?.minor)
-        assertEquals(-1050L, Money.parse("-10.5", c)?.minor)
+        assertEquals(1250L, Money.parse(" 12,50 ", c)?.minor)
+        assertEquals(1200L, Money.parse("12,", c)?.minor)
     }
 
     @Test
@@ -62,6 +63,26 @@ class MoneyTest {
         assertNull(Money.parse("12e3", c))
         assertNull(Money.parse(".", c))
         assertNull(Money.parse("-", c))
+    }
+
+    @Test
+    fun `parse rejects malformed numbers instead of guessing`() {
+        val c = CurrencyCode.EUR
+        assertNull(Money.parse("12.3456", c)) // было 123456.00
+        assertNull(Money.parse("0.125", c)) // было 125.00
+        assertNull(Money.parse("1.2.3", c)) // было 123.00
+        assertNull(Money.parse("1..5", c)) // было 15.00
+        assertNull(Money.parse("1.234.56", c)) // было 123456.00
+        assertNull(Money.parse("1,23.45", c))
+        assertNull(Money.parse("12,5.5", c))
+    }
+
+    @Test
+    fun `parse rejects negative and overflowing amounts`() {
+        val c = CurrencyCode.EUR
+        assertNull(Money.parse("-5", c))
+        assertNull(Money.parse("-10.5", c))
+        assertNull(Money.parse("99999999999999999999", c)) // не помещается в Long — null, а не исключение
     }
 
     @Test

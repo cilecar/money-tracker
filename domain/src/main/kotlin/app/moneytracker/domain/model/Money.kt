@@ -61,32 +61,41 @@ data class Money(val minor: Long, val currency: CurrencyCode) : Comparable<Money
 
         /**
          * Разбирает пользовательский ввод: «1 234,5», «1234.50», «1.234,56» (EU), «1,234.56» (US).
-         * Последний из разделителей `.`/`,` считается десятичным, если после него ≤ 2 цифр.
-         * Возвращает null для пустой или некорректной строки.
+         *
+         * Если встречаются и `.`, и `,` — десятичный последний из них. Если только один вид:
+         * встречается один раз и после него не ровно 3 цифры — десятичный («12,5»), иначе это
+         * разделитель тысяч («1.234», «1.000.000»). Группы тысяч обязаны быть по 3 цифры.
+         *
+         * Возвращает null для пустой, некорректной, отрицательной строки или если дробных знаков
+         * больше, чем у валюты: лучше показать ошибку, чем молча угадать другое число.
          */
         fun parse(text: String, currency: CurrencyCode): Money? {
-            val cleaned = text.trim().filterNot { it.isWhitespace() || it == '\'' }
-            if (cleaned.isEmpty()) return null
-            val negative = cleaned.startsWith('-')
-            val body = cleaned.removePrefix("-")
+            val body = text.filterNot { it.isWhitespace() || it == '\'' }
             if (body.isEmpty() || body.any { !it.isDigit() && it != '.' && it != ',' }) return null
 
-            val lastSep = body.indexOfLast { it == '.' || it == ',' }
-            val normalized = if (lastSep >= 0 && body.length - lastSep - 1 <= currency.fractionDigits &&
-                body.count { it == body[lastSep] } == 1
-            ) {
-                val intPart = body.substring(0, lastSep).filter { it.isDigit() }
-                "$intPart.${body.substring(lastSep + 1)}"
-            } else {
-                body.filter { it.isDigit() }
+            val separators = body.filter { it == '.' || it == ',' }
+            val decimal: Char? = when {
+                separators.isEmpty() -> null
+                separators.toSet().size == 2 -> separators.last()
+                separators.length == 1 && body.length - body.indexOf(separators[0]) - 1 != 3 -> separators[0]
+                else -> null
             }
-            if (normalized.isEmpty() || normalized == ".") return null
+            val intText = if (decimal != null) body.substringBeforeLast(decimal) else body
+            val fracText = if (decimal != null) body.substringAfterLast(decimal) else ""
+            if (decimal != null && decimal in intText) return null
 
-            return runCatching {
-                val value = BigDecimal(normalized)
-                if (value.scale() > currency.fractionDigits) return null
-                of(if (negative) value.negate() else value, currency)
-            }.getOrNull()
+            val grouping = separators.firstOrNull { it != decimal }
+            val intValid = if (grouping == null) {
+                intText.all { it.isDigit() }
+            } else {
+                Regex("""[1-9]\d{0,2}(${Regex.escape(grouping.toString())}\d{3})+""").matches(intText)
+            }
+            if (!intValid || (intText.isEmpty() && fracText.isEmpty())) return null
+
+            val value = BigDecimal("${intText.filter { it.isDigit() }.ifEmpty { "0" }}.${fracText.ifEmpty { "0" }}")
+            if (value.stripTrailingZeros().scale() > currency.fractionDigits) return null
+            // Слишком большое число не помещается в Long — это тоже некорректный ввод, а не падение.
+            return runCatching { of(value, currency) }.getOrNull()
         }
     }
 }
