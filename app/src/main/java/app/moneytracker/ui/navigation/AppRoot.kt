@@ -1,6 +1,7 @@
 package app.moneytracker.ui.navigation
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -89,11 +90,15 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
             }
         },
     ) { padding ->
-        // consumeWindowInsets: внутренние Scaffold'ы не добавят отступ под навбар второй раз.
+        // Потребляем только нижний отступ (его уже занял NavigationBar), чтобы внутренние Scaffold'ы
+        // не добавили его второй раз. Верхний (строка состояния) не трогаем — его учитывает TopAppBar
+        // каждого экрана; если «съесть» и его, заголовки уезжают под часы и значки.
         NavHost(
             navController = navController,
             startDestination = ExpensesRoute,
-            modifier = Modifier.padding(bottom = padding.calculateBottomPadding()).consumeWindowInsets(padding),
+            modifier = Modifier
+                .padding(bottom = padding.calculateBottomPadding())
+                .consumeWindowInsets(PaddingValues(bottom = padding.calculateBottomPadding())),
         ) {
             composable<ExpensesRoute> {
                 ExpenseListScreen(
