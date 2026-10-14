@@ -28,7 +28,17 @@ class RunRecurringUseCase @Inject constructor(
     private val mutex = Mutex()
 
     /** @return сколько расходов создано. */
-    suspend operator fun invoke(): Int = mutex.withLock {
+    suspend operator fun invoke(): Int = mutex.withLock { runDue() }
+
+    /**
+     * Выполняет [block] под тем же замком, что и запуск. Нужно тем, кто перезаписывает шаблон
+     * целиком: иначе параллельный запуск сдвинет nextRunDate, а запись откатит его назад (дубль).
+     * Внутри [block] запускать платежи — только через [runDue] (Mutex не реентерабельный).
+     */
+    suspend fun <T> exclusive(block: suspend () -> T): T = mutex.withLock { block() }
+
+    /** Тело запуска без блокировки: вызывать только внутри [exclusive]. */
+    suspend fun runDue(): Int {
         val today = LocalDate.now(clock)
         val zone = clock.zone
         var created = 0
@@ -64,7 +74,7 @@ class RunRecurringUseCase @Inject constructor(
             }
         }
         if (created > 0) checkBudgets()
-        created
+        return created
     }
 
     private companion object {

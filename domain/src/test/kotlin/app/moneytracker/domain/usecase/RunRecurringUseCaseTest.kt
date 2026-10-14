@@ -8,6 +8,10 @@ import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Frequency
 import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.model.RecurringExpense
+import app.moneytracker.domain.repository.RecurringRepository
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -122,6 +126,45 @@ class SaveRecurringUseCaseTest {
         // 14.09 + 4 недели = 12.10, + 5 недель = 19.10 → первая ≥ 14.10 — это 19.10
         assertEquals(LocalDate.parse("2026-10-19"), recurring.get(id)!!.nextRunDate)
         assertEquals(2, expenses.items.value.size)
+    }
+
+    @Test
+    fun `resuming a paused template does not back-fill paused periods`() = runTest {
+        // Поставлен на паузу после июльского платежа, возобновлён сегодня (14.10).
+        val id = recurring.upsert(template("2026-07-14").copy(nextRunDate = LocalDate.parse("2026-08-14"), active = false))
+        save(recurring.get(id)!!.copy(active = true))
+        assertEquals(listOf(LocalDate.parse("2026-10-14")), expenses.items.value.values.map { it.localDate })
+        assertEquals(LocalDate.parse("2026-11-14"), recurring.get(id)!!.nextRunDate)
+    }
+
+    @Test
+    fun `changing schedule on the day of a payment does not repeat it`() = runTest {
+        val id = save(template("2026-10-14")) // сегодняшний платёж уже создан
+        save(recurring.get(id)!!.copy(frequency = Frequency.WEEKLY, dayOfMonth = null))
+        assertEquals(1, expenses.items.value.size)
+        assertEquals(LocalDate.parse("2026-10-21"), recurring.get(id)!!.nextRunDate)
+    }
+
+    @Test
+    fun `save racing with a background run does not duplicate`() = runTest {
+        val id = recurring.upsert(template("2026-10-14")) // сегодняшний платёж ещё не создан
+        val gate = CompletableDeferred<Unit>()
+        // get() «зависает» после чтения — как медленный запрос к БД.
+        val slow = object : RecurringRepository by recurring {
+            override suspend fun get(id: Long) = recurring.get(id).also { gate.await() }
+        }
+        val run = RunRecurringUseCase(slow, FakeExchangeRateRepository(clock), checkBudgets(clock, expenses), clock)
+        val save = SaveRecurringUseCase(slow, run, clock)
+
+        launch { save(recurring.get(id)!!.copy(amount = Money(200, CurrencyCode.EUR))) }
+        runCurrent()
+        launch { run() } // фоновая задача
+        runCurrent()
+        gate.complete(Unit)
+        runCurrent()
+
+        assertEquals(1, expenses.items.value.size)
+        assertEquals(LocalDate.parse("2026-11-14"), recurring.get(id)!!.nextRunDate)
     }
 
     @Test(expected = IllegalArgumentException::class)
