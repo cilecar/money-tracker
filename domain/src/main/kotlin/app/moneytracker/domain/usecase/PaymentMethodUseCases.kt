@@ -61,12 +61,19 @@ class ArchivePaymentMethodUseCase @Inject constructor(
     private val settings: SettingsRepository,
 ) {
     suspend operator fun invoke(id: Long, archived: Boolean): PaymentMethodResult {
+        val all = repository.getAll()
         if (archived) {
-            if (repository.getAll().none { !it.archived && it.id != id }) {
+            if (all.none { !it.archived && it.id != id }) {
                 return PaymentMethodResult.Error(PaymentMethodError.LAST_ACTIVE)
             }
             // Архивный способ не может быть способом по умолчанию.
             if (settings.settings.first().defaultPaymentMethodId == id) settings.setDefaultPaymentMethod(null)
+        } else {
+            // Пока способ лежал в архиве, его имя могли занять.
+            val method = all.firstOrNull { it.id == id } ?: return PaymentMethodResult.Success(id)
+            if (all.any { it.id != id && !it.archived && CategoryRules.sameName(it.name, method.name) }) {
+                return PaymentMethodResult.Error(PaymentMethodError.DUPLICATE_NAME)
+            }
         }
         repository.setArchived(id, archived)
         return PaymentMethodResult.Success(id)

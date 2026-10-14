@@ -66,6 +66,16 @@ class MoneyTest {
     }
 
     @Test
+    fun `parse rejects amounts too large to convert`() {
+        val c = CurrencyCode.EUR
+        // Было принято, а при конвертации EUR→RSD не влезало в Long: ArithmeticException
+        // в RunRecurring при каждом запуске приложения.
+        assertNull(Money.parse("1234567890123456", c))
+        assertNull(Money.parse("1 000 000 000", c))
+        assertEquals(99_999_999_999L, Money.parse("999 999 999,99", c)?.minor)
+    }
+
+    @Test
     fun `parse rejects malformed numbers instead of guessing`() {
         val c = CurrencyCode.EUR
         assertNull(Money.parse("12.3456", c)) // было 123456.00

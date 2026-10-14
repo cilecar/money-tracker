@@ -45,5 +45,22 @@ class ExpenseRepositoryImpl @Inject constructor(
         dao.updateWithTags(expense.toEntity(), Expense.normalizeTags(expense.tags))
     }
 
+    override suspend fun fillRates(expense: Expense): Boolean {
+        val rates = requireNotNull(expense.rates) { "Nothing to fill" }
+        val converted = requireNotNull(expense.converted)
+        return dao.fillRates(
+            id = expense.id,
+            amountMinor = expense.amount.minor,
+            currency = expense.amount.currency.name,
+            rsdPerEur = rates.rsdPerEur,
+            rubPerEur = rates.rubPerEur,
+            rateDate = rates.date,
+            rsdMinor = converted.rsdMinor,
+            eurMinor = converted.eurMinor,
+            rubMinor = converted.rubMinor,
+            updatedAt = expense.updatedAt,
+        ) == 1
+    }
+
     override suspend fun delete(id: Long) = dao.delete(id)
 }

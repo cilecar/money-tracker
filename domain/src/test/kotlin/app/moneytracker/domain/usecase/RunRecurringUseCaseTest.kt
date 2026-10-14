@@ -89,9 +89,20 @@ class RunRecurringUseCaseTest {
     }
 
     @Test
-    fun `daily catch up is capped`() = runTest {
-        add("2020-01-01", frequency = Frequency.DAILY)
-        assertEquals(366, run())
+    fun `catch up never goes further back than a year, even across runs`() = runTest {
+        val id = add("2020-01-01", frequency = Frequency.DAILY)
+        // 14.10.2025 … 14.10.2026 включительно. Раньше лимит был на запуск, и каждый следующий
+        // запуск добавлял ещё 366 — в сумме 2479 записей.
+        assertEquals(366, run() + run() + run())
+        assertEquals(LocalDate.parse("2025-10-14"), expenses.items.value.values.minOf { it.localDate })
+        assertEquals(LocalDate.parse("2026-10-15"), recurring.get(id)!!.nextRunDate)
+    }
+
+    @Test
+    fun `template that ended long ago is finished without creating anything`() = runTest {
+        val id = add("2020-01-01", end = "2021-01-01", frequency = Frequency.DAILY)
+        assertEquals(0, run())
+        assertFalse(recurring.get(id)!!.active)
     }
 }
 

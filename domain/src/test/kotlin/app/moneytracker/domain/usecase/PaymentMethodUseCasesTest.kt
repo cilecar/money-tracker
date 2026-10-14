@@ -57,4 +57,12 @@ class PaymentMethodUseCasesTest {
         assertEquals(PaymentMethodError.LAST_ACTIVE, archive(2, true).error())
         assertEquals(PaymentMethodError.LAST_ACTIVE, delete(2).error())
     }
+
+    @Test
+    fun `restoring from archive keeps names unique`() = runTest {
+        archive(2, true)
+        save(PaymentMethod(name = "карта rsd", type = PaymentMethodType.CARD))
+        assertEquals(PaymentMethodError.DUPLICATE_NAME, archive(2, false).error())
+        assertTrue(repo.getAll().first { it.id == 2L }.archived)
+    }
 }

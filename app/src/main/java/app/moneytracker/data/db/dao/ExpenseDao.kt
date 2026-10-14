@@ -10,6 +10,8 @@ import androidx.room.RawQuery
 import androidx.room.Relation
 import androidx.room.Transaction
 import androidx.room.Update
+import java.time.Instant
+import java.math.BigDecimal
 import androidx.sqlite.db.SupportSQLiteQuery
 import app.moneytracker.data.db.entity.ExpenseEntity
 import app.moneytracker.data.db.entity.ExpenseTagCrossRef
@@ -82,6 +84,31 @@ abstract class ExpenseDao {
 
     @Query("DELETE FROM expense WHERE id = :id")
     abstract suspend fun delete(id: Long)
+
+    /**
+     * Compare-and-set: пишем только колонки курсов и только пока у строки нет курса и сумма та же,
+     * что была прочитана. Так параллельная правка пользователя не откатывается. @return 0 или 1.
+     */
+    @Query(
+        """
+        UPDATE expense SET
+            rate_rsd_per_eur = :rsdPerEur, rate_rub_per_eur = :rubPerEur, rate_date = :rateDate,
+            rsd_minor = :rsdMinor, eur_minor = :eurMinor, rub_minor = :rubMinor, updated_at = :updatedAt
+        WHERE id = :id AND rate_date IS NULL AND amount_minor = :amountMinor AND currency = :currency
+        """,
+    )
+    abstract suspend fun fillRates(
+        id: Long,
+        amountMinor: Long,
+        currency: String,
+        rsdPerEur: BigDecimal,
+        rubPerEur: BigDecimal,
+        rateDate: LocalDate,
+        rsdMinor: Long,
+        eurMinor: Long,
+        rubMinor: Long,
+        updatedAt: Instant,
+    ): Int
 
     /** Вставка расхода и тегов одной транзакцией: либо всё, либо ничего. */
     @Transaction

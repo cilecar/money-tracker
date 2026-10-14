@@ -1,6 +1,7 @@
 package app.moneytracker.domain.usecase
 
 import app.moneytracker.domain.model.Expense
+import app.moneytracker.domain.model.RecurringExpense
 import app.moneytracker.domain.repository.ExchangeRateRepository
 import app.moneytracker.domain.repository.RecurringRepository
 import kotlinx.coroutines.sync.Mutex
@@ -8,12 +9,13 @@ import kotlinx.coroutines.sync.withLock
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.Period
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Создаёт расходы по регулярным шаблонам, «догоняя» пропущенные даты
- * (телефон был выключен неделю — появятся все платежи за неделю).
+ * (телефон был выключен неделю — появятся все платежи за неделю), но не глубже [MAX_CATCH_UP].
  *
  * Singleton + Mutex: запуск при старте приложения и фоновая задача могут совпасть
  * по времени; без блокировки оба увидели бы одну и ту же «должную» дату.
@@ -41,14 +43,23 @@ class RunRecurringUseCase @Inject constructor(
     suspend fun runDue(): Int {
         val today = LocalDate.now(clock)
         val zone = clock.zone
+        val floor = today.minus(MAX_CATCH_UP)
         var created = 0
         for (template in recurring.getDue(today)) {
             var item = template
-            var guard = 0
-            while (item.isDue(today) && guard++ < MAX_CATCH_UP) {
+            if (item.nextRunDate.isBefore(floor)) {
+                // Даты старше порога пропускаем совсем, а не «по 366 за запуск»: счётчик на запуск
+                // не спасал — nextRunDate оставался в прошлом, и следующий запуск продолжал догон.
+                val next = item.firstOnOrAfter(floor)
+                item = item.copy(nextRunDate = next, active = item.isActiveAt(next))
+                // Если догонять нечего (шаблон закончился давно), сдвиг сохраняем сами; иначе его
+                // запишет первый recordOccurrence ниже.
+                if (!item.isDue(today)) recurring.upsert(item)
+            }
+            while (item.isDue(today)) {
                 val date = item.nextRunDate
                 val next = item.nextAfter(date)
-                val stillActive = item.endDate == null || !next.isAfter(item.endDate)
+                val stillActive = item.isActiveAt(next)
                 val now = clock.instant()
                 recurring.recordOccurrence(
                     expense = Expense.create(
@@ -77,8 +88,11 @@ class RunRecurringUseCase @Inject constructor(
         return created
     }
 
+    /** Будут ли ещё платежи начиная с [next]. */
+    private fun RecurringExpense.isActiveAt(next: LocalDate) = endDate == null || !next.isAfter(endDate)
+
     private companion object {
-        /** Защита от лавины: ежедневный шаблон с датой начала 5 лет назад не создаст 1800 записей. */
-        const val MAX_CATCH_UP = 366
+        /** Защита от лавины: ежедневный шаблон с датой начала 5 лет назад создаст записи только за последний год. */
+        val MAX_CATCH_UP: Period = Period.ofYears(1)
     }
 }

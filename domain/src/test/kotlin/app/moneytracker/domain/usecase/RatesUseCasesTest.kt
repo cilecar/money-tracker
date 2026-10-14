@@ -7,6 +7,7 @@ import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.model.RefreshResult
+import app.moneytracker.domain.repository.ExpenseRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -97,5 +98,41 @@ class RatesUseCasesTest {
     @Test(expected = IllegalArgumentException::class)
     fun `manual rate must be positive`() = runTest {
         setManual(CurrencyCode.RSD, BigDecimal.ZERO)
+    }
+
+    @Test
+    fun `fill does not revert an edit made while it was running`() = runTest {
+        rates.nextResult = { FakeExchangeRateRepository.success(today) }
+        rates.refresh()
+        val commented = addPendingExpense()
+        val resized = addPendingExpense()
+        // Пользователь сохраняет правки между чтением списка и записью курсов.
+        val racing = object : ExpenseRepository by expenses {
+            override suspend fun getWithoutRates() = expenses.getWithoutRates().also {
+                expenses.update(expenses.get(commented)!!.copy(comment = "правка"))
+                expenses.update(expenses.get(resized)!!.withAmount(Money(5000, CurrencyCode.EUR), now))
+            }
+        }
+        FillPendingRatesUseCase(racing, rates, checkBudgets(clock, expenses), clock)()
+
+        val c = expenses.get(commented)!!
+        assertEquals("правка", c.comment)
+        assertTrue(c.hasRates)
+        // Сумма изменилась после чтения: курсы с пересчётом старой суммы не пишем, заполним в следующий раз.
+        val r = expenses.get(resized)!!
+        assertEquals(Money(5000, CurrencyCode.EUR), r.amount)
+        assertNull(r.converted)
+    }
+
+    @Test
+    fun `fill skips an expense deleted while it was running`() = runTest {
+        rates.nextResult = { FakeExchangeRateRepository.success(today) }
+        rates.refresh()
+        val id = addPendingExpense()
+        val racing = object : ExpenseRepository by expenses {
+            override suspend fun getWithoutRates() = expenses.getWithoutRates().also { expenses.delete(id) }
+        }
+        FillPendingRatesUseCase(racing, rates, checkBudgets(clock, expenses), clock)()
+        assertNull(expenses.get(id))
     }
 }

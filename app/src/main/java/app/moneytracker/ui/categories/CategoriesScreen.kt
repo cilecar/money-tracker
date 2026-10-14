@@ -35,6 +35,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.moneytracker.R
 import app.moneytracker.ui.common.CategoryAvatar
+import app.moneytracker.ui.common.ConfirmDialog
 import app.moneytracker.ui.common.displayName
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,5 +117,15 @@ fun CategoriesScreen(
                 }
             }
         }
+    }
+
+    state.restoreError?.let { error ->
+        ConfirmDialog(
+            title = stringResource(R.string.action_restore),
+            message = stringResource(error.messageRes()),
+            confirm = stringResource(android.R.string.ok),
+            onConfirm = viewModel::dismissRestoreError,
+            onDismiss = viewModel::dismissRestoreError,
+        )
     }
 }

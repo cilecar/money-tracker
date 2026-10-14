@@ -46,6 +46,11 @@ class FakeExpenseRepository : ExpenseRepository {
         return id
     }
     override suspend fun update(expense: Expense) { items.value += expense.id to expense }
+    override suspend fun fillRates(expense: Expense): Boolean {
+        val stored = items.value[expense.id]?.takeIf { !it.hasRates && it.amount == expense.amount } ?: return false
+        items.value += expense.id to stored.copy(rates = expense.rates, converted = expense.converted, updatedAt = expense.updatedAt)
+        return true
+    }
     override suspend fun delete(id: Long) { items.value -= id }
 }
 

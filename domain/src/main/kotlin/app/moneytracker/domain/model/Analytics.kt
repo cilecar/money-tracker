@@ -68,7 +68,7 @@ object Analytics {
         val ongoing = today in period
         val elapsedDays = if (ongoing) ChronoUnit.DAYS.between(period.from, today) + 1 else period.days
         val previousToDate = if (ongoing) {
-            val cutoff = minOf(previousPeriod.from.plusDays(elapsedDays - 1), previousPeriod.to)
+            val cutoff = period.sameDateInPrevious(today)
             sum(previous.filter { !it.localDate.isAfter(cutoff) }, currency)
         } else {
             null

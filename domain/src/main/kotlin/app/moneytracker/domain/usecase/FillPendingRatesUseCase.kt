@@ -18,11 +18,11 @@ class FillPendingRatesUseCase @Inject constructor(
     /** @return сколько расходов обновлено. */
     suspend operator fun invoke(): Int {
         val current = rates.current() ?: return 0
-        val pending = expenses.getWithoutRates()
         val now = clock.instant()
-        pending.forEach { expenses.update(it.withRates(current.snapshot, now)) }
+        // Не update(): тот перезаписал бы весь расход копией, прочитанной до правок пользователя.
+        val filled = expenses.getWithoutRates().count { expenses.fillRates(it.withRates(current.snapshot, now)) }
         // Расходы в другой валюте теперь учитываются в бюджетах — пороги могли пересечься.
-        if (pending.isNotEmpty()) checkBudgets()
-        return pending.size
+        if (filled > 0) checkBudgets()
+        return filled
     }
 }

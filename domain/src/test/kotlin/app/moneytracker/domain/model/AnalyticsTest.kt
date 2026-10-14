@@ -62,6 +62,18 @@ class AnalyticsTest {
     }
 
     @Test
+    fun `year comparison uses the same calendar date despite leap year`() {
+        val data = listOf(e("2027-03-01", eur(100), 1, 1), e("2027-03-02", eur(10000), 1, 1))
+        fun toDate(period: AnalyticsPeriod, now: String) =
+            Analytics.build(data, period, CurrencyCode.EUR, emptyMap(), emptyMap(), LocalDate.parse(now)).previousToDate
+        // 1 марта 2028 (после 29 февраля) → по 1 марта 2027, а не по 2-е.
+        assertEquals(eur(100), toDate(AnalyticsPeriod.Year(2028), "2028-03-01"))
+        // Обратный случай: 31 декабря 2025 → по 31 декабря 2024 (раньше терялся последний день).
+        val dec31 = listOf(e("2024-12-31", eur(500), 1, 1))
+        assertEquals(eur(500), Analytics.build(dec31, AnalyticsPeriod.Year(2025), CurrencyCode.EUR, emptyMap(), emptyMap(), LocalDate.parse("2025-12-31")).previousToDate)
+    }
+
+    @Test
     fun `finished period compares with whole previous period`() {
         val r = report(now = LocalDate.of(2026, 11, 3))
         assertNull(r.previousToDate)

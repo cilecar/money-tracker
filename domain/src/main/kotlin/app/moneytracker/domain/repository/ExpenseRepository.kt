@@ -30,5 +30,13 @@ interface ExpenseRepository {
 
     suspend fun update(expense: Expense)
 
+    /**
+     * Записывает курсы и пересчитанные суммы из [expense] (остальные поля не трогает), только если
+     * в базе у расхода всё ещё нет курсов и та же сумма в той же валюте. Одной операцией: правку,
+     * сохранённую после чтения, не откатим, а удалённый расход просто не найдём.
+     * @return false, если запись изменилась или удалена — тогда курсы не записаны.
+     */
+    suspend fun fillRates(expense: Expense): Boolean
+
     suspend fun delete(id: Long)
 }

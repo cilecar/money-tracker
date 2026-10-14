@@ -97,6 +97,20 @@ class CategoryUseCasesTest {
     }
 
     @Test
+    fun `restoring from archive keeps names unique`() = runTest {
+        // «Старое» в архиве, за это время создали новую активную «Старое».
+        save(cat(0, "старое "))
+        assertEquals(CategoryError.DUPLICATE_NAME, archive(4, false).error())
+        assertTrue(repo.get(4)!!.archived)
+
+        // Возврат подкатегории возвращает и родителя — его имя тоже проверяем.
+        archive(1, true)
+        save(cat(0, "Еда"))
+        assertEquals(CategoryError.DUPLICATE_NAME, archive(2, false).error())
+        assertTrue(repo.get(1)!!.archived && repo.get(2)!!.archived)
+    }
+
+    @Test
     fun `archiving parent fails if it would leave nothing active`() = runTest {
         val r = FakeCategoryRepository(listOf(cat(1, "Еда"), cat(2, "Кафе", parentId = 1)))
         assertEquals(CategoryError.LAST_ACTIVE, ArchiveCategoryUseCase(r)(1, true).error())

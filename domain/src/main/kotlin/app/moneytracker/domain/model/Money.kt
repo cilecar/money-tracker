@@ -66,8 +66,9 @@ data class Money(val minor: Long, val currency: CurrencyCode) : Comparable<Money
          * встречается один раз и после него не ровно 3 цифры — десятичный («12,5»), иначе это
          * разделитель тысяч («1.234», «1.000.000»). Группы тысяч обязаны быть по 3 цифры.
          *
-         * Возвращает null для пустой, некорректной, отрицательной строки или если дробных знаков
-         * больше, чем у валюты: лучше показать ошибку, чем молча угадать другое число.
+         * Возвращает null для пустой, некорректной, отрицательной строки, если дробных знаков
+         * больше, чем у валюты, или целая часть длиннее [MAX_INTEGER_DIGITS]: лучше показать
+         * ошибку, чем молча угадать другое число.
          */
         fun parse(text: String, currency: CurrencyCode): Money? {
             val body = text.filterNot { it.isWhitespace() || it == '\'' }
@@ -94,8 +95,15 @@ data class Money(val minor: Long, val currency: CurrencyCode) : Comparable<Money
 
             val value = BigDecimal("${intText.filter { it.isDigit() }.ifEmpty { "0" }}.${fracText.ifEmpty { "0" }}")
             if (value.stripTrailingZeros().scale() > currency.fractionDigits) return null
-            // Слишком большое число не помещается в Long — это тоже некорректный ввод, а не падение.
-            return runCatching { of(value, currency) }.getOrNull()
+            if (value.precision() - value.scale() > MAX_INTEGER_DIGITS) return null
+            return of(value, currency)
         }
+
+        /**
+         * Максимум цифр в целой части вводимой суммы. Дело не в самом Long, а в конвертации:
+         * сумма в ×100 раз больше (EUR→RSD) обязана влезать в Long, иначе расход нельзя сохранить,
+         * а регулярный платёж с такой суммой ронял бы каждый запуск.
+         */
+        const val MAX_INTEGER_DIGITS = 9
     }
 }

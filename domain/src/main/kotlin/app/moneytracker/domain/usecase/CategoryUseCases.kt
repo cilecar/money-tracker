@@ -102,7 +102,13 @@ class ArchiveCategoryUseCase @Inject constructor(private val repository: Categor
             if (all.none { !it.archived && it.id !in affected }) return CategoryResult.Error(CategoryError.LAST_ACTIVE)
             repository.setArchived(affected, true)
         } else {
-            repository.setArchived(listOfNotNull(id, category.parentId), false)
+            // Пока категория лежала в архиве, её имя могли занять: проверяем как при сохранении.
+            val restored = listOfNotNull(id, category.parentId)
+            val after = all.map { if (it.id in restored) it.copy(archived = false) else it }
+            after.filter { it.id in restored }
+                .firstNotNullOfOrNull { CategoryRules.validate(it, after) }
+                ?.let { return CategoryResult.Error(it) }
+            repository.setArchived(restored, false)
         }
         return CategoryResult.Success(id)
     }

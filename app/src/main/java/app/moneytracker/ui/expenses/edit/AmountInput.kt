@@ -70,8 +70,8 @@ data class AmountInput(
     }
 
     companion object {
-        /** 9 цифр — до 999 999 999: с запасом для любых трат и далеко от переполнения Long. */
-        const val MAX_INTEGER_DIGITS = 9
+        /** До 999 999 999 — тот же предел, что у [Money.parse]. */
+        const val MAX_INTEGER_DIGITS = Money.MAX_INTEGER_DIGITS
 
         fun from(money: Money): AmountInput {
             var factor = 1L

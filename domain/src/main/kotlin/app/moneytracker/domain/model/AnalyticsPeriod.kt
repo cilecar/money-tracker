@@ -20,6 +20,12 @@ sealed interface AnalyticsPeriod {
 
     operator fun contains(date: LocalDate): Boolean = date in from..to
 
+    /**
+     * То же число в [previous]: 1 марта 2028 → 1 марта 2027. Календарный сдвиг, а не «N дней
+     * от начала» — иначе в високосный год сравнение съезжает на день.
+     */
+    fun sameDateInPrevious(date: LocalDate): LocalDate
+
     /** Неделя с понедельника — как принято в Сербии и России (ISO-8601). */
     data class Week(val start: LocalDate) : AnalyticsPeriod {
         init {
@@ -30,6 +36,7 @@ sealed interface AnalyticsPeriod {
         override val granularity get() = Granularity.DAY
         override fun previous() = Week(start.minusWeeks(1))
         override fun next() = Week(start.plusWeeks(1))
+        override fun sameDateInPrevious(date: LocalDate): LocalDate = date.minusWeeks(1)
     }
 
     data class Month(val month: YearMonth) : AnalyticsPeriod {
@@ -38,6 +45,8 @@ sealed interface AnalyticsPeriod {
         override val granularity get() = Granularity.DAY
         override fun previous() = Month(month.minusMonths(1))
         override fun next() = Month(month.plusMonths(1))
+        /** 31 марта → 29 февраля: дальше конца прошлого месяца не уходим. */
+        override fun sameDateInPrevious(date: LocalDate): LocalDate = date.minusMonths(1)
     }
 
     data class Year(val year: Int) : AnalyticsPeriod {
@@ -46,6 +55,7 @@ sealed interface AnalyticsPeriod {
         override val granularity get() = Granularity.MONTH
         override fun previous() = Year(year - 1)
         override fun next() = Year(year + 1)
+        override fun sameDateInPrevious(date: LocalDate): LocalDate = date.minusYears(1)
     }
 
     /** Произвольный период; «предыдущий» — такой же длины непосредственно перед ним. */
@@ -56,6 +66,7 @@ sealed interface AnalyticsPeriod {
         override val granularity get() = if (days <= MAX_DAILY_DAYS) Granularity.DAY else Granularity.MONTH
         override fun previous() = Custom(from.minusDays(days), from.minusDays(1))
         override fun next() = Custom(to.plusDays(1), to.plusDays(days))
+        override fun sameDateInPrevious(date: LocalDate): LocalDate = date.minusDays(days)
     }
 
     companion object {

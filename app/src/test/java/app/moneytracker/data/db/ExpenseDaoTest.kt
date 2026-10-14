@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -127,6 +128,31 @@ class ExpenseDaoTest {
         val october = expenses.observeBetween(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)).first()
         assertEquals(2, october.size)
         assertTrue(october[0].occurredAt > october[1].occurredAt)
+    }
+
+    @Test
+    fun fillRatesWritesOnlyRatesAndOnlyIfStillPending() = runTest {
+        val id = expenses.insert(expense(tags = listOf("кафе")).copy(rates = null, converted = null))
+        val read = expenses.get(id)!!
+        // После чтения пользователь поменял комментарий — курсы ложатся, правка остаётся.
+        expenses.update(read.copy(comment = "правка"))
+        assertTrue(expenses.fillRates(read.withRates(rates, now)))
+        val filled = expenses.get(id)!!
+        assertEquals("правка", filled.comment)
+        assertEquals(listOf("кафе"), filled.tags)
+        assertEquals(rates.convertAll(filled.amount), filled.converted)
+
+        // Курс уже есть — повторно не пишем.
+        assertFalse(expenses.fillRates(read.withRates(rates, now)))
+        // Сумма поменялась после чтения — пересчёт старой суммы не пишем.
+        val other = expenses.insert(expense().copy(rates = null, converted = null))
+        val stale = expenses.get(other)!!
+        expenses.update(stale.copy(amount = Money(1, CurrencyCode.RSD)))
+        assertFalse(expenses.fillRates(stale.withRates(rates, now)))
+        assertNull(expenses.get(other)!!.rates)
+        // Удалённый расход — не падение FK, а просто false.
+        expenses.delete(other)
+        assertFalse(expenses.fillRates(stale.withRates(rates, now)))
     }
 
     @Test(expected = SQLiteConstraintException::class)
