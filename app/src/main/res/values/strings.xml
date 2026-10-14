@@ -385,4 +385,18 @@
     <string name="income_category_error_last">Должна остаться хотя бы одна активная категория дохода</string>
     <string name="income_category_delete_title">Удалить «%1$s»?</string>
     <string name="income_category_delete_move">Доходов в категории: %1$d. Перенести их в:</string>
+    <string name="operation_transfer">Перевод</string>
+    <string name="transfer_new">Новый перевод</string>
+    <string name="transfer_edit">Перевод</string>
+    <string name="transfer_deleted">Перевод удалён</string>
+    <string name="transfer_from">Откуда</string>
+    <string name="transfer_to">Куда</string>
+    <string name="transfer_fee">Комиссия (необязательно)</string>
+    <string name="transfer_fee_hint">Комиссия запишется расходом в категорию «Комиссии» со счёта списания</string>
+    <string name="transfer_actual_rate">Курс обменника: 1 %1$s = %2$s %3$s</string>
+    <string name="transfer_api_rate">Курс API: %1$s</string>
+    <string name="transfer_api_estimate">По курсу API было бы %1$s — введите фактически зачисленную сумму</string>
+    <string name="transfer_error_same">Выберите два разных счёта</string>
+    <string name="transfer_error_currency">Суммы должны быть в валютах счетов</string>
+    <string name="account_error_has_transfers">По счёту есть переводы — его можно только отправить в архив</string>
 </resources>

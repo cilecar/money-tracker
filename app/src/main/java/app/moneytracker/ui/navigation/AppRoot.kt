@@ -5,6 +5,7 @@ import app.moneytracker.ui.incomecategories.IncomeCategoriesScreen
 import app.moneytracker.ui.operations.IncomeEditScreen
 import app.moneytracker.ui.operations.NewOperationKind
 import app.moneytracker.ui.operations.RefundEditScreen
+import app.moneytracker.ui.operations.TransferEditScreen
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -111,6 +112,7 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                     onEdit = { navController.navigate(ExpenseEditRoute(it)) },
                     onEditIncome = { navController.navigate(IncomeEditRoute(it)) },
                     onEditRefund = { navController.navigate(RefundEditRoute(it)) },
+                    onEditTransfer = { navController.navigate(TransferEditRoute(it)) },
                 )
             }
             composable<ExpenseEditRoute> {
@@ -124,6 +126,9 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                 IncomeEditScreen(onClose = { navController.popBackStack() }, onSwitchKind = { navController.switchNewOperation(it) })
             }
             composable<RefundEditRoute> { RefundEditScreen(onClose = { navController.popBackStack() }) }
+            composable<TransferEditRoute> {
+                TransferEditScreen(onClose = { navController.popBackStack() }, onSwitchKind = { navController.switchNewOperation(it) })
+            }
             composable<IncomeCategoriesRoute> { IncomeCategoriesScreen(onBack = { navController.popBackStack() }) }
             composable<AnalyticsRoute> {
                 AnalyticsScreen(
@@ -141,6 +146,7 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                     onEdit = { navController.navigate(ExpenseEditRoute(it)) },
                     onEditIncome = { navController.navigate(IncomeEditRoute(it)) },
                     onEditRefund = { navController.navigate(RefundEditRoute(it)) },
+                    onEditTransfer = { navController.navigate(TransferEditRoute(it)) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -184,6 +190,7 @@ private fun NavHostController.switchNewOperation(kind: NewOperationKind) {
     val route: Any = when (kind) {
         NewOperationKind.EXPENSE -> ExpenseEditRoute()
         NewOperationKind.INCOME -> IncomeEditRoute()
+        NewOperationKind.TRANSFER -> TransferEditRoute()
     }
     val current = currentBackStackEntry?.destination?.id ?: return
     navigate(route) { popUpTo(current) { inclusive = true } }

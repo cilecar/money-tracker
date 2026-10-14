@@ -59,3 +59,19 @@ interface IncomeCategoryRepository {
 
     suspend fun nextSortOrder(): Int
 }
+
+interface TransferRepository {
+    fun observeBetween(from: LocalDate?, to: LocalDate?): Flow<List<app.moneytracker.domain.model.Transfer>>
+
+    suspend fun get(id: Long): app.moneytracker.domain.model.Transfer?
+
+    /**
+     * Сохраняет перевод и его комиссию одной транзакцией. [fee] — расход комиссии (id 0 — новый),
+     * null — комиссии нет: прежняя, если была, удаляется. Ненулевой id перевода без строки в базе —
+     * восстановление (undo) с тем же id. @return id перевода.
+     */
+    suspend fun save(transfer: app.moneytracker.domain.model.Transfer, fee: app.moneytracker.domain.model.Expense?): Long
+
+    /** Удаляет перевод вместе с расходом комиссии. */
+    suspend fun delete(id: Long)
+}

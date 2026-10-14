@@ -1,5 +1,10 @@
 package app.moneytracker.ui.expenses.list
 
+import app.moneytracker.domain.model.TransferItem
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.size
 import app.moneytracker.domain.model.ExpenseItem
 import app.moneytracker.domain.model.IncomeItem
 import app.moneytracker.domain.model.Money
@@ -95,6 +100,7 @@ fun ExpenseListScreen(
     onEdit: (Long) -> Unit,
     onEditIncome: (Long) -> Unit = {},
     onEditRefund: (Long) -> Unit = {},
+    onEditTransfer: (Long) -> Unit = {},
     /** Задан — экран открыт из аналитики: показываем «назад» и заголовок фильтра. */
     onBack: (() -> Unit)? = null,
     viewModel: ExpenseListViewModel = hiltViewModel(),
@@ -115,6 +121,9 @@ fun ExpenseListScreen(
                 }
                 is ExpenseListEvent.IncomeDeleted -> scope.launch {
                     if (undo(snackbar, resources.getString(R.string.income_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.income)
+                }
+                is ExpenseListEvent.TransferDeleted -> scope.launch {
+                    if (undo(snackbar, resources.getString(R.string.transfer_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.transfer, event.fee)
                 }
                 is ExpenseListEvent.RefundDeleted -> scope.launch {
                     if (undo(snackbar, resources.getString(R.string.refund_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.refund)
@@ -193,6 +202,9 @@ fun ExpenseListScreen(
                         }
                         is RefundItem -> SwipeToDelete(onDelete = { viewModel.deleteRefund(item.refund.id) }) {
                             RefundRow(item, state.displayCurrency, onClick = { onEditRefund(item.refund.id) })
+                        }
+                        is TransferItem -> SwipeToDelete(onDelete = { viewModel.deleteTransfer(item.transfer.id) }) {
+                            TransferRow(item, onClick = { onEditTransfer(item.transfer.id) })
                         }
                     }
                 }
@@ -480,6 +492,40 @@ private fun OperationRow(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
+            }
+        },
+    )
+}
+
+/** «Карта → Наличные», справа списание и зачисление (при обмене — в обеих валютах). */
+@Composable
+private fun TransferRow(item: TransferItem, onClick: () -> Unit) {
+    val locale = currentLocale()
+    val t = item.transfer
+    ListItem(
+        modifier = Modifier.clickable(onClick = onClick),
+        leadingContent = {
+            Icon(
+                Icons.Default.SwapHoriz,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer).padding(8.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        },
+        headlineContent = {
+            Text(
+                "${item.from?.displayName() ?: "—"} → ${item.to?.displayName() ?: "—"}",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        supportingContent = {
+            Text(listOfNotNull(stringResource(R.string.operation_transfer), time(t.occurredAt), t.comment).joinToString(" · "), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        },
+        trailingContent = {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(formatMoney(t.fromAmount, locale), style = MaterialTheme.typography.titleMedium)
+                if (t.isExchange) Text("→ " + formatMoney(t.toAmount, locale), style = MaterialTheme.typography.bodySmall)
             }
         },
     )

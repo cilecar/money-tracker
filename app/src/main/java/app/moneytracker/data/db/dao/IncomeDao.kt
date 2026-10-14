@@ -141,3 +141,21 @@ abstract class IncomeCategoryDao {
     @Query("DELETE FROM income_category WHERE id = :id")
     protected abstract suspend fun delete(id: Long)
 }
+
+@Dao
+abstract class TransferDao {
+    @Query("SELECT * FROM transfer WHERE local_date BETWEEN :from AND :to ORDER BY occurred_at DESC, id DESC")
+    abstract fun observeBetween(from: Long, to: Long): Flow<List<app.moneytracker.data.db.entity.TransferEntity>>
+
+    @Query("SELECT * FROM transfer ORDER BY occurred_at DESC, id DESC")
+    abstract suspend fun getAll(): List<app.moneytracker.data.db.entity.TransferEntity>
+
+    @Query("SELECT * FROM transfer WHERE id = :id")
+    abstract suspend fun get(id: Long): app.moneytracker.data.db.entity.TransferEntity?
+
+    @Upsert
+    abstract suspend fun upsert(transfer: app.moneytracker.data.db.entity.TransferEntity): Long
+
+    @Query("DELETE FROM transfer WHERE id = :id")
+    abstract suspend fun delete(id: Long)
+}

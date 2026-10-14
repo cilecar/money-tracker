@@ -155,4 +155,4 @@ data class Refund(
 /** Пустой комментарий не храним. */
 fun cleanComment(comment: String?): String? = comment?.trim()?.takeIf { it.isNotEmpty() }
 
-enum class OperationKind { EXPENSE, INCOME, REFUND }
+enum class OperationKind { EXPENSE, INCOME, REFUND, TRANSFER }

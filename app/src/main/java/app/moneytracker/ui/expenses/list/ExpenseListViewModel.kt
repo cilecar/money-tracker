@@ -21,6 +21,9 @@ import app.moneytracker.domain.model.Refund
 import app.moneytracker.domain.repository.IncomeCategoryRepository
 import app.moneytracker.domain.repository.IncomeRepository
 import app.moneytracker.domain.repository.RefundRepository
+import app.moneytracker.domain.repository.TransferRepository
+import app.moneytracker.domain.model.Transfer
+import app.moneytracker.domain.usecase.DeleteTransferUseCase
 import app.moneytracker.domain.usecase.DeleteRefundUseCase
 import app.moneytracker.domain.usecase.ObserveMonthSummaryUseCase
 import kotlinx.coroutines.flow.flowOf
@@ -73,6 +76,7 @@ sealed interface ExpenseListEvent {
     data class Deleted(val expense: Expense) : ExpenseListEvent
     data class IncomeDeleted(val income: Income) : ExpenseListEvent
     data class RefundDeleted(val refund: Refund) : ExpenseListEvent
+    data class TransferDeleted(val transfer: Transfer, val fee: Expense?) : ExpenseListEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -91,6 +95,8 @@ class ExpenseListViewModel @Inject constructor(
     incomeCategoryRepository: IncomeCategoryRepository,
     private val deleteRefund: DeleteRefundUseCase,
     observeMonthSummary: ObserveMonthSummaryUseCase,
+    private val transfers: TransferRepository,
+    private val deleteTransfer: DeleteTransferUseCase,
 ) : ViewModel() {
 
     private val month = YearMonth.now(clock)
@@ -137,7 +143,8 @@ class ExpenseListViewModel @Inject constructor(
             if (f.includes(OperationKind.EXPENSE)) expenses.observe(f) else flowOf(emptyList()),
             incomes.observeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
             refunds.observeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
-        ) { e, i, r -> Operations(e, i, r) }
+            transfers.observeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
+        ) { e, i, r, t -> Operations(e, i, r, t) }
     }
 
     private val monthSummary = settingsRepository.settings.map { it.displayCurrency }.distinctUntilChanged()
@@ -246,6 +253,20 @@ class ExpenseListViewModel @Inject constructor(
             val expenseId = refund.expenseId?.takeIf { expenses.get(it) != null }
             refunds.insert(refund.copy(expenseId = expenseId))
             checkBudgets()
+        }
+    }
+
+    fun deleteTransfer(id: Long) {
+        viewModelScope.launch {
+            val (transfer, fee) = deleteTransfer.invoke(id) ?: return@launch
+            _events.send(ExpenseListEvent.TransferDeleted(transfer, fee))
+        }
+    }
+
+    fun restore(transfer: Transfer, fee: Expense?) {
+        viewModelScope.launch {
+            transfers.save(transfer, fee)
+            if (fee != null) checkBudgets()
         }
     }
 

@@ -167,4 +167,63 @@ class AccountBalanceTest {
         assertEquals(1L, refund.categoryId)
         assertEquals(Money(5_00, CurrencyCode.EUR), balance(id).balance)
     }
+
+    private val transfers by lazy { app.moneytracker.data.repository.TransferRepositoryImpl(db) }
+
+    private suspend fun rsdCash(opening: Long = 0) = accounts.upsert(
+        Account(name = "Наличные RSD", type = AccountType.CASH, currency = CurrencyCode.RSD, openingBalanceMinor = opening, openingDate = LocalDate.of(2026, 10, 1)),
+    )
+
+    private fun transfer(from: Long, to: Long, out: Money, `in`: Money, at: String = "2026-10-05T10:00:00Z") =
+        app.moneytracker.domain.model.Transfer.create(from, to, out, `in`, Instant.parse(at), zone, rates, clock.instant())
+
+    /** Обмен EUR → RSD по курсу обменника: каждая сторона меняется на свою сумму, без пересчёта по API. */
+    @Test
+    fun exchangeTransferMovesBothBalancesByStoredAmounts() = runTest {
+        val card = card(opening = 200_00)
+        val cash = rsdCash(opening = 1000_00)
+        transfers.save(transfer(card, cash, Money(100_00, CurrencyCode.EUR), Money(11650_00, CurrencyCode.RSD)), null)
+        // Обратно часть: 2 340 RSD → 20 €.
+        transfers.save(transfer(cash, card, Money(2340_00, CurrencyCode.RSD), Money(20_00, CurrencyCode.EUR), "2026-10-06T10:00:00Z"), null)
+
+        assertEquals(Money(200_00 - 100_00 + 20_00, CurrencyCode.EUR), balance(card).balance)
+        assertEquals(Money(1000_00 + 11650_00 - 2340_00, CurrencyCode.RSD), balance(cash).balance)
+        assertTrue(balance(card).isExact)
+        // Итог по счетам — по текущему курсу API (117): разница с курсом обменника видна в итоге.
+        val total = app.moneytracker.domain.model.AccountsTotal.of(accounts.observeBalances().first(), CurrencyCode.RSD, rates)
+        // Карта 120 € × 117 = 14 040 RSD, наличные 10 310 RSD; счёт «Наличные» из сидера пустой.
+        assertEquals(Money(14040_00 + 10310_00, CurrencyCode.RSD), total.total)
+    }
+
+    @Test
+    fun transferBeforeOpeningDateIsIgnoredOnThatAccountOnly() = runTest {
+        val card = card(opening = 50_00, openingDate = LocalDate.of(2026, 10, 10))
+        val cash = rsdCash()
+        transfers.save(transfer(card, cash, Money(10_00, CurrencyCode.EUR), Money(1170_00, CurrencyCode.RSD), "2026-10-05T10:00:00Z"), null)
+        // Для карты перевод уже учтён в начальном остатке, для наличных — нет.
+        assertEquals(Money(50_00, CurrencyCode.EUR), balance(card).balance)
+        assertEquals(Money(1170_00, CurrencyCode.RSD), balance(cash).balance)
+    }
+
+    @Test
+    fun feeIsStoredAtomicallyAndDeletedWithTransfer() = runTest {
+        val card = card(opening = 100_00)
+        val cash = rsdCash()
+        val fee = Expense.create(Money(1_50, CurrencyCode.EUR), 1, card, Instant.parse("2026-10-05T10:00:00Z"), zone, rates, clock.instant())
+        val id = transfers.save(transfer(card, cash, Money(10_00, CurrencyCode.EUR), Money(1165_00, CurrencyCode.RSD)), fee)
+        val feeId = transfers.get(id)!!.feeExpenseId!!
+        // Комиссия — расход со счёта источника.
+        assertEquals(Money(100_00 - 10_00 - 1_50, CurrencyCode.EUR), balance(card).balance)
+        assertEquals(1, accounts.usage(card).transfers)
+        assertEquals(1, accounts.usage(cash).transfers)
+
+        // Комиссию убрали.
+        transfers.save(transfers.get(id)!!, null)
+        assertNull(expenses.get(feeId))
+        assertEquals(Money(90_00, CurrencyCode.EUR), balance(card).balance)
+
+        transfers.delete(id)
+        assertNull(transfers.get(id))
+        assertEquals(Money(100_00, CurrencyCode.EUR), balance(card).balance)
+    }
 }

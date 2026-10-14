@@ -344,4 +344,18 @@
     <string name="income_category_error_last">At least one active income category must remain</string>
     <string name="income_category_delete_title">Delete “%1$s”?</string>
     <string name="income_category_delete_move">Income entries in this category: %1$d. Move them to:</string>
+    <string name="operation_transfer">Transfer</string>
+    <string name="transfer_new">New transfer</string>
+    <string name="transfer_edit">Transfer</string>
+    <string name="transfer_deleted">Transfer deleted</string>
+    <string name="transfer_from">From</string>
+    <string name="transfer_to">To</string>
+    <string name="transfer_fee">Fee (optional)</string>
+    <string name="transfer_fee_hint">The fee is recorded as an expense in “Fees” from the source account</string>
+    <string name="transfer_actual_rate">Exchange rate: 1 %1$s = %2$s %3$s</string>
+    <string name="transfer_api_rate">API rate: %1$s</string>
+    <string name="transfer_api_estimate">At the API rate it would be %1$s — enter the amount actually received</string>
+    <string name="transfer_error_same">Choose two different accounts</string>
+    <string name="transfer_error_currency">Amounts must be in the accounts\' currencies</string>
+    <string name="account_error_has_transfers">The account has transfers — it can only be archived</string>
 </resources>

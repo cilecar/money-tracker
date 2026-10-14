@@ -50,6 +50,19 @@ data class ExpenseFilter(
         (categoryIds.isEmpty() || refund.categoryId in categoryIds) && tags.isEmpty() &&
         matchesCommon(refund.accountId, refund.localDate, refund.comment, refund)
 
+    /**
+     * Перевод под фильтром: счёт — источник или получатель. Категорий, тегов и сумм «в валюте фильтра»
+     * у перевода нет — при таких условиях он скрыт.
+     */
+    fun matches(transfer: Transfer): Boolean {
+        if (!includes(OperationKind.TRANSFER)) return false
+        if (categoryIds.isNotEmpty() || tags.isNotEmpty() || minAmount != null || maxAmount != null) return false
+        if (accountIds.isNotEmpty() && transfer.fromAccountId !in accountIds && transfer.toAccountId !in accountIds) return false
+        if (from != null && transfer.localDate < from) return false
+        if (to != null && transfer.localDate > to) return false
+        return query.isBlank() || transfer.comment?.contains(query.trim(), ignoreCase = true) == true
+    }
+
     private fun matchesCommon(accountId: Long, date: LocalDate, comment: String?, amount: RatedAmount): Boolean {
         if (accountIds.isNotEmpty() && accountId !in accountIds) return false
         if (from != null && date < from) return false

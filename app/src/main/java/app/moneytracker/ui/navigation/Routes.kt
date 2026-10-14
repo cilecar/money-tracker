@@ -42,3 +42,6 @@ data class FilteredExpensesRoute(
 @Serializable data class RefundEditRoute(val id: Long = 0, val expenseId: Long = 0)
 
 @Serializable data object IncomeCategoriesRoute
+
+/** id = 0 — новый перевод. */
+@Serializable data class TransferEditRoute(val id: Long = 0)

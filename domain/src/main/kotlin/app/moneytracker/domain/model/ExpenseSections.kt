@@ -34,7 +34,7 @@ data class Total(val total: Money, val withoutRates: Int) {
     }
 }
 
-/** Строка ленты: расход, доход или возврат. */
+/** Строка ленты: расход, доход, возврат или перевод. */
 sealed interface OperationItem {
     /** Уникален в ленте: id разных таблиц пересекаются. */
     val key: String
@@ -77,8 +77,9 @@ data class Operations(
     val expenses: List<Expense> = emptyList(),
     val incomes: List<Income> = emptyList(),
     val refunds: List<Refund> = emptyList(),
+    val transfers: List<Transfer> = emptyList(),
 ) {
-    val size: Int get() = expenses.size + incomes.size + refunds.size
+    val size: Int get() = expenses.size + incomes.size + refunds.size + transfers.size
 }
 
 object ExpenseSections {
@@ -108,7 +109,7 @@ object ExpenseSections {
             operations.refunds.map { r ->
                 val category = categories[r.categoryId]
                 RefundItem(r, category, category?.parentId?.let(categories::get), accounts[r.accountId])
-            }
+            } + operations.transfers.map { TransferItem(it, accounts[it.fromAccountId], accounts[it.toAccountId]) }
         return items
             .groupBy { it.localDate }
             .toSortedMap(reverseOrder())

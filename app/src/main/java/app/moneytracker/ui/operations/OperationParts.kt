@@ -73,12 +73,14 @@ import java.time.format.FormatStyle
 enum class NewOperationKind(val labelRes: Int) {
     EXPENSE(R.string.operation_expense),
     INCOME(R.string.operation_income),
+    TRANSFER(R.string.operation_transfer),
 }
 
 fun OperationKind.labelRes(): Int = when (this) {
     OperationKind.EXPENSE -> R.string.operation_expense
     OperationKind.INCOME -> R.string.operation_income
     OperationKind.REFUND -> R.string.operation_refund
+    OperationKind.TRANSFER -> R.string.operation_transfer
 }
 
 @Composable

@@ -91,3 +91,32 @@ class FakeIncomeCategoryRepository(initial: List<IncomeCategory> = emptyList()) 
     }
     override suspend fun nextSortOrder() = (items.value.maxOfOrNull { it.sortOrder } ?: -1) + 1
 }
+
+/** Перевод и комиссия «в одной транзакции» — здесь просто последовательно, конкурентности в тестах нет. */
+class FakeTransferRepository(private val expenses: app.moneytracker.domain.repository.ExpenseRepository) :
+    app.moneytracker.domain.repository.TransferRepository {
+    val items = MutableStateFlow<List<app.moneytracker.domain.model.Transfer>>(emptyList())
+    private var nextId = 1L
+
+    override fun observeBetween(from: LocalDate?, to: LocalDate?) =
+        items.map { list -> list.filter { it.localDate.within(from, to) }.sortedByDescending { it.occurredAt } }
+    override suspend fun get(id: Long) = items.value.firstOrNull { it.id == id }
+    override suspend fun save(transfer: app.moneytracker.domain.model.Transfer, fee: app.moneytracker.domain.model.Expense?): Long {
+        val old = get(transfer.id)
+        val feeId = when {
+            fee == null -> {
+                old?.feeExpenseId?.let { expenses.delete(it) }
+                null
+            }
+            fee.id != 0L && expenses.get(fee.id) != null -> fee.id.also { expenses.update(fee) }
+            else -> expenses.insert(fee)
+        }
+        val id = if (transfer.id == 0L) nextId++ else transfer.id
+        items.value = items.value.filter { it.id != id } + transfer.copy(id = id, feeExpenseId = feeId)
+        return id
+    }
+    override suspend fun delete(id: Long) {
+        get(id)?.feeExpenseId?.let { expenses.delete(it) }
+        items.value = items.value.filter { it.id != id }
+    }
+}

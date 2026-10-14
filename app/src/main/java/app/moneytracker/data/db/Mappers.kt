@@ -10,6 +10,7 @@ import app.moneytracker.data.db.entity.IncomeCategoryEntity
 import app.moneytracker.data.db.entity.IncomeEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
 import app.moneytracker.data.db.entity.RefundEntity
+import app.moneytracker.data.db.entity.TransferEntity
 import app.moneytracker.domain.model.BalanceAdjustment
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.ConvertedAmounts
@@ -20,6 +21,7 @@ import app.moneytracker.domain.model.Income
 import app.moneytracker.domain.model.IncomeCategory
 import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.model.Refund
+import app.moneytracker.domain.model.Transfer
 import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.RateSnapshot
 import app.moneytracker.domain.model.RecurringExpense
@@ -201,6 +203,40 @@ fun Refund.toEntity() = RefundEntity(
     eurMinor = converted?.eurMinor,
     rubMinor = converted?.rubMinor,
     accountAmountMinor = accountAmountMinor,
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun TransferEntity.toDomain() = Transfer(
+    id = id,
+    fromAccountId = fromAccountId,
+    toAccountId = toAccountId,
+    fromAmount = Money(fromAmountMinor, fromCurrency),
+    toAmount = Money(toAmountMinor, toCurrency),
+    feeExpenseId = feeExpenseId,
+    occurredAt = occurredAt,
+    localDate = localDate,
+    comment = comment,
+    apiRates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate),
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun Transfer.toEntity() = TransferEntity(
+    id = id,
+    fromAccountId = fromAccountId,
+    toAccountId = toAccountId,
+    fromAmountMinor = fromAmount.minor,
+    fromCurrency = fromAmount.currency,
+    toAmountMinor = toAmount.minor,
+    toCurrency = toAmount.currency,
+    feeExpenseId = feeExpenseId,
+    occurredAt = occurredAt,
+    localDate = localDate,
+    comment = comment,
+    rateRsdPerEur = apiRates?.rsdPerEur,
+    rateRubPerEur = apiRates?.rubPerEur,
+    rateDate = apiRates?.date,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )

@@ -32,6 +32,7 @@ data class BackupDto(
     val incomeCategories: List<IncomeCategoryDto> = emptyList(),
     val incomes: List<IncomeDto> = emptyList(),
     val refunds: List<RefundDto> = emptyList(),
+    val transfers: List<TransferDto> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "money-tracker-backup"
@@ -178,6 +179,24 @@ data class RefundDto(
     val comment: String? = null,
     val rates: RatesDto? = null,
     val accountAmountMinor: Long? = null,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class TransferDto(
+    val id: Long,
+    val fromAccountId: Long,
+    val toAccountId: Long,
+    val fromAmountMinor: Long,
+    val fromCurrency: String,
+    val toAmountMinor: Long,
+    val toCurrency: String,
+    val feeExpenseId: Long? = null,
+    val occurredAt: String,
+    val localDate: String,
+    val comment: String? = null,
+    val apiRates: RatesDto? = null,
     val createdAt: String,
     val updatedAt: String,
 )

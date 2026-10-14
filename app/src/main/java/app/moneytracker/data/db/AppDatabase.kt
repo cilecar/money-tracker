@@ -11,6 +11,7 @@ import app.moneytracker.data.db.dao.ExpenseDao
 import app.moneytracker.data.db.dao.IncomeCategoryDao
 import app.moneytracker.data.db.dao.IncomeDao
 import app.moneytracker.data.db.dao.RefundDao
+import app.moneytracker.data.db.dao.TransferDao
 import app.moneytracker.data.db.dao.MaintenanceDao
 import app.moneytracker.data.db.dao.AccountDao
 import app.moneytracker.data.db.dao.RecurringDao
@@ -57,6 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun incomeDao(): IncomeDao
     abstract fun refundDao(): RefundDao
     abstract fun incomeCategoryDao(): IncomeCategoryDao
+    abstract fun transferDao(): TransferDao
     abstract fun exchangeRateDao(): ExchangeRateDao
     abstract fun budgetDao(): BudgetDao
     abstract fun recurringDao(): RecurringDao

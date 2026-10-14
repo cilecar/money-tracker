@@ -528,4 +528,40 @@ class DataTransferTest {
         target.transfer.importJson(ByteArrayInputStream(json.toByteArray()))
         assertEquals(listOf("salary", "freelance", "gift", "income_other"), target.db.incomeCategoryDao().getAll(true).map { it.defaultKey })
     }
+
+    @Test
+    fun jsonRoundTripKeepsTransfersWithFee() = runTest {
+        val source = Env()
+        val accounts = source.db.accountDao()
+        val card = accounts.upsert(accounts.get(1)!!.copy(id = 0, name = "Карта", currency = CurrencyCode.EUR, defaultKey = null))
+        val transfers = app.moneytracker.data.repository.TransferRepositoryImpl(source.db)
+        val at = Instant.parse("2026-10-05T10:00:00Z")
+        val fee = Expense.create(Money(150, CurrencyCode.EUR), 1, card, at, zone, rates, clock.instant())
+        transfers.save(app.moneytracker.domain.model.Transfer.create(card, 1, Money(10000, CurrencyCode.EUR), Money(1165000, CurrencyCode.RSD), at, zone, rates, clock.instant(), "обмен"), fee)
+
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(source.exportJson()))
+        assertEquals(source.db.transferDao().getAll(), target.db.transferDao().getAll())
+        val restored = target.db.transferDao().getAll().single()
+        assertEquals(Money(150, CurrencyCode.EUR).minor, target.db.expenseDao().get(restored.feeExpenseId!!)!!.expense.amountMinor)
+    }
+
+    /** Сумма перевода не в валюте счёта сломала бы баланс — такой файл отклоняется целиком. */
+    @Test
+    fun transferInWrongCurrencyIsRejected() = runTest {
+        val source = Env()
+        val accounts = source.db.accountDao()
+        val card = accounts.upsert(accounts.get(1)!!.copy(id = 0, name = "Карта", currency = CurrencyCode.EUR, defaultKey = null))
+        app.moneytracker.data.repository.TransferRepositoryImpl(source.db).save(
+            app.moneytracker.domain.model.Transfer.create(card, 1, Money(100, CurrencyCode.EUR), Money(11700, CurrencyCode.RSD), Instant.parse("2026-10-05T10:00:00Z"), zone, null, clock.instant()),
+            null,
+        )
+        val broken = String(source.exportJson()).replace("\"toCurrency\":\"RSD\"", "\"toCurrency\":\"RUB\"")
+        try {
+            Env().transfer.importJson(ByteArrayInputStream(broken.toByteArray()))
+            fail()
+        } catch (e: BackupFormatException) {
+            assertEquals(BackupFormatException.Reason.INCONSISTENT, e.reason)
+        }
+    }
 }
