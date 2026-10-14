@@ -41,6 +41,7 @@
     <string name="rates_prompt_title">Couldn\'t load exchange rates</string>
     <string name="rates_prompt_text">Looks like you\'re offline. Enter a rate manually or just add expenses now — conversions will be filled in once rates are downloaded.</string>
     <string name="rates_manual_first_launch">How many dinars and rubles is 1 euro?</string>
+    <string name="rates_manual_out_of_range">Enter a number from %1$s to %2$s</string>
 
     <string name="action_undo">Undo</string>
     <string name="action_delete">Delete</string>

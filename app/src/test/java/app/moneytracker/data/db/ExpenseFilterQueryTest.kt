@@ -39,7 +39,7 @@ class ExpenseFilterQueryTest {
             .addCallback(DatabaseSeeder(context))
             .allowMainThreadQueries()
             .build()
-        repo = ExpenseRepositoryImpl(db.expenseDao())
+        repo = ExpenseRepositoryImpl(db, db.expenseDao())
 
         suspend fun add(key: String, day: Int, amount: Money, category: Long, comment: String?, tags: List<String>, withRates: Boolean = true) =
             key to repo.insert(

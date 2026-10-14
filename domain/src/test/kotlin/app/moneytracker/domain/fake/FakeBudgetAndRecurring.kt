@@ -53,9 +53,22 @@ class FakeRecurringRepository(private val expenses: ExpenseRepository) : Recurri
         return id
     }
     override suspend fun delete(id: Long) { items.value = items.value.filter { it.id != id } }
-    override suspend fun recordOccurrence(expense: Expense, recurringId: Long, nextRunDate: LocalDate, active: Boolean) {
+    override suspend fun recordOccurrence(
+        expense: Expense,
+        recurringId: Long,
+        from: LocalDate,
+        nextRunDate: LocalDate,
+        active: Boolean,
+    ): Boolean {
+        if (!advance(recurringId, from, nextRunDate, active)) return false
         expenses.insert(expense)
-        items.value = items.value.map { if (it.id == recurringId) it.copy(nextRunDate = nextRunDate, active = active) else it }
+        return true
+    }
+
+    override suspend fun advance(recurringId: Long, from: LocalDate, nextRunDate: LocalDate, active: Boolean): Boolean {
+        val current = items.value.firstOrNull { it.id == recurringId && it.active && it.nextRunDate == from } ?: return false
+        items.value = items.value.map { if (it === current) it.copy(nextRunDate = nextRunDate, active = active) else it }
+        return true
     }
 }
 

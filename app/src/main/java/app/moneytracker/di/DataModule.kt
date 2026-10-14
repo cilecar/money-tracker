@@ -2,8 +2,10 @@ package app.moneytracker.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import app.moneytracker.data.db.AppDatabase
@@ -44,7 +46,10 @@ object DataModule {
     @Provides
     @Singleton
     fun settingsDataStore(@ApplicationContext context: Context): DataStore<Preferences> =
-        PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("settings") }
+        PreferenceDataStoreFactory.create(
+            // Файл повреждён (прерванная запись) — начинаем с настроек по умолчанию, а не падаем при запуске.
+            corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() },
+        ) { context.preferencesDataStoreFile("settings") }
 
     /**
      * Clock через DI: в тестах подменяем на фиксированное время.

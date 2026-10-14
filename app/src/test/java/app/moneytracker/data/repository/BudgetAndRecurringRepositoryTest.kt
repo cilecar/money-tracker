@@ -45,7 +45,7 @@ class BudgetAndRecurringRepositoryTest {
             .build()
         budgets = BudgetRepositoryImpl(db.budgetDao())
         recurring = RecurringRepositoryImpl(db, db.recurringDao())
-        expenses = ExpenseRepositoryImpl(db.expenseDao())
+        expenses = ExpenseRepositoryImpl(db, db.expenseDao())
     }
 
     @After
@@ -75,11 +75,14 @@ class BudgetAndRecurringRepositoryTest {
         assertEquals(1, recurring.getDue(LocalDate.of(2026, 10, 14)).size)
 
         val at = Instant.parse("2026-10-05T10:00:00Z")
-        recurring.recordOccurrence(
-            Expense.create(Money(99900, CurrencyCode.RSD), 9, 1, at, ZoneOffset.UTC, null, at, tags = listOf("подписка"), recurringId = id),
-            id,
-            LocalDate.of(2026, 11, 5),
-            active = true,
+        assertTrue(
+            recurring.recordOccurrence(
+                Expense.create(Money(99900, CurrencyCode.RSD), 9, 1, at, ZoneOffset.UTC, null, at, tags = listOf("подписка"), recurringId = id),
+                id,
+                from = LocalDate.of(2026, 10, 5),
+                nextRunDate = LocalDate.of(2026, 11, 5),
+                active = true,
+            ),
         )
         assertEquals(LocalDate.of(2026, 11, 5), recurring.get(id)!!.nextRunDate)
         assertEquals(0, recurring.getDue(LocalDate.of(2026, 10, 14)).size)
@@ -91,5 +94,24 @@ class BudgetAndRecurringRepositoryTest {
         assertNull(recurring.get(id))
         // Расход остался, ссылка на шаблон обнулилась (FK ON DELETE SET NULL)
         assertNull(expenses.get(created.expense.id)!!.recurringId)
+    }
+
+    @Test
+    fun recordOccurrenceForChangedOrDeletedTemplateDoesNothing() = runTest {
+        val id = recurring.upsert(
+            RecurringExpense.create(Money(99900, CurrencyCode.RSD), 9, 1, Frequency.MONTHLY, 1, LocalDate.of(2026, 10, 5)),
+        )
+        val at = Instant.parse("2026-10-05T10:00:00Z")
+        fun occurrence() = Expense.create(Money(99900, CurrencyCode.RSD), 9, 1, at, ZoneOffset.UTC, null, at, recurringId = id)
+        val oct5 = LocalDate.of(2026, 10, 5)
+        val nov5 = LocalDate.of(2026, 11, 5)
+
+        // Шаблон уже сдвинут другим запуском — второй раз ту же дату не создаём.
+        assertTrue(recurring.recordOccurrence(occurrence(), id, oct5, nov5, active = true))
+        assertFalse(recurring.recordOccurrence(occurrence(), id, oct5, nov5, active = true))
+
+        recurring.delete(id) // удалили с экрана, пока запуск держал шаблон в памяти
+        assertFalse(recurring.recordOccurrence(occurrence(), id, nov5, nov5.plusMonths(1), active = true))
+        assertEquals(1, db.expenseDao().getWithoutRates().size)
     }
 }

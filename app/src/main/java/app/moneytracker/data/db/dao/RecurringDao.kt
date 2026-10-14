@@ -24,6 +24,15 @@ abstract class RecurringDao {
     @Query("DELETE FROM recurring_expense WHERE id = :id")
     abstract suspend fun delete(id: Long)
 
-    @Query("UPDATE recurring_expense SET next_run_date = :next, active = :active WHERE id = :id")
-    abstract suspend fun advance(id: Long, next: LocalDate, active: Boolean)
+    /**
+     * Compare-and-set: сдвигаем, только если шаблон всё ещё активен и ждёт именно [from]
+     * (его не удалили, не поставили на паузу и не перезаписали после чтения). @return 0 или 1.
+     */
+    @Query(
+        """
+        UPDATE recurring_expense SET next_run_date = :next, active = :active
+        WHERE id = :id AND active = 1 AND next_run_date = :from
+        """,
+    )
+    abstract suspend fun advance(id: Long, from: LocalDate, next: LocalDate, active: Boolean): Int
 }

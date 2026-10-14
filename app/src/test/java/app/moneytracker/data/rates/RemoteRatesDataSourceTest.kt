@@ -6,9 +6,12 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Test
+import retrofit2.HttpException
+import retrofit2.Response
 import java.io.IOException
 
 class RemoteRatesDataSourceTest {
@@ -57,6 +60,19 @@ class RemoteRatesDataSourceTest {
                 RemoteRatesDataSource.PRIMARY_URL to offline,
                 RemoteRatesDataSource.MIRROR_URL to offline,
                 RemoteRatesDataSource.FALLBACK_URL to offline,
+            ),
+        )
+        assertEquals(RefreshResult.Failure.Reason.NETWORK, fetchFailure(api))
+    }
+
+    @Test
+    fun `http errors mean the service is unreachable, not that it answered junk`() = runTest {
+        val unavailable: () -> JsonObject = { throw HttpException(Response.error<JsonObject>(503, "".toResponseBody())) }
+        val api = FakeApi(
+            mapOf(
+                RemoteRatesDataSource.PRIMARY_URL to unavailable,
+                RemoteRatesDataSource.MIRROR_URL to offline,
+                RemoteRatesDataSource.FALLBACK_URL to unavailable,
             ),
         )
         assertEquals(RefreshResult.Failure.Reason.NETWORK, fetchFailure(api))

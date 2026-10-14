@@ -66,7 +66,7 @@ class ExchangeRateRepositoryTest {
             .allowMainThreadQueries()
             .build()
         repo = ExchangeRateRepositoryImpl(db.exchangeRateDao(), RemoteRatesDataSource(api), clock)
-        expenses = ExpenseRepositoryImpl(db.expenseDao())
+        expenses = ExpenseRepositoryImpl(db, db.expenseDao())
         val budgets = BudgetRepositoryImpl(db.budgetDao())
         val check = CheckBudgetsUseCase(
             ObserveBudgetsUseCase(budgets, expenses, CategoryRepositoryImpl(db.categoryDao())),

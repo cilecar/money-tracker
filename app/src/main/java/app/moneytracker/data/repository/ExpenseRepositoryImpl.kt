@@ -1,5 +1,7 @@
 package app.moneytracker.data.repository
 
+import androidx.room.withTransaction
+import app.moneytracker.data.db.AppDatabase
 import app.moneytracker.data.db.ExpenseQueries
 import app.moneytracker.data.db.dao.ExpenseDao
 import app.moneytracker.data.db.toDomain
@@ -13,6 +15,7 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 class ExpenseRepositoryImpl @Inject constructor(
+    private val db: AppDatabase,
     private val dao: ExpenseDao,
 ) : ExpenseRepository {
 
@@ -40,9 +43,18 @@ class ExpenseRepositoryImpl @Inject constructor(
     override suspend fun insert(expense: Expense): Long =
         dao.insertWithTags(expense.toEntity(), Expense.normalizeTags(expense.tags))
 
+    /**
+     * Копия без курса могла быть прочитана до того, как FillPendingRates записал курс. Тогда берём
+     * курс из базы и пересчитываем по нему (сумма могла измениться), а не затираем его NULL-ами.
+     * Чтение и запись — в одной транзакции, чтобы заполнение не вклинилось между ними.
+     */
     override suspend fun update(expense: Expense) {
         require(expense.id != 0L) { "Cannot update unsaved expense" }
-        dao.updateWithTags(expense.toEntity(), Expense.normalizeTags(expense.tags))
+        db.withTransaction {
+            val stored = if (expense.rates == null) dao.get(expense.id)?.toDomain()?.rates else null
+            val toWrite = stored?.let { expense.copy(rates = it, converted = it.convertAll(expense.amount)) } ?: expense
+            dao.updateWithTags(toWrite.toEntity(), Expense.normalizeTags(toWrite.tags))
+        }
     }
 
     override suspend fun fillRates(expense: Expense): Boolean {

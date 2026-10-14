@@ -32,6 +32,7 @@ import app.moneytracker.domain.repository.DataTransfer
 import app.moneytracker.domain.repository.ExchangeRateRepository
 import app.moneytracker.domain.repository.JsonImportResult
 import app.moneytracker.domain.repository.SettingsRepository
+import app.moneytracker.domain.usecase.RunRecurringUseCase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -66,6 +67,7 @@ class DataTransferImpl @Inject constructor(
     private val defaultNames: DefaultNames,
     private val json: Json,
     private val clock: Clock,
+    private val runRecurring: RunRecurringUseCase,
 ) : DataTransfer {
 
     private val zone: ZoneId get() = clock.zone
@@ -340,16 +342,20 @@ class DataTransferImpl @Inject constructor(
         }
 
         try {
-            db.withTransaction {
-                db.maintenanceDao().deleteAll()
-                // Родители раньше подкатегорий — из-за внешнего ключа parent_id.
-                parsed.categories.sortedBy { if (it.parentId == null) 0 else 1 }.forEach { db.categoryDao().upsert(it) }
-                parsed.methods.forEach { db.paymentMethodDao().upsert(it) }
-                parsed.recurring.forEach { db.recurringDao().upsert(it) }
-                parsed.expenses.forEach { db.expenseDao().insertWithTags(it.toEntity(), it.tags) }
-                parsed.budgets.forEach { db.budgetDao().save(it) }
-                parsed.alerts.forEach { db.budgetDao().insertAlert(it) }
-                if (parsed.rates.isNotEmpty()) db.exchangeRateDao().upsert(parsed.rates)
+            // Под замком регулярных платежей: запуск, начатый до импорта, иначе дописал бы расходы
+            // по старым шаблонам и сдвинул бы даты у новых с тем же id.
+            runRecurring.exclusive {
+                db.withTransaction {
+                    db.maintenanceDao().deleteAll()
+                    // Родители раньше подкатегорий — из-за внешнего ключа parent_id.
+                    parsed.categories.sortedBy { if (it.parentId == null) 0 else 1 }.forEach { db.categoryDao().upsert(it) }
+                    parsed.methods.forEach { db.paymentMethodDao().upsert(it) }
+                    parsed.recurring.forEach { db.recurringDao().upsert(it) }
+                    parsed.expenses.forEach { db.expenseDao().insertWithTags(it.toEntity(), it.tags) }
+                    parsed.budgets.forEach { db.budgetDao().save(it) }
+                    parsed.alerts.forEach { db.budgetDao().insertAlert(it) }
+                    if (parsed.rates.isNotEmpty()) db.exchangeRateDao().upsert(parsed.rates)
+                }
             }
         } catch (e: SQLiteConstraintException) {
             // Известные нарушения ловит parse(); это страховка: транзакция откатилась, данные целы,

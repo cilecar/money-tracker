@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.moneytracker.R
 import app.moneytracker.domain.model.CurrencyCode
+import app.moneytracker.domain.usecase.SetManualRateUseCase
 import app.moneytracker.ui.format.parsePositiveDecimal
 import java.math.BigDecimal
 
@@ -35,7 +36,10 @@ fun ManualRatesDialog(
     message: String? = null,
 ) {
     val values = remember { mutableStateMapOf<CurrencyCode, String>().apply { putAll(initial) } }
-    val parsed = currencies.associateWith { parsePositiveDecimal(values[it].orEmpty()) }
+    // Вне разумного диапазона — скорее опечатка на порядок; такой курс не принимаем.
+    val parsed = currencies.associateWith { c ->
+        parsePositiveDecimal(values[c].orEmpty())?.takeIf { SetManualRateUseCase.isPlausible(c, it) }
+    }
     val valid = parsed.values.all { it != null }
 
     AlertDialog(
@@ -55,6 +59,19 @@ fun ManualRatesDialog(
                         label = { Text(stringResource(R.string.rates_one_eur_in, currency.name)) },
                         suffix = { Text(currency.name) },
                         isError = text.isNotBlank() && parsed[currency] == null,
+                        supportingText = SetManualRateUseCase.plausibleRange(currency)
+                            ?.takeIf { text.isNotBlank() && parsed[currency] == null }
+                            ?.let { range ->
+                                {
+                                    Text(
+                                        stringResource(
+                                            R.string.rates_manual_out_of_range,
+                                            range.start.toPlainString(),
+                                            range.endInclusive.toPlainString(),
+                                        ),
+                                    )
+                                }
+                            },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Decimal,

@@ -46,6 +46,9 @@ class RunRecurringUseCase @Inject constructor(
         val floor = today.minus(MAX_CATCH_UP)
         var created = 0
         for (template in recurring.getDue(today)) {
+            // Что сейчас в базе: с этим значением сравнивает compare-and-set. Шаблон могли удалить,
+            // поставить на паузу или заменить импортом после getDue — тогда запись не пройдёт.
+            var stored = template.nextRunDate
             var item = template
             if (item.nextRunDate.isBefore(floor)) {
                 // Даты старше порога пропускаем совсем, а не «по 366 за запуск»: счётчик на запуск
@@ -54,14 +57,14 @@ class RunRecurringUseCase @Inject constructor(
                 item = item.copy(nextRunDate = next, active = item.isActiveAt(next))
                 // Если догонять нечего (шаблон закончился давно), сдвиг сохраняем сами; иначе его
                 // запишет первый recordOccurrence ниже.
-                if (!item.isDue(today)) recurring.upsert(item)
+                if (!item.isDue(today)) recurring.advance(item.id, stored, item.nextRunDate, item.active)
             }
             while (item.isDue(today)) {
                 val date = item.nextRunDate
                 val next = item.nextAfter(date)
                 val stillActive = item.isActiveAt(next)
                 val now = clock.instant()
-                recurring.recordOccurrence(
+                val recorded = recurring.recordOccurrence(
                     expense = Expense.create(
                         amount = item.amount,
                         categoryId = item.categoryId,
@@ -77,9 +80,12 @@ class RunRecurringUseCase @Inject constructor(
                         recurringId = item.id,
                     ),
                     recurringId = item.id,
+                    from = stored,
                     nextRunDate = next,
                     active = stillActive,
                 )
+                if (!recorded) break
+                stored = next
                 item = item.copy(nextRunDate = next, active = stillActive)
                 created++
             }

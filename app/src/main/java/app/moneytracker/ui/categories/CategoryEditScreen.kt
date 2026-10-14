@@ -223,9 +223,9 @@ private fun DeleteDialogs(s: CategoryEditUiState, viewModel: CategoryEditViewMod
     val name = original.displayName()
     when (val d = s.deleteDialog) {
         null -> Unit
-        DeleteDialog.Confirm -> ConfirmDialog(
+        is DeleteDialog.Confirm -> ConfirmDialog(
             title = stringResource(R.string.category_delete_title, name),
-            message = null,
+            message = if (d.removesBudget) stringResource(R.string.delete_budget_removed) else null,
             confirm = stringResource(R.string.action_delete),
             onConfirm = { viewModel.delete() },
             onDismiss = viewModel::dismissDialog,

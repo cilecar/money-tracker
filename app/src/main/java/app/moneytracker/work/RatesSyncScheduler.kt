@@ -24,13 +24,17 @@ class RatesSyncScheduler @Inject constructor(
         .setRequiredNetworkType(NetworkType.CONNECTED)
         .build()
 
-    /** Раз в сутки. KEEP: повторный вызов при каждом старте приложения не сбрасывает расписание. */
+    /**
+     * Раз в сутки. UPDATE, а не KEEP: повторный вызов при каждом старте не сбрасывает расписание
+     * (время следующего запуска сохраняется), но новые интервал/ограничения из обновления приложения
+     * доходят до уже установленных копий. С KEEP старый запрос остался бы навсегда.
+     */
     fun schedulePeriodic() {
         val request = PeriodicWorkRequestBuilder<RatesSyncWorker>(1, TimeUnit.DAYS)
             .setConstraints(networkConstraint)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.MINUTES)
             .build()
-        workManager.enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.KEEP, request)
+        workManager.enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     /**
@@ -48,10 +52,11 @@ class RatesSyncScheduler @Inject constructor(
     /**
      * Регулярные расходы — раз в 12 часов без требований к сети: так дата не «проскочит»,
      * даже если один запуск система отложила. Повторный запуск ничего не дублирует.
+     * UPDATE — как у курсов выше.
      */
     fun scheduleRecurring() {
         val request = PeriodicWorkRequestBuilder<RecurringWorker>(12, TimeUnit.HOURS).build()
-        workManager.enqueueUniquePeriodicWork(RECURRING_WORK, ExistingPeriodicWorkPolicy.KEEP, request)
+        workManager.enqueueUniquePeriodicWork(RECURRING_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
     private companion object {

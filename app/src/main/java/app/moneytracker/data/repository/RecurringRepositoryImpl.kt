@@ -31,11 +31,23 @@ class RecurringRepositoryImpl @Inject constructor(
 
     override suspend fun delete(id: Long) = dao.delete(id)
 
-    /** Транзакция охватывает два DAO, поэтому она здесь, через withTransaction, а не в одном DAO. */
-    override suspend fun recordOccurrence(expense: Expense, recurringId: Long, nextRunDate: LocalDate, active: Boolean) {
-        db.withTransaction {
-            db.expenseDao().insertWithTags(expense.toEntity(), Expense.normalizeTags(expense.tags))
-            dao.advance(recurringId, nextRunDate, active)
-        }
+    /**
+     * Транзакция охватывает два DAO, поэтому она здесь, через withTransaction, а не в одном DAO.
+     * Сначала сдвиг (compare-and-set), и только если он прошёл — вставка: расход для удалённого
+     * шаблона уронил бы внешний ключ recurring_id.
+     */
+    override suspend fun recordOccurrence(
+        expense: Expense,
+        recurringId: Long,
+        from: LocalDate,
+        nextRunDate: LocalDate,
+        active: Boolean,
+    ): Boolean = db.withTransaction {
+        if (!advance(recurringId, from, nextRunDate, active)) return@withTransaction false
+        db.expenseDao().insertWithTags(expense.toEntity(), Expense.normalizeTags(expense.tags))
+        true
     }
+
+    override suspend fun advance(recurringId: Long, from: LocalDate, nextRunDate: LocalDate, active: Boolean): Boolean =
+        dao.advance(recurringId, from, nextRunDate, active) == 1
 }

@@ -27,7 +27,8 @@ import javax.inject.Inject
 
 /** Какой диалог удаления показать. */
 sealed interface DeleteDialog {
-    data object Confirm : DeleteDialog
+    /** [removesBudget]: у категории есть бюджет — он удалится вместе с ней, предупреждаем. */
+    data class Confirm(val removesBudget: Boolean) : DeleteDialog
     data class Move(val usage: CategoryUsage, val targets: List<Category>) : DeleteDialog
     data class Blocked(val error: CategoryError) : DeleteDialog
 }
@@ -136,7 +137,7 @@ class CategoryEditViewModel @Inject constructor(
             val dialog = when {
                 usage.children > 0 -> DeleteDialog.Blocked(CategoryError.HAS_CHILDREN)
                 usage.needsTarget -> DeleteDialog.Move(usage, CategoryRules.moveTargets(id, repository.getAll()))
-                else -> DeleteDialog.Confirm
+                else -> DeleteDialog.Confirm(removesBudget = usage.budgets > 0)
             }
             _state.update { it.copy(deleteDialog = dialog) }
         }

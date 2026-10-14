@@ -5,6 +5,7 @@ import app.moneytracker.domain.model.RateSource
 import app.moneytracker.domain.model.RefreshResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonObject
+import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 
@@ -39,8 +40,9 @@ class RemoteRatesDataSource @Inject constructor(
                 errors += e
             }
         }
-        // Все упали по сети — значит, сети нет. Иначе хотя бы один ответил мусором.
-        val reason = if (errors.all { it is IOException }) {
+        // Все недоступны (нет сети или сервер отвечает ошибкой HTTP) — повторим позже.
+        // Иначе хотя бы один ответил мусором.
+        val reason = if (errors.all { it.isUnreachable() }) {
             RefreshResult.Failure.Reason.NETWORK
         } else {
             RefreshResult.Failure.Reason.BAD_RESPONSE
@@ -49,6 +51,9 @@ class RemoteRatesDataSource @Inject constructor(
             errors.dropLast(1).forEach(::addSuppressed)
         }
     }
+
+    /** HttpException — не IOException, но 5xx/4xx от CDN означает «источник недоступен», а не «сломан формат». */
+    private fun Exception.isUnreachable() = this is IOException || this is HttpException
 
     companion object {
         const val PRIMARY_URL = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json"

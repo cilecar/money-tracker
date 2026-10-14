@@ -16,14 +16,20 @@ class RatesSyncWorker @AssistedInject constructor(
     private val refreshRates: RefreshRatesUseCase,
 ) : CoroutineWorker(context, params) {
 
-    override suspend fun doWork(): Result = when (refreshRates()) {
-        is RefreshResult.Success -> Result.success()
-        // retry() — WorkManager повторит с экспоненциальной задержкой. Ограничиваем число
-        // попыток: для периодической задачи failure() не отменяет её, следующий запуск будет завтра.
-        is RefreshResult.Failure -> if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
-    }
+    // ifStale: если приложение уже загрузило курсы (при запуске или кнопкой), повторно не качаем.
+    override suspend fun doWork(): Result = resultFor(refreshRates.ifStale(), runAttemptCount)
 
-    private companion object {
-        const val MAX_ATTEMPTS = 4
+    companion object {
+        /** Всего попыток, считая первую: 15 + 30 + 60 минут backoff между ними. */
+        private const val MAX_ATTEMPTS = 4
+
+        internal fun resultFor(refresh: RefreshResult?, runAttemptCount: Int): Result = when (refresh) {
+            null, is RefreshResult.Success -> Result.success()
+            is RefreshResult.Failure -> when (refresh.reason) {
+                RefreshResult.Failure.Reason.NETWORK -> retryOrFail(runAttemptCount, MAX_ATTEMPTS)
+                // Сеть есть, но источники отвечают мусором — повтор через минуты не поможет.
+                RefreshResult.Failure.Reason.BAD_RESPONSE -> Result.failure()
+            }
+        }
     }
 }

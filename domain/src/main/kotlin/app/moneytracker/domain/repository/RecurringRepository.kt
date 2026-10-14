@@ -17,9 +17,22 @@ interface RecurringRepository {
     suspend fun delete(id: Long)
 
     /**
-     * Атомарно: вставляет расход и сдвигает nextRunDate шаблона. Если процесс умрёт
+     * Атомарно: вставляет расход и сдвигает nextRunDate шаблона с [from] на [nextRunDate]. Если процесс умрёт
      * посередине, не будет ни «расхода без сдвига» (дубль при следующем запуске),
      * ни «сдвига без расхода» (пропуск).
+     *
+     * Compare-and-set: только если шаблон всё ещё есть, активен и его nextRunDate == [from].
+     * Иначе (удалён, на паузе, заменён импортом после чтения) ничего не пишет.
+     * @return false — шаблон изменился, расход не создан.
      */
-    suspend fun recordOccurrence(expense: Expense, recurringId: Long, nextRunDate: LocalDate, active: Boolean)
+    suspend fun recordOccurrence(
+        expense: Expense,
+        recurringId: Long,
+        from: LocalDate,
+        nextRunDate: LocalDate,
+        active: Boolean,
+    ): Boolean
+
+    /** Сдвиг без расхода (пропуск слишком старых дат), с той же проверкой, что [recordOccurrence]. */
+    suspend fun advance(recurringId: Long, from: LocalDate, nextRunDate: LocalDate, active: Boolean): Boolean
 }

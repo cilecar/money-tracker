@@ -53,7 +53,9 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             val result = refreshRates.ifStale()
             if (result is RefreshResult.Failure) {
-                ratesSyncScheduler.syncWhenOnline()
+                // Догрузить, когда появится сеть, — только если дело в сети. Мусор от источников
+                // фоновые повторы не исправят; суточная задача всё равно попробует завтра.
+                if (result.reason == RefreshResult.Failure.Reason.NETWORK) ratesSyncScheduler.syncWhenOnline()
                 if (ratesRepository.current() == null) promptRequested.value = true
             }
         }

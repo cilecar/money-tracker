@@ -17,6 +17,8 @@ import app.moneytracker.data.repository.ExchangeRateRepositoryImpl
 import app.moneytracker.data.repository.ExpenseRepositoryImpl
 import app.moneytracker.data.repository.RecurringRepositoryImpl
 import app.moneytracker.domain.model.Budget
+import app.moneytracker.domain.model.BudgetLevel
+import app.moneytracker.domain.model.BudgetProgress
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Expense
@@ -27,16 +29,26 @@ import app.moneytracker.domain.model.RecurringExpense
 import app.moneytracker.domain.repository.BackupFormatException
 import app.moneytracker.domain.repository.CsvErrorReason
 import app.moneytracker.domain.repository.CsvRowError
+import app.moneytracker.domain.usecase.BudgetNotifier
+import app.moneytracker.domain.usecase.CheckBudgetsUseCase
+import app.moneytracker.domain.usecase.ObserveBudgetsUseCase
+import app.moneytracker.domain.usecase.RunRecurringUseCase
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -79,11 +91,19 @@ class DataTransferTest {
             override suspend fun get(url: String): JsonObject = throw IOException("offline")
         }
         val rateRepo = ExchangeRateRepositoryImpl(db.exchangeRateDao(), RemoteRatesDataSource(offlineApi), clock)
-        val expenses = ExpenseRepositoryImpl(db.expenseDao())
+        val expenses = ExpenseRepositoryImpl(db, db.expenseDao())
         val categories = CategoryRepositoryImpl(db.categoryDao())
         val budgets = BudgetRepositoryImpl(db.budgetDao())
         val recurring = RecurringRepositoryImpl(db, db.recurringDao())
-        val transfer = DataTransferImpl(context, db, settings, rateRepo, DefaultNames(context), Json { ignoreUnknownKeys = true }, clock)
+        val runRecurring = RunRecurringUseCase(
+            recurring,
+            rateRepo,
+            CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories), budgets, NoNotifier, clock),
+            clock,
+        )
+        val transfer = DataTransferImpl(
+            context, db, settings, rateRepo, DefaultNames(context), Json { ignoreUnknownKeys = true }, clock, runRecurring,
+        )
 
         suspend fun add(amount: Money, category: Long, at: String, tags: List<String> = emptyList(), comment: String? = null, withRates: Boolean = true) =
             expenses.insert(
@@ -93,6 +113,10 @@ class DataTransferTest {
         fun exportCsv() = ByteArrayOutputStream().also { kotlinx.coroutines.runBlocking { transfer.exportCsv(it) } }.toByteArray()
         fun exportJson() = ByteArrayOutputStream().also { kotlinx.coroutines.runBlocking { transfer.exportJson(it) } }.toByteArray()
         fun backupDb() = ByteArrayOutputStream().also { kotlinx.coroutines.runBlocking { transfer.backupDatabase(it) } }.toByteArray()
+    }
+
+    private object NoNotifier : BudgetNotifier {
+        override fun notify(progress: BudgetProgress, level: BudgetLevel) = Unit
     }
 
     private val backupJson = Json { ignoreUnknownKeys = true }
@@ -121,6 +145,27 @@ class DataTransferTest {
         budgets.markAlerted(budgetId, java.time.YearMonth.of(2026, 10), app.moneytracker.domain.model.BudgetLevel.WARNING)
         recurring.upsert(RecurringExpense.create(Money(99900, CurrencyCode.RSD), 9, 1, Frequency.MONTHLY, 1, LocalDate.of(2026, 10, 31)))
         rateRepo.setManualRate(CurrencyCode.RSD, BigDecimal("117.25"), LocalDate.of(2026, 10, 14))
+    }
+
+    @Test
+    fun importJsonWaitsForRunningRecurringPayments() = runTest {
+        val json = filledEnv().exportJson()
+        val target = Env()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        // Запуск регулярных платежей уже идёт и держит шаблоны в памяти.
+        val run = launch(Dispatchers.Default) { target.runRecurring.exclusive { entered.complete(Unit); release.await() } }
+        entered.await()
+
+        val import = async(Dispatchers.Default) { target.transfer.importJson(ByteArrayInputStream(json)) }
+        withContext(Dispatchers.Default) { delay(300) }
+        assertFalse("import must wait for the run", import.isCompleted)
+        assertTrue(target.recurring.observeAll().first().isEmpty())
+
+        release.complete(Unit)
+        assertEquals(1, import.await().recurring)
+        run.join()
+        assertEquals(1, target.recurring.observeAll().first().size)
     }
 
     @After

@@ -7,11 +7,17 @@ import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.model.RefreshResult
+import app.moneytracker.domain.repository.ExchangeRateRepository
 import app.moneytracker.domain.repository.ExpenseRepository
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.math.BigDecimal
 import java.time.Clock
@@ -95,9 +101,45 @@ class RatesUseCasesTest {
         assertEquals(2, rates.refreshCalls)
     }
 
+    @Test
+    fun `parallel ifStale calls download once`() = runTest {
+        rates.nextResult = { FakeExchangeRateRepository.success(today) }
+        val gate = CompletableDeferred<Unit>()
+        // Загрузка «висит» в сети — тем временем стартует второй вызов (фоновая задача и запуск приложения).
+        val slow = object : ExchangeRateRepository by rates {
+            override suspend fun refresh(): RefreshResult = gate.await().let { rates.refresh() }
+        }
+        val refresh = RefreshRatesUseCase(slow, fill, clock)
+
+        launch { refresh.ifStale() }
+        launch { refresh.ifStale() }
+        runCurrent()
+        gate.complete(Unit)
+        runCurrent()
+
+        assertEquals(1, rates.refreshCalls)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `manual rate must be positive`() = runTest {
         setManual(CurrencyCode.RSD, BigDecimal.ZERO)
+    }
+
+    @Test
+    fun `manual rate outside a sane range is rejected`() = runTest {
+        assertTrue(SetManualRateUseCase.isPlausible(CurrencyCode.RSD, BigDecimal("117.4")))
+        assertTrue(SetManualRateUseCase.isPlausible(CurrencyCode.RUB, BigDecimal("95.43")))
+        // Опечатки на порядок: лишняя цифра или запятая не там.
+        assertFalse(SetManualRateUseCase.isPlausible(CurrencyCode.RSD, BigDecimal("1174")))
+        assertFalse(SetManualRateUseCase.isPlausible(CurrencyCode.RSD, BigDecimal("11.74")))
+        assertFalse(SetManualRateUseCase.isPlausible(CurrencyCode.RUB, BigDecimal("9543")))
+        assertFalse(SetManualRateUseCase.isPlausible(CurrencyCode.RUB, BigDecimal("0.0001")))
+        try {
+            setManual(CurrencyCode.RUB, BigDecimal("9543"))
+            fail("Expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+        }
+        assertNull(rates.current())
     }
 
     @Test

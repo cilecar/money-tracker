@@ -39,7 +39,7 @@ class CategoryRepositoryTest {
             .build()
         categories = CategoryRepositoryImpl(db.categoryDao())
         methods = PaymentMethodRepositoryImpl(db.paymentMethodDao())
-        expenses = ExpenseRepositoryImpl(db.expenseDao())
+        expenses = ExpenseRepositoryImpl(db, db.expenseDao())
     }
 
     @After

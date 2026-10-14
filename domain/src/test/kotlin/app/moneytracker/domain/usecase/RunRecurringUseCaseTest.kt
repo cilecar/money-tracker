@@ -104,6 +104,31 @@ class RunRecurringUseCaseTest {
         assertEquals(0, run())
         assertFalse(recurring.get(id)!!.active)
     }
+
+    /** getDue() вернул снимок, а потом [change] изменил шаблон — как удаление или пауза с экрана посреди запуска. */
+    private fun runAfter(change: suspend (Long) -> Unit) = RunRecurringUseCase(
+        object : RecurringRepository by recurring {
+            override suspend fun getDue(today: LocalDate) = recurring.getDue(today).onEach { change(it.id) }
+        },
+        rates,
+        checkBudgets(clock, expenses),
+        clock,
+    )
+
+    @Test
+    fun `template deleted during a run creates nothing`() = runTest {
+        add("2026-08-05")
+        assertEquals(0, runAfter { recurring.delete(it) }())
+        assertEquals(0, expenses.items.value.size)
+    }
+
+    @Test
+    fun `pause made during a run is not undone`() = runTest {
+        val id = add("2026-08-05")
+        assertEquals(0, runAfter { recurring.upsert(recurring.get(it)!!.copy(active = false)) }())
+        assertEquals(0, expenses.items.value.size)
+        assertFalse(recurring.get(id)!!.active)
+    }
 }
 
 class SaveRecurringUseCaseTest {

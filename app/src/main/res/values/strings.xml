@@ -44,6 +44,7 @@
     <string name="rates_prompt_title">Не удалось загрузить курсы</string>
     <string name="rates_prompt_text">Похоже, нет интернета. Можно ввести курс вручную или добавить расходы сейчас — суммы в других валютах посчитаются, когда курсы загрузятся.</string>
     <string name="rates_manual_first_launch">Сколько динаров и рублей стоит 1 евро?</string>
+    <string name="rates_manual_out_of_range">Введите число от %1$s до %2$s</string>
 
     <string name="action_undo">Отменить</string>
     <string name="action_delete">Удалить</string>

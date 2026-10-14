@@ -45,7 +45,7 @@ class ExpenseDaoTest {
             .addCallback(DatabaseSeeder(context))
             .allowMainThreadQueries()
             .build()
-        expenses = ExpenseRepositoryImpl(db.expenseDao())
+        expenses = ExpenseRepositoryImpl(db, db.expenseDao())
         categories = CategoryRepositoryImpl(db.categoryDao())
     }
 
@@ -153,6 +153,20 @@ class ExpenseDaoTest {
         // Удалённый расход — не падение FK, а просто false.
         expenses.delete(other)
         assertFalse(expenses.fillRates(stale.withRates(rates, now)))
+    }
+
+    @Test
+    fun updateFromStaleCopyKeepsRatesFilledMeanwhile() = runTest {
+        val id = expenses.insert(expense().copy(rates = null, converted = null))
+        val read = expenses.get(id)!! // экран редактирования прочитал расход без курса
+        assertTrue(expenses.fillRates(read.withRates(rates, now))) // тем временем курс заполнился
+
+        // Сохранение копии без курса не затирает его; новая сумма пересчитана по тому же курсу.
+        expenses.update(read.withAmount(Money(100000, CurrencyCode.RSD), now).copy(comment = "правка"))
+        val saved = expenses.get(id)!!
+        assertEquals("правка", saved.comment)
+        assertEquals(rates, saved.rates)
+        assertEquals(rates.convertAll(Money(100000, CurrencyCode.RSD)), saved.converted)
     }
 
     @Test(expected = SQLiteConstraintException::class)
