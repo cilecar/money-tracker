@@ -83,8 +83,27 @@ class UsdtTest {
         assertEquals(2, CurrencyCode.USDT.fractionDigits)
         assertEquals(usdt(12_35), Money.parse("12.35", CurrencyCode.USDT))
         assertNull("больше двух знаков — ошибка ввода, а не округление", Money.parse("12.3456", CurrencyCode.USDT))
-        // Ловушка общего правила разбора: ровно три цифры после единственного разделителя — это тысячи.
-        assertEquals(usdt(12345_00), Money.parse("12.345", CurrencyCode.USDT))
+    }
+
+    @Test
+    fun `usdt rejects a single separator followed by exactly three digits`() {
+        val u = CurrencyCode.USDT
+        // Для USDT «12.345» неоднозначно (тысячи или три знака дроби) — ошибка, а не 12 345.
+        assertNull(Money.parse("12.345", u))
+        assertNull(Money.parse("12,345", u))
+        assertNull(Money.parse("1 234,567", u))
+        assertNull(Money.parse("0.125", u))
+        // Однозначные записи по-прежнему работают.
+        assertEquals(usdt(1234_00), Money.parse("1234", u))
+        assertEquals(usdt(1234_50), Money.parse("1 234,5", u))
+        assertEquals(usdt(1234_56), Money.parse("1.234,56", u))
+        assertEquals(usdt(1234_56), Money.parse("1,234.56", u))
+        assertEquals(usdt(1_000_000_00), Money.parse("1.000.000", u))
+        // У остальных валют поведение прежнее: «12.345» — двенадцать тысяч.
+        for (c in CurrencyCode.DISPLAY) {
+            assertEquals(Money.of(BigDecimal("12345"), c), Money.parse("12.345", c))
+            assertEquals(Money.of(BigDecimal("12345"), c), Money.parse("12,345", c))
+        }
     }
 
     @Test

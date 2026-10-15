@@ -65,6 +65,8 @@ data class Money(val minor: Long, val currency: CurrencyCode) : Comparable<Money
          * Если встречаются и `.`, и `,` — десятичный последний из них. Если только один вид:
          * встречается один раз и после него не ровно 3 цифры — десятичный («12,5»), иначе это
          * разделитель тысяч («1.234», «1.000.000»). Группы тысяч обязаны быть по 3 цифры.
+         * Для валют с [CurrencyCode.ambiguousGroupIsError] (USDT) такой одиночный «1.234» — ошибка:
+         * неясно, тысячи это или три знака дроби.
          *
          * Возвращает null для пустой, некорректной, отрицательной строки, если дробных знаков
          * больше, чем у валюты, или целая часть длиннее [MAX_INTEGER_DIGITS]: лучше показать
@@ -75,10 +77,12 @@ data class Money(val minor: Long, val currency: CurrencyCode) : Comparable<Money
             if (body.isEmpty() || body.any { !it.isDigit() && it != '.' && it != ',' }) return null
 
             val separators = body.filter { it == '.' || it == ',' }
+            val ambiguous = separators.length == 1 && body.length - body.indexOf(separators[0]) - 1 == 3
+            if (ambiguous && currency.ambiguousGroupIsError) return null
             val decimal: Char? = when {
                 separators.isEmpty() -> null
                 separators.toSet().size == 2 -> separators.last()
-                separators.length == 1 && body.length - body.indexOf(separators[0]) - 1 != 3 -> separators[0]
+                separators.length == 1 && !ambiguous -> separators[0]
                 else -> null
             }
             val intText = if (decimal != null) body.substringBeforeLast(decimal) else body
