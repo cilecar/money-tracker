@@ -206,6 +206,18 @@ private fun EditDialog(d: AccountDraft, viewModel: AccountsViewModel) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                if (d.type == AccountType.CARD) {
+                    OutlinedTextField(
+                        value = d.cardSuffix,
+                        onValueChange = { v -> viewModel.updateDraft { it.copy(cardSuffix = v.filter(Char::isDigit).take(4)) } },
+                        label = { Text(stringResource(R.string.account_card_suffix)) },
+                        supportingText = { Text(stringResource(R.string.account_card_suffix_hint)) },
+                        prefix = { Text("••") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 var pickDate by remember { mutableStateOf(false) }
                 TextButton(onClick = { pickDate = true }) {
                     Text(stringResource(R.string.account_opening_date, formatDate(d.openingDate, currentLocale())))

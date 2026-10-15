@@ -400,4 +400,35 @@
     <string name="transfer_error_same">Выберите два разных счёта</string>
     <string name="transfer_error_currency">Суммы должны быть в валютах счетов</string>
     <string name="account_error_has_transfers">По счёту есть переводы — его можно только отправить в архив</string>
+    <!-- Автозахват из уведомлений -->
+    <string name="capture_title">Автозахват расходов</string>
+    <string name="capture_service_label">Автозахват расходов Money Tracker</string>
+    <string name="capture_explain_title">Как это работает</string>
+    <string name="capture_explain">Приложение читает уведомления только Google Wallet. Из уведомления о покупке берутся сумма, валюта, магазин и последние цифры карты — и показывается уведомление «Расход … · магазин» с кнопками «Добавить» и «Изменить». Сам расход без подтверждения не добавляется. Уведомления других приложений игнорируются, ничего не отправляется в сеть и не покидает устройство.</string>
+    <string name="capture_access_granted">Доступ к уведомлениям выдан</string>
+    <string name="capture_access_missing">Доступа к уведомлениям нет — выдайте его в системных настройках</string>
+    <string name="capture_access_open">Открыть настройки доступа</string>
+    <string name="capture_access_revoke">Настройки доступа (отозвать)</string>
+    <string name="capture_enable">Автозахват</string>
+    <string name="capture_enable_hint">Предлагать расход по уведомлению о покупке</string>
+    <string name="capture_debug">Режим отладки</string>
+    <string name="capture_debug_hint">Сохранять последние 50 уведомлений Google Wallet как есть, чтобы их можно было посмотреть и скопировать</string>
+    <string name="capture_debug_list">Сырые уведомления</string>
+    <string name="capture_debug_empty">Пока ничего. Включите режим отладки и сделайте покупку.</string>
+    <string name="capture_copy">Копировать</string>
+    <string name="capture_copy_all">Копировать всё</string>
+    <string name="capture_pending_title">Ожидают подтверждения</string>
+    <string name="capture_pending_empty">Неподтверждённых покупок нет</string>
+    <string name="capture_pending_chip">Ожидают подтверждения: %1$d</string>
+    <string name="capture_card_hint">Счёт выбирается по последним цифрам карты из уведомления — укажите их в настройках счёта.</string>
+    <string name="capture_add">Добавить</string>
+    <string name="capture_edit">Изменить</string>
+    <string name="capture_dismiss">Отклонить</string>
+    <string name="capture_choose_category">Выберите категорию</string>
+    <string name="capture_unknown_card">карта ••%1$s</string>
+    <string name="capture_notification_title">Расход %1$s · %2$s</string>
+    <string name="notification_channel_capture">Покупки из уведомлений</string>
+    <string name="notification_channel_capture_description">Предложение добавить расход по уведомлению Google Wallet</string>
+    <string name="account_card_suffix">Последние 4 цифры карты</string>
+    <string name="account_card_suffix_hint">Для автозахвата: покупка с этой карты попадёт на этот счёт</string>
 </resources>

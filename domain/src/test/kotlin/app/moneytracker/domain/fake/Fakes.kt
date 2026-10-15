@@ -102,4 +102,6 @@ class FakeSettingsRepository : SettingsRepository {
     override suspend fun setDefaultAccount(id: Long?) { settings.value = settings.value.copy(defaultAccountId = id) }
     override suspend fun setThemeMode(mode: ThemeMode) { settings.value = settings.value.copy(themeMode = mode) }
     override suspend fun setDynamicColor(enabled: Boolean) { settings.value = settings.value.copy(dynamicColor = enabled) }
+    override suspend fun setAutoCapture(enabled: Boolean) { settings.value = settings.value.copy(autoCapture = enabled) }
+    override suspend fun setCaptureDebug(enabled: Boolean) { settings.value = settings.value.copy(captureDebug = enabled) }
 }

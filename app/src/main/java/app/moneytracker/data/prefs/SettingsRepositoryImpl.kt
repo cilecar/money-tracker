@@ -36,6 +36,8 @@ class SettingsRepositoryImpl @Inject constructor(
                 defaultAccountId = prefs[DEFAULT_ACCOUNT],
                 themeMode = prefs[THEME_MODE].toEnumOr(defaults.themeMode),
                 dynamicColor = prefs[DYNAMIC_COLOR] ?: defaults.dynamicColor,
+                autoCapture = prefs[AUTO_CAPTURE] ?: defaults.autoCapture,
+                captureDebug = prefs[CAPTURE_DEBUG] ?: defaults.captureDebug,
             )
         }
         .distinctUntilChanged()
@@ -44,6 +46,8 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setDisplayCurrency(currency: CurrencyCode) = set(DISPLAY_CURRENCY, currency.name)
     override suspend fun setThemeMode(mode: ThemeMode) = set(THEME_MODE, mode.name)
     override suspend fun setDynamicColor(enabled: Boolean) = set(DYNAMIC_COLOR, enabled)
+    override suspend fun setAutoCapture(enabled: Boolean) = set(AUTO_CAPTURE, enabled)
+    override suspend fun setCaptureDebug(enabled: Boolean) = set(CAPTURE_DEBUG, enabled)
 
     override suspend fun setDefaultAccount(id: Long?) {
         dataStore.edit { if (id == null) it.remove(DEFAULT_ACCOUNT) else it[DEFAULT_ACCOUNT] = id }
@@ -63,5 +67,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val DEFAULT_ACCOUNT = longPreferencesKey("default_payment_method_id")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val AUTO_CAPTURE = booleanPreferencesKey("auto_capture")
+        val CAPTURE_DEBUG = booleanPreferencesKey("capture_debug")
     }
 }

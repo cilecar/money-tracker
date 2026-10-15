@@ -1,5 +1,6 @@
 package app.moneytracker.ui.expenses.list
 
+import app.moneytracker.domain.repository.CaptureRepository
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -70,6 +71,8 @@ data class ExpenseListUiState(
     val tags: List<String> = emptyList(),
     /** Заголовок для списка, открытого из аналитики (название категории или способа оплаты). */
     val title: String? = null,
+    /** Захваченные из уведомлений покупки, ждущие подтверждения. */
+    val pendingCaptures: Int = 0,
 )
 
 sealed interface ExpenseListEvent {
@@ -97,6 +100,7 @@ class ExpenseListViewModel @Inject constructor(
     observeMonthSummary: ObserveMonthSummaryUseCase,
     private val transfers: TransferRepository,
     private val deleteTransfer: DeleteTransferUseCase,
+    captures: CaptureRepository,
 ) : ViewModel() {
 
     private val month = YearMonth.now(clock)
@@ -157,7 +161,9 @@ class ExpenseListViewModel @Inject constructor(
         incomeCategoryRepository.observeAll(includeArchived = true),
     ) { c, p, t, ic -> References(c, p, t, ic) }
 
-    val state: StateFlow<ExpenseListUiState> = combine(
+    private val pending = captures.observePending().map { it.size }
+
+    private val baseState = combine(
         filtered,
         monthSummary,
         references,
@@ -183,7 +189,10 @@ class ExpenseListViewModel @Inject constructor(
             tags = tags,
             title = titleFor(cats, methods),
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExpenseListUiState())
+    }
+
+    val state: StateFlow<ExpenseListUiState> = combine(baseState, pending) { s, n -> s.copy(pendingCaptures = n) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExpenseListUiState())
 
     private fun titleFor(cats: List<Category>, methods: List<Account>): String? {
         val categoryId = initialFilter.categoryIds.singleOrNull()

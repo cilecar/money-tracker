@@ -42,6 +42,7 @@ data class AccountDraft(
     val openingDate: LocalDate = LocalDate.now(),
     val error: AccountError? = null,
     val badAmount: Boolean = false,
+    val cardSuffix: String = "",
 )
 
 /** Диалог сверки: посчитанный остаток и введённый фактический. */
@@ -122,6 +123,7 @@ class AccountsViewModel @Inject constructor(
                 currency = method.currency,
                 openingBalanceText = method.openingBalance.takeIf { !it.isZero }?.amount?.toPlainString().orEmpty(),
                 openingDate = method.openingDate,
+                cardSuffix = method.cardSuffix.orEmpty(),
             ),
         )
     }
@@ -145,6 +147,7 @@ class AccountsViewModel @Inject constructor(
             currency = d.currency,
             openingBalanceMinor = opening.minor,
             openingDate = d.openingDate,
+            cardSuffix = d.cardSuffix.filter { it.isDigit() }.takeLast(4).takeIf { it.length == 4 },
             defaultKey = if (keepKey) original!!.defaultKey else null,
             sortOrder = original?.sortOrder ?: 0,
             archived = original?.archived ?: false,

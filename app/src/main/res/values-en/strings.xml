@@ -359,4 +359,35 @@
     <string name="transfer_error_same">Choose two different accounts</string>
     <string name="transfer_error_currency">Amounts must be in the accounts\' currencies</string>
     <string name="account_error_has_transfers">The account has transfers — it can only be archived</string>
+    <!-- Capture from notifications -->
+    <string name="capture_title">Expense capture</string>
+    <string name="capture_service_label">Money Tracker expense capture</string>
+    <string name="capture_explain_title">How it works</string>
+    <string name="capture_explain">The app reads notifications from Google Wallet only. From a purchase notification it takes the amount, currency, merchant and the last card digits, and shows “Expense … · merchant” with Add and Edit buttons. Nothing is added without your confirmation. Notifications of other apps are ignored; nothing is sent to the network or leaves the device.</string>
+    <string name="capture_access_granted">Notification access granted</string>
+    <string name="capture_access_missing">No notification access — grant it in system settings</string>
+    <string name="capture_access_open">Open access settings</string>
+    <string name="capture_access_revoke">Access settings (revoke)</string>
+    <string name="capture_enable">Expense capture</string>
+    <string name="capture_enable_hint">Suggest an expense for a purchase notification</string>
+    <string name="capture_debug">Debug mode</string>
+    <string name="capture_debug_hint">Keep the last 50 Google Wallet notifications as they are, to view and copy them</string>
+    <string name="capture_debug_list">Raw notifications</string>
+    <string name="capture_debug_empty">Nothing yet. Turn on debug mode and make a purchase.</string>
+    <string name="capture_copy">Copy</string>
+    <string name="capture_copy_all">Copy all</string>
+    <string name="capture_pending_title">Awaiting confirmation</string>
+    <string name="capture_pending_empty">No unconfirmed purchases</string>
+    <string name="capture_pending_chip">Awaiting confirmation: %1$d</string>
+    <string name="capture_card_hint">The account is chosen by the last card digits in the notification — set them in the account settings.</string>
+    <string name="capture_add">Add</string>
+    <string name="capture_edit">Edit</string>
+    <string name="capture_dismiss">Dismiss</string>
+    <string name="capture_choose_category">Choose a category</string>
+    <string name="capture_unknown_card">card ••%1$s</string>
+    <string name="capture_notification_title">Expense %1$s · %2$s</string>
+    <string name="notification_channel_capture">Purchases from notifications</string>
+    <string name="notification_channel_capture_description">Suggestion to add an expense for a Google Wallet notification</string>
+    <string name="account_card_suffix">Last 4 card digits</string>
+    <string name="account_card_suffix_hint">For capture: a purchase with this card goes to this account</string>
 </resources>

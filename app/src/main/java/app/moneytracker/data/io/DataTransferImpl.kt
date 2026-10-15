@@ -13,6 +13,7 @@ import app.moneytracker.data.db.entity.BudgetEntity
 import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
 import app.moneytracker.data.db.entity.IncomeCategoryEntity
+import app.moneytracker.data.db.entity.MerchantRuleEntity
 import app.moneytracker.data.db.entity.AccountEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
 import app.moneytracker.data.db.toDomain
@@ -314,7 +315,7 @@ class DataTransferImpl @Inject constructor(
                 accounts = db.accountDao().getAll(true).map {
                     AccountDto(
                         it.id, it.name, it.type.name, it.currency.name, it.openingBalanceMinor, it.openingDate.toString(),
-                        it.defaultKey, it.sortOrder, it.archived,
+                        it.defaultKey, it.sortOrder, it.archived, it.cardSuffix,
                     )
                 },
                 expenses = db.expenseDao().getAll().map { it.toDomain() }.map { e ->
@@ -347,6 +348,7 @@ class DataTransferImpl @Inject constructor(
                         it.nextRunDate.toString(), it.active,
                     )
                 },
+                merchantRules = db.captureDao().allRules().map { MerchantRuleDto(it.merchantKey, it.categoryId, it.updatedAt.toString()) },
                 exchangeRates = m.allRates().map {
                     RateDto(it.date.toString(), it.currency.name, it.source.name, it.perEur.toPlainString(), it.fetchedAt.toString())
                 },
@@ -418,6 +420,7 @@ class DataTransferImpl @Inject constructor(
                     parsed.expenses.forEach { db.expenseDao().insertWithTags(it.toEntity(), it.tags) }
                     parsed.refunds.forEach { db.refundDao().insert(it.toEntity()) }
                     parsed.transfers.forEach { db.transferDao().upsert(it.toEntity()) }
+                    parsed.merchantRules.forEach { db.captureDao().saveRule(it) }
                     parsed.budgets.forEach { db.budgetDao().save(it) }
                     parsed.alerts.forEach { db.budgetDao().insertAlert(it) }
                     if (parsed.rates.isNotEmpty()) db.exchangeRateDao().upsert(parsed.rates)
@@ -452,6 +455,7 @@ class DataTransferImpl @Inject constructor(
         val incomes: List<Income>,
         val refunds: List<Refund>,
         val transfers: List<Transfer>,
+        val merchantRules: List<MerchantRuleEntity>,
     )
 
     private fun parse(dto: BackupDto): Parsed {
@@ -488,6 +492,7 @@ class DataTransferImpl @Inject constructor(
                 defaultKey = a.defaultKey,
                 sortOrder = a.sortOrder,
                 archived = a.archived,
+                cardSuffix = a.cardSuffix,
             )
         }
         val methodIds = unique(methods.map { it.id })
@@ -608,7 +613,11 @@ class DataTransferImpl @Inject constructor(
             )
         }
         unique(transfers.map { it.id })
-        return Parsed(categories, methods, expenses, budgets, alerts, recurring, rates, adjustments, incomeCategories, incomes, refunds, transfers)
+        // Правило на категорию, которой в файле нет, просто пропускаем: это подсказка, а не данные.
+        val merchantRules = dto.merchantRules.filter { it.categoryId in categoryIds }.map {
+            MerchantRuleEntity(it.merchantKey, it.categoryId, Instant.parse(it.updatedAt))
+        }
+        return Parsed(categories, methods, expenses, budgets, alerts, recurring, rates, adjustments, incomeCategories, incomes, refunds, transfers, merchantRules)
     }
 
     private fun inconsistent(): Nothing = throw BackupFormatException(Reason.INCONSISTENT)

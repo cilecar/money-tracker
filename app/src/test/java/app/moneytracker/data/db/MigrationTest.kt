@@ -180,6 +180,29 @@ class MigrationTest {
         }
     }
 
+    /** 3→4: счета и расходы целы, у счетов пока нет цифр карты, таблицы автозахвата пустые. */
+    @Test
+    fun migration3To4KeepsAccountsAndAddsCaptureTables() = runTest {
+        val name = "migration-3-4-data.db"
+        helper.createDatabase(name, 3).use { db ->
+            db.execSQL("INSERT INTO category (id, name, default_key, icon_key, color, parent_id, sort_order, archived) VALUES (1, 'Еда', 'food', 'restaurant', 1, NULL, 0, 0)")
+            db.execSQL("INSERT INTO account (id, name, type, currency, opening_balance_minor, opening_date, default_key, sort_order, archived) VALUES (1, 'Bybit', 'CARD', 'EUR', 10000, 20300, NULL, 0, 0)")
+            db.execSQL("INSERT INTO expense (id, amount_minor, currency, category_id, account_id, occurred_at, local_date, created_at, updated_at) VALUES (1, 500, 'EUR', 1, 1, 0, 20301, 0, 0)")
+        }
+        helper.runMigrationsAndValidate(name, 4, true, Migration3To4).use { db ->
+            db.query("SELECT name, card_suffix FROM account").use { c ->
+                assertTrue(c.moveToFirst())
+                assertEquals("Bybit", c.getString(0))
+                assertTrue(c.isNull(1))
+            }
+            db.query("SELECT COUNT(*) FROM expense").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+            db.query("SELECT COUNT(*) FROM captured_purchase").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+            db.query("SELECT COUNT(*) FROM merchant_rule").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+            db.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
+        }
+        context.deleteDatabase(name)
+    }
+
     @Test
     fun migrationPathCoversEveryOlderVersion() {
         for (from in 1..AppDatabase.VERSION) assertTrue("no path $from → ${AppDatabase.VERSION}", AppDatabase.hasMigrationPath(from, AppDatabase.VERSION))

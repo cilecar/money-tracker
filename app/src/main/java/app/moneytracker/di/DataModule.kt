@@ -11,6 +11,7 @@ import androidx.room.Room
 import app.moneytracker.data.db.AppDatabase
 import app.moneytracker.data.db.DatabaseSeeder
 import app.moneytracker.data.db.dao.BudgetDao
+import app.moneytracker.data.db.dao.CaptureDao
 import app.moneytracker.data.db.dao.CategoryDao
 import app.moneytracker.data.db.dao.ExchangeRateDao
 import app.moneytracker.data.db.dao.ExpenseDao
@@ -45,6 +46,7 @@ object DataModule {
     @Provides fun incomeDao(db: AppDatabase): IncomeDao = db.incomeDao()
     @Provides fun refundDao(db: AppDatabase): RefundDao = db.refundDao()
     @Provides fun incomeCategoryDao(db: AppDatabase): IncomeCategoryDao = db.incomeCategoryDao()
+    @Provides fun captureDao(db: AppDatabase): CaptureDao = db.captureDao()
     @Provides fun exchangeRateDao(db: AppDatabase): ExchangeRateDao = db.exchangeRateDao()
     @Provides fun budgetDao(db: AppDatabase): BudgetDao = db.budgetDao()
     @Provides fun recurringDao(db: AppDatabase): RecurringDao = db.recurringDao()

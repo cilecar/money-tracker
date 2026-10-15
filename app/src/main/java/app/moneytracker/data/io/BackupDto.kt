@@ -17,6 +17,10 @@ import kotlinx.serialization.json.JsonNames
  * Версия 3: валюта USDT и курс USDT в снапшотах ([RatesDto.usdtPerEur]). Файлы версий 1–2 читаются как есть
  * (курса USDT в них нет). Номер поднят, чтобы старое приложение отказалось от файла с USDT понятной ошибкой
  * «файл из более новой версии», а не «файл несогласован».
+ *
+ * Цифры карты у счёта и правила «мерчант → категория» (автозахват) — необязательные поля без смены версии:
+ * старое приложение просто их не прочитает, данные при этом не искажаются. Захваченные покупки
+ * в ожидании подтверждения в файл не попадают — это временные записи.
  */
 @Serializable
 data class BackupDto(
@@ -37,6 +41,7 @@ data class BackupDto(
     val incomes: List<IncomeDto> = emptyList(),
     val refunds: List<RefundDto> = emptyList(),
     val transfers: List<TransferDto> = emptyList(),
+    val merchantRules: List<MerchantRuleDto> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "money-tracker-backup"
@@ -78,7 +83,11 @@ data class AccountDto(
     val defaultKey: String? = null,
     val sortOrder: Int,
     val archived: Boolean,
+    val cardSuffix: String? = null,
 )
+
+@Serializable
+data class MerchantRuleDto(val merchantKey: String, val categoryId: Long, val updatedAt: String)
 
 @Serializable
 data class BalanceAdjustmentDto(

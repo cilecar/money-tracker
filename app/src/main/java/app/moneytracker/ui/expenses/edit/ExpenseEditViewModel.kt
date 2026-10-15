@@ -1,5 +1,8 @@
 package app.moneytracker.ui.expenses.edit
 
+import app.moneytracker.domain.repository.CaptureRepository
+import app.moneytracker.domain.usecase.ConfirmCaptureUseCase
+import app.moneytracker.domain.usecase.SuggestCaptureUseCase
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -84,9 +87,13 @@ class ExpenseEditViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val saveExpense: SaveExpenseUseCase,
     private val clock: Clock,
+    private val captures: CaptureRepository,
+    private val suggestCapture: SuggestCaptureUseCase,
+    private val confirmCapture: ConfirmCaptureUseCase,
 ) : ViewModel() {
 
     private val expenseId = savedStateHandle.toRoute<ExpenseEditRoute>().id
+    private val captureId = savedStateHandle.toRoute<ExpenseEditRoute>().captureId
     private val form = MutableStateFlow(ExpenseForm(dateTime = LocalDateTime.now(clock).withSecond(0).withNano(0)))
 
     private val _events = Channel<ExpenseEditEvent>(Channel.BUFFERED)
@@ -126,6 +133,27 @@ class ExpenseEditViewModel @Inject constructor(
                 comment = e.comment.orEmpty(),
                 tags = e.tags,
                 original = e,
+            )
+        } else if (captureId != 0L) {
+            // Покупка из уведомления: сумма, мерчант (в комментарий) и время — из неё, категория и счёт — по подсказке.
+            val p = captures.get(captureId)
+            if (p == null) {
+                _events.send(ExpenseEditEvent.Close)
+                return
+            }
+            val suggestion = suggestCapture(p)
+            val s = settings.settings.first()
+            val methods = accountRepository.getAll(includeArchived = false)
+            val method = methods.firstOrNull { it.id == suggestion.accountId }
+                ?: methods.firstOrNull { it.id == s.defaultAccountId } ?: methods.firstOrNull()
+            form.value = ExpenseForm(
+                loaded = true,
+                amount = AmountInput.from(p.amount),
+                currency = p.amount.currency,
+                categoryId = suggestion.categoryId,
+                accountId = method?.id,
+                dateTime = LocalDateTime.ofInstant(p.occurredAt, clock.zone),
+                comment = p.merchant,
             )
         } else {
             val s = settings.settings.first()
@@ -220,7 +248,7 @@ class ExpenseEditViewModel @Inject constructor(
             } else {
                 f.dateTime.atZone(clock.zone).toInstant()
             }
-            saveExpense(
+            val savedId = saveExpense(
                 ExpenseInput(
                     id = expenseId,
                     amount = f.amount.toMoney(f.currency),
@@ -232,6 +260,7 @@ class ExpenseEditViewModel @Inject constructor(
                     tags = f.tags + listOfNotNull(f.tagDraft.trim().takeIf { it.isNotEmpty() }),
                 ),
             )
+            if (captureId != 0L) confirmCapture.linkExpense(captureId, savedId, f.categoryId!!)
             _events.send(ExpenseEditEvent.Close)
         }
     }

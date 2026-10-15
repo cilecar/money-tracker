@@ -32,6 +32,9 @@ class MainActivity : ComponentActivity() {
     /** Запрос «сразу открыть добавление расхода» — от кнопки «+» на виджете. */
     private val openAddRequest = MutableStateFlow(false)
 
+    /** «Изменить» в уведомлении автозахвата: открыть редактор с заполненной покупкой. */
+    private val openCaptureRequest = MutableStateFlow(0L)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // После поворота экрана Intent тот же — не открываем добавление повторно.
@@ -41,7 +44,13 @@ class MainActivity : ComponentActivity() {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             MoneyTrackerTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
                 val openAdd by openAddRequest.collectAsStateWithLifecycle()
-                AppRoot(openAdd = openAdd, onOpenAddHandled = { openAddRequest.value = false })
+                val openCapture by openCaptureRequest.collectAsStateWithLifecycle()
+                AppRoot(
+                    openAdd = openAdd,
+                    onOpenAddHandled = { openAddRequest.value = false },
+                    openCapture = openCapture,
+                    onOpenCaptureHandled = { openCaptureRequest.value = 0 },
+                )
                 NoRatesPrompt(viewModel)
             }
         }
@@ -54,11 +63,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == ACTION_ADD_EXPENSE) openAddRequest.value = true
+        when (intent?.action) {
+            ACTION_ADD_EXPENSE -> openAddRequest.value = true
+            ACTION_EDIT_CAPTURE -> openCaptureRequest.value = intent.getLongExtra(EXTRA_CAPTURE_ID, 0)
+        }
     }
 
     companion object {
         const val ACTION_ADD_EXPENSE = "app.moneytracker.action.ADD_EXPENSE"
+        const val ACTION_EDIT_CAPTURE = "app.moneytracker.action.EDIT_CAPTURE"
+        const val EXTRA_CAPTURE_ID = "capture_id"
     }
 }
 

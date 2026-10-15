@@ -1,5 +1,7 @@
 package app.moneytracker.ui.expenses.list
 
+import androidx.compose.material3.AssistChip
+import androidx.compose.material.icons.filled.NotificationsActive
 import app.moneytracker.domain.model.TransferItem
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.foundation.shape.CircleShape
@@ -101,6 +103,7 @@ fun ExpenseListScreen(
     onEditIncome: (Long) -> Unit = {},
     onEditRefund: (Long) -> Unit = {},
     onEditTransfer: (Long) -> Unit = {},
+    onPending: () -> Unit = {},
     /** Задан — экран открыт из аналитики: показываем «назад» и заголовок фильтра. */
     onBack: (() -> Unit)? = null,
     viewModel: ExpenseListViewModel = hiltViewModel(),
@@ -179,6 +182,16 @@ fun ExpenseListScreen(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(bottom = 88.dp),
         ) {
+            if (state.pendingCaptures > 0 && onBack == null) {
+                item(key = "pending") {
+                    AssistChip(
+                        onClick = onPending,
+                        label = { Text(stringResource(R.string.capture_pending_chip, state.pendingCaptures)) },
+                        leadingIcon = { Icon(Icons.Default.NotificationsActive, null) },
+                        modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+                    )
+                }
+            }
             item(key = "summary") {
                 SummaryCard(state, onClearFilter = viewModel::clearFilter)
             }

@@ -17,6 +17,8 @@ abstract class MaintenanceDao {
 
     // Порядок важен из-за внешних ключей: сначала ссылающиеся таблицы, потом справочники.
     @Query("DELETE FROM transfer") abstract suspend fun deleteTransfers()
+    @Query("DELETE FROM captured_purchase") abstract suspend fun deleteCaptures()
+    @Query("DELETE FROM merchant_rule") abstract suspend fun deleteMerchantRules()
     @Query("DELETE FROM refund") abstract suspend fun deleteRefunds()
     @Query("DELETE FROM income") abstract suspend fun deleteIncomes()
     @Query("DELETE FROM balance_adjustment") abstract suspend fun deleteAdjustments()
@@ -33,6 +35,8 @@ abstract class MaintenanceDao {
     @Query("DELETE FROM exchange_rate") abstract suspend fun deleteRates()
 
     open suspend fun deleteAll() {
+        deleteCaptures()
+        deleteMerchantRules()
         deleteTransfers()
         deleteRefunds()
         deleteIncomes()

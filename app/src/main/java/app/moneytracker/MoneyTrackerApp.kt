@@ -1,5 +1,6 @@
 package app.moneytracker
 
+import app.moneytracker.capture.CaptureNotifications
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
@@ -18,6 +19,7 @@ import javax.inject.Inject
 class MoneyTrackerApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var captureNotifications: CaptureNotifications
     @Inject lateinit var ratesSyncScheduler: RatesSyncScheduler
     @Inject lateinit var budgetNotifications: BudgetNotifications
     @Inject lateinit var widgetUpdater: WidgetUpdater
@@ -30,6 +32,7 @@ class MoneyTrackerApp : Application(), Configuration.Provider {
         ratesSyncScheduler.schedulePeriodic()
         ratesSyncScheduler.scheduleRecurring()
         budgetNotifications.createChannel()
+        captureNotifications.createChannel()
         widgetUpdater.start()
     }
 }

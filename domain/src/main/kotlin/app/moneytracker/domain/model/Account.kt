@@ -23,6 +23,8 @@ data class Account(
     val defaultKey: String? = null,
     val sortOrder: Int = 0,
     val archived: Boolean = false,
+    /** Последние 4 цифры карты: по ним автозахват из уведомлений выбирает счёт. */
+    val cardSuffix: String? = null,
 ) {
     // Хранится как Long, а не Money: иначе copy(currency = …) создавал бы счёт с остатком в чужой валюте.
     val openingBalance: Money get() = Money(openingBalanceMinor, currency)

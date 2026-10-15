@@ -1,5 +1,8 @@
 package app.moneytracker.ui.navigation
 
+import app.moneytracker.ui.capture.AutoCaptureScreen
+import app.moneytracker.ui.capture.CaptureDebugScreen
+import app.moneytracker.ui.capture.PendingCapturesScreen
 import androidx.navigation.NavHostController
 import app.moneytracker.ui.incomecategories.IncomeCategoriesScreen
 import app.moneytracker.ui.operations.IncomeEditScreen
@@ -59,8 +62,19 @@ private val topLevel = listOf(
 )
 
 @Composable
-fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
+fun AppRoot(
+    openAdd: Boolean = false,
+    onOpenAddHandled: () -> Unit = {},
+    openCapture: Long = 0,
+    onOpenCaptureHandled: () -> Unit = {},
+) {
     val navController = rememberNavController()
+    LaunchedEffect(openCapture) {
+        if (openCapture != 0L) {
+            navController.navigate(ExpenseEditRoute(captureId = openCapture))
+            onOpenCaptureHandled()
+        }
+    }
     LaunchedEffect(openAdd) {
         if (openAdd) {
             navController.navigate(ExpenseEditRoute())
@@ -113,8 +127,20 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                     onEditIncome = { navController.navigate(IncomeEditRoute(it)) },
                     onEditRefund = { navController.navigate(RefundEditRoute(it)) },
                     onEditTransfer = { navController.navigate(TransferEditRoute(it)) },
+                    onPending = { navController.navigate(PendingCapturesRoute) },
                 )
             }
+            composable<AutoCaptureRoute> {
+                AutoCaptureScreen(
+                    onBack = { navController.popBackStack() },
+                    onPending = { navController.navigate(PendingCapturesRoute) },
+                    onDebug = { navController.navigate(CaptureDebugRoute) },
+                )
+            }
+            composable<PendingCapturesRoute> {
+                PendingCapturesScreen(onBack = { navController.popBackStack() }, onEdit = { navController.navigate(ExpenseEditRoute(captureId = it)) })
+            }
+            composable<CaptureDebugRoute> { CaptureDebugScreen(onBack = { navController.popBackStack() }) }
             composable<ExpenseEditRoute> {
                 ExpenseEditScreen(
                     onClose = { navController.popBackStack() },
@@ -163,6 +189,7 @@ fun AppRoot(openAdd: Boolean = false, onOpenAddHandled: () -> Unit = {}) {
                     onCategories = { navController.navigate(CategoriesRoute) },
                     onAccounts = { navController.navigate(AccountsRoute) },
                     onIncomeCategories = { navController.navigate(IncomeCategoriesRoute) },
+                    onAutoCapture = { navController.navigate(AutoCaptureRoute) },
                     onRecurring = { navController.navigate(RecurringListRoute) },
                     onRates = { navController.navigate(RatesRoute) },
                     onData = { navController.navigate(DataRoute) },

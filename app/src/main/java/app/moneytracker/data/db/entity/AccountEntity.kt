@@ -21,6 +21,8 @@ data class AccountEntity(
     @ColumnInfo(name = "default_key") val defaultKey: String?,
     @ColumnInfo(name = "sort_order") val sortOrder: Int,
     val archived: Boolean,
+    /** Последние 4 цифры карты — для автозахвата из уведомлений (версия 4). */
+    @ColumnInfo(name = "card_suffix") val cardSuffix: String? = null,
 )
 
 @Entity(

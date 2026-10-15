@@ -226,3 +226,29 @@ object Migration2To3 : Migration(2, 3) {
         }
     }
 }
+
+/**
+ * 3 → 4: автозахват из уведомлений — цифры карты у счёта, захваченные покупки и правила «мерчант → категория».
+ * Колонка без внешнего ключа добавляется через ALTER TABLE, таблицы пересоздавать не нужно.
+ */
+object Migration3To4 : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `account` ADD COLUMN `card_suffix` TEXT")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `captured_purchase` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`source` TEXT NOT NULL, `amount_minor` INTEGER NOT NULL, `currency` TEXT NOT NULL, `merchant` TEXT NOT NULL, " +
+                "`merchant_key` TEXT NOT NULL, `card_suffix` TEXT, `occurred_at` INTEGER NOT NULL, `notification_key` TEXT NOT NULL, " +
+                "`status` TEXT NOT NULL, `expense_id` INTEGER, `created_at` INTEGER NOT NULL, " +
+                "FOREIGN KEY(`expense_id`) REFERENCES `expense`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_captured_purchase_occurred_at` ON `captured_purchase` (`occurred_at`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_captured_purchase_status` ON `captured_purchase` (`status`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_captured_purchase_expense_id` ON `captured_purchase` (`expense_id`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `merchant_rule` (`merchant_key` TEXT NOT NULL, `category_id` INTEGER NOT NULL, " +
+                "`updated_at` INTEGER NOT NULL, PRIMARY KEY(`merchant_key`), " +
+                "FOREIGN KEY(`category_id`) REFERENCES `category`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_merchant_rule_category_id` ON `merchant_rule` (`category_id`)")
+    }
+}

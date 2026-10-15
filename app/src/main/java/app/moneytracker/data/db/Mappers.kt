@@ -2,6 +2,7 @@ package app.moneytracker.data.db
 
 import app.moneytracker.data.db.dao.ExpenseWithTags
 import app.moneytracker.data.db.entity.BalanceAdjustmentEntity
+import app.moneytracker.data.db.entity.CapturedPurchaseEntity
 import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
 import app.moneytracker.data.db.entity.ExpenseEntity
@@ -11,6 +12,8 @@ import app.moneytracker.data.db.entity.IncomeEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
 import app.moneytracker.data.db.entity.RefundEntity
 import app.moneytracker.data.db.entity.TransferEntity
+import app.moneytracker.domain.capture.CaptureStatus
+import app.moneytracker.domain.capture.CapturedPurchase
 import app.moneytracker.domain.model.BalanceAdjustment
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.ConvertedAmounts
@@ -78,10 +81,10 @@ fun CategoryEntity.toDomain() = Category(id, name, defaultKey, iconKey, color, p
 fun Category.toEntity() = CategoryEntity(id, name, defaultKey, iconKey, color, parentId, sortOrder, archived)
 
 fun AccountEntity.toDomain() =
-    Account(id, name, type, currency, openingBalanceMinor, openingDate, defaultKey, sortOrder, archived)
+    Account(id, name, type, currency, openingBalanceMinor, openingDate, defaultKey, sortOrder, archived, cardSuffix)
 
 fun Account.toEntity() =
-    AccountEntity(id, name, type, currency, openingBalanceMinor, openingDate, defaultKey, sortOrder, archived)
+    AccountEntity(id, name, type, currency, openingBalanceMinor, openingDate, defaultKey, sortOrder, archived, cardSuffix)
 
 fun BalanceAdjustmentEntity.toDomain(currency: CurrencyCode) =
     BalanceAdjustment(id, accountId, Money(amountMinor, currency), occurredAt, localDate, comment, createdAt)
@@ -241,4 +244,33 @@ fun Transfer.toEntity() = TransferEntity(
     rateDate = apiRates?.date,
     createdAt = createdAt,
     updatedAt = updatedAt,
+)
+
+fun CapturedPurchaseEntity.toDomain() = CapturedPurchase(
+    id = id,
+    source = source,
+    amount = Money(amountMinor, currency),
+    merchant = merchant,
+    merchantKey = merchantKey,
+    cardSuffix = cardSuffix,
+    occurredAt = occurredAt,
+    notificationKey = notificationKey,
+    status = CaptureStatus.valueOf(status),
+    expenseId = expenseId,
+    createdAt = createdAt,
+)
+
+fun CapturedPurchase.toEntity() = CapturedPurchaseEntity(
+    id = id,
+    source = source,
+    amountMinor = amount.minor,
+    currency = amount.currency,
+    merchant = merchant,
+    merchantKey = merchantKey,
+    cardSuffix = cardSuffix,
+    occurredAt = occurredAt,
+    notificationKey = notificationKey,
+    status = status.name,
+    expenseId = expenseId,
+    createdAt = createdAt,
 )

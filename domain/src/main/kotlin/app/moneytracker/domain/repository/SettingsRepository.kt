@@ -13,4 +13,6 @@ interface SettingsRepository {
     suspend fun setDefaultAccount(id: Long?)
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDynamicColor(enabled: Boolean)
+    suspend fun setAutoCapture(enabled: Boolean)
+    suspend fun setCaptureDebug(enabled: Boolean)
 }

@@ -624,4 +624,18 @@ class DataTransferTest {
             assertEquals(BackupFormatException.Reason.INCONSISTENT, e.reason)
         }
     }
+
+    @Test
+    fun jsonRoundTripKeepsCardSuffixAndMerchantRules() = runTest {
+        val source = Env()
+        val accounts = source.db.accountDao()
+        accounts.upsert(accounts.get(1)!!.copy(cardSuffix = "1234"))
+        val captures = app.moneytracker.data.repository.CaptureRepositoryImpl(source.db.captureDao(), clock)
+        captures.saveRule("nicefoods", 2)
+
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(source.exportJson()))
+        assertEquals("1234", target.db.accountDao().get(1)!!.cardSuffix)
+        assertEquals(2L, target.db.captureDao().ruleFor("nicefoods"))
+    }
 }

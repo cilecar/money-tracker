@@ -10,8 +10,8 @@ import kotlinx.serialization.Serializable
 @Serializable data object MoreRoute
 @Serializable data object RatesRoute
 
-/** id = 0 — новый расход. */
-@Serializable data class ExpenseEditRoute(val id: Long = 0)
+/** id = 0 — новый расход; captureId != 0 — из покупки, захваченной в уведомлении. */
+@Serializable data class ExpenseEditRoute(val id: Long = 0, val captureId: Long = 0)
 @Serializable data object CategoriesRoute
 @Serializable data object AccountsRoute
 @Serializable data object SettingsRoute
@@ -45,3 +45,7 @@ data class FilteredExpensesRoute(
 
 /** id = 0 — новый перевод. */
 @Serializable data class TransferEditRoute(val id: Long = 0)
+
+@Serializable data object AutoCaptureRoute
+@Serializable data object PendingCapturesRoute
+@Serializable data object CaptureDebugRoute
