@@ -131,7 +131,7 @@ class RefundEditViewModel @Inject constructor(
         val money = f.amount.toMoney(f.currency)
         return RefundEditUiState(
             form = f,
-            conversions = snapshot?.let { s -> CurrencyCode.entries.filter { it != f.currency }.map { s.convert(money, it) } }.orEmpty(),
+            conversions = snapshot?.let { s -> CurrencyCode.entries.filter { it != f.currency }.mapNotNull { s.convertOrNull(money, it) } }.orEmpty(),
             ratesDate = snapshot?.date,
             categories = cats.filter { !it.archived },
             selectedCategory = cats.firstOrNull { it.id == f.categoryId },

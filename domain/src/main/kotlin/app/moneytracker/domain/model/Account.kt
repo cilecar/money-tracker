@@ -54,7 +54,8 @@ data class BalanceAdjustment(
 
 /**
  * Итог по активным счетам в [total].currency по текущим курсам.
- * [missingRates] — курсов нет, и счета в других валютах в итог не вошли; [exact] — ни один остаток не приблизительный.
+ * [missingRates] — курсов нет (или нет курса USDT), и счета в других валютах в итог не вошли;
+ * [exact] — ни один остаток не приблизительный.
  */
 data class AccountsTotal(val total: Money, val missingRates: Boolean, val exact: Boolean) {
     companion object {
@@ -65,8 +66,7 @@ data class AccountsTotal(val total: Money, val missingRates: Boolean, val exact:
             for (b in active) {
                 when {
                     b.balance.currency == currency -> total += b.balance
-                    rates != null -> total += rates.convert(b.balance, currency)
-                    else -> missing = true
+                    else -> rates?.convertOrNull(b.balance, currency)?.let { total += it } ?: run { missing = true }
                 }
             }
             return AccountsTotal(total, missing, active.all { it.isExact })

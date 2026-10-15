@@ -13,6 +13,10 @@ import kotlinx.serialization.json.JsonNames
  *
  * Версия 2: способы оплаты стали счетами. @JsonNames читает старые имена полей из файлов версии 1,
  * а недостающие поля (валюта, начальный остаток) достраивает импорт — так же, как миграция базы 1→2.
+ *
+ * Версия 3: валюта USDT и курс USDT в снапшотах ([RatesDto.usdtPerEur]). Файлы версий 1–2 читаются как есть
+ * (курса USDT в них нет). Номер поднят, чтобы старое приложение отказалось от файла с USDT понятной ошибкой
+ * «файл из более новой версии», а не «файл несогласован».
  */
 @Serializable
 data class BackupDto(
@@ -36,7 +40,7 @@ data class BackupDto(
 ) {
     companion object {
         const val FORMAT = "money-tracker-backup"
-        const val VERSION = 2
+        const val VERSION = 3
     }
 }
 
@@ -88,7 +92,13 @@ data class BalanceAdjustmentDto(
 )
 
 @Serializable
-data class RatesDto(val rsdPerEur: String, val rubPerEur: String, val date: String)
+data class RatesDto(
+    val rsdPerEur: String,
+    val rubPerEur: String,
+    val date: String,
+    /** Нет в файлах до версии 3 и у записей, сделанных без курса USDT. */
+    val usdtPerEur: String? = null,
+)
 
 @Serializable
 data class ExpenseDto(

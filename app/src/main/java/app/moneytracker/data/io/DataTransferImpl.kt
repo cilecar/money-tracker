@@ -107,6 +107,7 @@ class DataTransferImpl @Inject constructor(
                     e.rates?.rsdPerEur?.toPlainString(),
                     e.rates?.rubPerEur?.toPlainString(),
                     e.rates?.date?.toString(),
+                    e.rates?.usdtPerEur?.toPlainString(),
                 ),
             )
         }
@@ -130,6 +131,8 @@ class DataTransferImpl @Inject constructor(
         val iRateRsd = col("rate_rsd_per_eur")
         val iRateRub = col("rate_rub_per_eur")
         val iRateDate = col("rate_date")
+        // Нет в файлах, выгруженных до появления USDT.
+        val iRateUsdt = col("rate_usdt_per_eur")
 
         val now = clock.instant()
         val currentRates = rates.current()?.snapshot
@@ -164,11 +167,16 @@ class DataTransferImpl @Inject constructor(
                     val rub = get(iRateRub).replace(',', '.').toBigDecimalOrNull()
                     val date = get(iRateDate).ifEmpty { null }?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
                         ?: occurredAt.atZone(zone).toLocalDate()
-                    if (rsd == null || rub == null || rsd.signum() <= 0 || rub.signum() <= 0) {
+                    val usdtText = get(iRateUsdt)
+                    val usdt = usdtText.replace(',', '.').toBigDecimalOrNull()
+                    if (rsd == null || rub == null || rsd.signum() <= 0 || rub.signum() <= 0 ||
+                        (usdtText.isNotEmpty() && (usdt == null || usdt.signum() <= 0))
+                    ) {
                         fail(CsvErrorReason.BAD_RATE)
                         continue
                     }
-                    RateSnapshot(rsd, rub, date)
+                    // Расход в USDT без курса USDT в файле Expense.create сохранит без снапшота — его заполнят текущие курсы.
+                    RateSnapshot(rsd, rub, date, usdt)
                 } else {
                     currentRates
                 }
@@ -423,7 +431,7 @@ class DataTransferImpl @Inject constructor(
 
         dto.settings.let { s ->
             CurrencyCode.entries.firstOrNull { it.name == s.inputCurrency }?.let { settings.setInputCurrency(it) }
-            CurrencyCode.entries.firstOrNull { it.name == s.displayCurrency }?.let { settings.setDisplayCurrency(it) }
+            CurrencyCode.DISPLAY.firstOrNull { it.name == s.displayCurrency }?.let { settings.setDisplayCurrency(it) }
             ThemeMode.entries.firstOrNull { it.name == s.themeMode }?.let { settings.setThemeMode(it) }
             settings.setDynamicColor(s.dynamicColor)
             settings.setDefaultAccount(s.defaultAccountId?.takeIf { id -> parsed.methods.any { it.id == id } })
@@ -510,6 +518,7 @@ class DataTransferImpl @Inject constructor(
         val expenses = dto.expenses.map {
             if (it.categoryId !in categoryIds || it.accountId !in methodIds) inconsistent()
             val amount = Money(positive(it.amountMinor), currency(it.currency))
+            // Сумма в USDT со снапшотом без курса USDT — несогласованный файл: convertAll бросит, импорт откажет.
             val snapshot = it.rates?.toSnapshot()
             Expense(
                 id = it.id,
@@ -604,9 +613,11 @@ class DataTransferImpl @Inject constructor(
 
     private fun inconsistent(): Nothing = throw BackupFormatException(Reason.INCONSISTENT)
 
-    private fun RateSnapshot.toDto() = RatesDto(rsdPerEur.toPlainString(), rubPerEur.toPlainString(), date.toString())
+    private fun RateSnapshot.toDto() =
+        RatesDto(rsdPerEur.toPlainString(), rubPerEur.toPlainString(), date.toString(), usdtPerEur?.toPlainString())
 
-    private fun RatesDto.toSnapshot() = RateSnapshot(BigDecimal(rsdPerEur), BigDecimal(rubPerEur), LocalDate.parse(date))
+    private fun RatesDto.toSnapshot() =
+        RateSnapshot(BigDecimal(rsdPerEur), BigDecimal(rubPerEur), LocalDate.parse(date), usdtPerEur?.let(::BigDecimal))
 
     // ---------------------------------------------------------------- Файл базы
 
@@ -686,7 +697,7 @@ class DataTransferImpl @Inject constructor(
     companion object {
         val CSV_HEADER = listOf(
             "date", "amount", "currency", "category", "subcategory", "account", "comment", "tags",
-            "amount_rsd", "amount_eur", "amount_rub", "rate_rsd_per_eur", "rate_rub_per_eur", "rate_date",
+            "amount_rsd", "amount_eur", "amount_rub", "rate_rsd_per_eur", "rate_rub_per_eur", "rate_date", "rate_usdt_per_eur",
         )
         private val CSV_DATE_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         private val DATE_TIME_FORMATS = listOf("yyyy-MM-dd HH:mm", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd'T'HH:mm:ss", "dd.MM.yyyy HH:mm")

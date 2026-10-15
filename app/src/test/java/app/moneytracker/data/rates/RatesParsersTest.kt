@@ -41,6 +41,30 @@ class RatesParsersTest {
         assertEquals(BigDecimal("93.70523"), rates.perEur[CurrencyCode.RUB])
     }
 
+    @Test
+    fun `usdt is taken from fawazahmed and optional elsewhere`() {
+        val primary = RatesParsers.parseFawazahmed(
+            json("""{"date":"2026-10-13","eur":{"rsd":117.4,"rub":93.7,"usdt":1.16483921}}"""),
+            RateSource.API_PRIMARY,
+        )
+        assertEquals(BigDecimal("1.16483921"), primary.perEur[CurrencyCode.USDT])
+
+        val withoutUsdt = RatesParsers.parseFawazahmed(json("""{"date":"2026-10-13","eur":{"rsd":117.4,"rub":93.7}}"""), RateSource.API_PRIMARY)
+        assertEquals(setOf(CurrencyCode.RSD, CurrencyCode.RUB), withoutUsdt.perEur.keys)
+
+        // open.er-api.com USDT не знает — его RSD и RUB всё равно годятся.
+        val fallback = RatesParsers.parseErApi(
+            json("""{"result":"success","base_code":"EUR","time_last_update_unix":1791936152,"rates":{"RSD":117.4,"RUB":93.7}}"""),
+            RateSource.API_FALLBACK,
+        )
+        assertEquals(setOf(CurrencyCode.RSD, CurrencyCode.RUB), fallback.perEur.keys)
+    }
+
+    @Test(expected = BadRatesResponseException::class)
+    fun `broken usdt rate is rejected`() {
+        RatesParsers.parseFawazahmed(json("""{"date":"2026-10-13","eur":{"rsd":117,"rub":93,"usdt":-1}}"""), RateSource.API_PRIMARY)
+    }
+
     @Test(expected = BadRatesResponseException::class)
     fun `missing currency is rejected`() {
         RatesParsers.parseFawazahmed(json("""{"date":"2026-10-13","eur":{"rsd":117.4}}"""), RateSource.API_PRIMARY)

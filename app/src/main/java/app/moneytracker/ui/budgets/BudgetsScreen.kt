@@ -240,11 +240,12 @@ private fun BudgetDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    CurrencyCode.entries.forEachIndexed { i, c ->
+                    // Бюджет считается по суммам в валютах аналитики — USDT среди них нет.
+                    CurrencyCode.DISPLAY.forEachIndexed { i, c ->
                         SegmentedButton(
                             selected = draft.currency == c,
                             onClick = { onChange { it.copy(currency = c) } },
-                            shape = SegmentedButtonDefaults.itemShape(i, CurrencyCode.entries.size),
+                            shape = SegmentedButtonDefaults.itemShape(i, CurrencyCode.DISPLAY.size),
                         ) { Text(c.name) }
                     }
                 }

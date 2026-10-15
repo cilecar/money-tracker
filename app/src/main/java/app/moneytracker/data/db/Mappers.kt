@@ -25,6 +25,8 @@ import app.moneytracker.domain.model.Transfer
 import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.RateSnapshot
 import app.moneytracker.domain.model.RecurringExpense
+import java.math.BigDecimal
+import java.time.LocalDate
 
 fun ExpenseWithTags.toDomain(): Expense = with(expense) {
     Expense(
@@ -36,11 +38,7 @@ fun ExpenseWithTags.toDomain(): Expense = with(expense) {
         localDate = localDate,
         comment = comment,
         tags = tags.map { it.name }.sortedBy { it.lowercase() },
-        rates = if (rateRsdPerEur != null && rateRubPerEur != null && rateDate != null) {
-            RateSnapshot(rateRsdPerEur, rateRubPerEur, rateDate)
-        } else {
-            null
-        },
+        rates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate, rateUsdtPerEur),
         converted = if (rsdMinor != null && eurMinor != null && rubMinor != null) {
             ConvertedAmounts(rsdMinor, eurMinor, rubMinor)
         } else {
@@ -64,6 +62,7 @@ fun Expense.toEntity() = ExpenseEntity(
     comment = comment,
     rateRsdPerEur = rates?.rsdPerEur,
     rateRubPerEur = rates?.rubPerEur,
+    rateUsdtPerEur = rates?.usdtPerEur,
     rateDate = rates?.date,
     rsdMinor = converted?.rsdMinor,
     eurMinor = converted?.eurMinor,
@@ -125,8 +124,8 @@ fun RecurringExpense.toEntity() = RecurringExpenseEntity(
     active = active,
 )
 
-private fun snapshot(rsd: java.math.BigDecimal?, rub: java.math.BigDecimal?, date: java.time.LocalDate?) =
-    if (rsd != null && rub != null && date != null) RateSnapshot(rsd, rub, date) else null
+internal fun snapshot(rsd: BigDecimal?, rub: BigDecimal?, date: LocalDate?, usdt: BigDecimal?) =
+    if (rsd != null && rub != null && date != null) RateSnapshot(rsd, rub, date, usdt) else null
 
 private fun converted(rsd: Long?, eur: Long?, rub: Long?) =
     if (rsd != null && eur != null && rub != null) ConvertedAmounts(rsd, eur, rub) else null
@@ -143,7 +142,7 @@ fun IncomeEntity.toDomain() = Income(
     occurredAt = occurredAt,
     localDate = localDate,
     comment = comment,
-    rates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate),
+    rates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate, rateUsdtPerEur),
     converted = converted(rsdMinor, eurMinor, rubMinor),
     accountAmountMinor = accountAmountMinor,
     createdAt = createdAt,
@@ -161,6 +160,7 @@ fun Income.toEntity() = IncomeEntity(
     comment = comment,
     rateRsdPerEur = rates?.rsdPerEur,
     rateRubPerEur = rates?.rubPerEur,
+    rateUsdtPerEur = rates?.usdtPerEur,
     rateDate = rates?.date,
     rsdMinor = converted?.rsdMinor,
     eurMinor = converted?.eurMinor,
@@ -179,7 +179,7 @@ fun RefundEntity.toDomain() = Refund(
     occurredAt = occurredAt,
     localDate = localDate,
     comment = comment,
-    rates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate),
+    rates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate, rateUsdtPerEur),
     converted = converted(rsdMinor, eurMinor, rubMinor),
     accountAmountMinor = accountAmountMinor,
     createdAt = createdAt,
@@ -198,6 +198,7 @@ fun Refund.toEntity() = RefundEntity(
     comment = comment,
     rateRsdPerEur = rates?.rsdPerEur,
     rateRubPerEur = rates?.rubPerEur,
+    rateUsdtPerEur = rates?.usdtPerEur,
     rateDate = rates?.date,
     rsdMinor = converted?.rsdMinor,
     eurMinor = converted?.eurMinor,
@@ -217,7 +218,7 @@ fun TransferEntity.toDomain() = Transfer(
     occurredAt = occurredAt,
     localDate = localDate,
     comment = comment,
-    apiRates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate),
+    apiRates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate, rateUsdtPerEur),
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
@@ -236,6 +237,7 @@ fun Transfer.toEntity() = TransferEntity(
     comment = comment,
     rateRsdPerEur = apiRates?.rsdPerEur,
     rateRubPerEur = apiRates?.rubPerEur,
+    rateUsdtPerEur = apiRates?.usdtPerEur,
     rateDate = apiRates?.date,
     createdAt = createdAt,
     updatedAt = updatedAt,

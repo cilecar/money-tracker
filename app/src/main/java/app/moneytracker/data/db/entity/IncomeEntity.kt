@@ -42,6 +42,8 @@ data class IncomeEntity(
     val comment: String?,
     @ColumnInfo(name = "rate_rsd_per_eur") val rateRsdPerEur: BigDecimal?,
     @ColumnInfo(name = "rate_rub_per_eur") val rateRubPerEur: BigDecimal?,
+    // Колонка из версии 3: NULL у записей до USDT и если курса USDT не было
+    @ColumnInfo(name = "rate_usdt_per_eur") val rateUsdtPerEur: BigDecimal? = null,
     @ColumnInfo(name = "rate_date") val rateDate: LocalDate?,
     @ColumnInfo(name = "rsd_minor") val rsdMinor: Long?,
     @ColumnInfo(name = "eur_minor") val eurMinor: Long?,
@@ -77,6 +79,8 @@ data class RefundEntity(
     val comment: String?,
     @ColumnInfo(name = "rate_rsd_per_eur") val rateRsdPerEur: BigDecimal?,
     @ColumnInfo(name = "rate_rub_per_eur") val rateRubPerEur: BigDecimal?,
+    // Колонка из версии 3: NULL у записей до USDT и если курса USDT не было
+    @ColumnInfo(name = "rate_usdt_per_eur") val rateUsdtPerEur: BigDecimal? = null,
     @ColumnInfo(name = "rate_date") val rateDate: LocalDate?,
     @ColumnInfo(name = "rsd_minor") val rsdMinor: Long?,
     @ColumnInfo(name = "eur_minor") val eurMinor: Long?,
@@ -115,6 +119,8 @@ data class TransferEntity(
     /** Курс API на момент перевода — только для сравнения с курсом обменника. */
     @ColumnInfo(name = "rate_rsd_per_eur") val rateRsdPerEur: BigDecimal?,
     @ColumnInfo(name = "rate_rub_per_eur") val rateRubPerEur: BigDecimal?,
+    // Колонка из версии 3: NULL у записей до USDT и если курса USDT не было
+    @ColumnInfo(name = "rate_usdt_per_eur") val rateUsdtPerEur: BigDecimal? = null,
     @ColumnInfo(name = "rate_date") val rateDate: LocalDate?,
     @ColumnInfo(name = "created_at") val createdAt: Instant,
     @ColumnInfo(name = "updated_at") val updatedAt: Instant,

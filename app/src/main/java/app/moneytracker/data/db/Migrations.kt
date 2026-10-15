@@ -213,3 +213,16 @@ object Migration1To2 : Migration(1, 2) {
         }
     }
 }
+
+/**
+ * 2 → 3: валюта USDT. В снапшот курса добавляется курс USDT; у старых записей он NULL — их суммы
+ * не в USDT, а пересчёт RSD/EUR/RUB курс USDT не использует. Колонки usdt_minor нет: USDT не валюта
+ * аналитики. Валюты хранятся текстом, так что сами значения 'USDT' схема не меняют.
+ */
+object Migration2To3 : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        for (table in listOf("expense", "income", "refund", "transfer")) {
+            db.execSQL("ALTER TABLE `$table` ADD COLUMN `rate_usdt_per_eur` TEXT")
+        }
+    }
+}

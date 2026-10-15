@@ -113,7 +113,7 @@ fun RatesScreen(onBack: () -> Unit, viewModel: RatesViewModel = hiltViewModel())
         ManualRatesDialog(
             currencies = currencies,
             initial = currencies.mapNotNull { c ->
-                state.current?.snapshot?.perEur(c)?.let { c to it.stripTrailingZeros().toPlainString() }
+                state.current?.effective?.get(c)?.perEur?.let { c to it.stripTrailingZeros().toPlainString() }
             }.toMap(),
             onConfirm = {
                 viewModel.setManual(it)
@@ -167,24 +167,37 @@ private fun RatesList(
                 )
             }
         }
-        items(CurrentRates.QUOTED.size) { index ->
-            val currency = CurrentRates.QUOTED[index]
-            val rate = current.effective.getValue(currency)
-            RateCard(
-                title = "1 EUR",
-                value = "${formatRate(rate.perEur, locale)} ${currency.name}",
-                subtitle = stringResource(rate.source.labelRes()) + " · " + formatDate(rate.date, locale),
-                manual = rate.source == RateSource.MANUAL,
-                onEdit = { onEdit(currency) },
-                onReset = { onReset(currency) },
-            )
+        items(CurrentRates.RATED.size) { index ->
+            val currency = CurrentRates.RATED[index]
+            val rate = current.effective[currency]
+            if (rate == null) {
+                // Необязательная валюта (USDT) без курса: запасной API её не отдаёт — можно ввести вручную.
+                RateCard(
+                    title = "1 EUR",
+                    value = "— ${currency.name}",
+                    subtitle = stringResource(R.string.rates_missing),
+                    onEdit = { onEdit(currency) },
+                )
+            } else {
+                RateCard(
+                    title = "1 EUR",
+                    value = "${formatRate(rate.perEur, locale)} ${currency.name}",
+                    subtitle = stringResource(rate.source.labelRes()) + " · " + formatDate(rate.date, locale),
+                    manual = rate.source == RateSource.MANUAL,
+                    onEdit = { onEdit(currency) },
+                    onReset = { onReset(currency) },
+                )
+            }
         }
-        item {
-            // Производный курс: удобно, когда тратишь рубли в Сербии.
-            val rubToRsd = current.snapshot.rate(CurrencyCode.RUB, CurrencyCode.RSD).setScale(4, RoundingMode.HALF_EVEN)
+        // Производные курсы к динару: удобно, когда тратишь рубли или USDT в Сербии.
+        val crosses = listOf(CurrencyCode.RUB, CurrencyCode.USDT).mapNotNull { from ->
+            current.snapshot.rateOrNull(from, CurrencyCode.RSD)?.let { from to it.setScale(4, RoundingMode.HALF_EVEN) }
+        }
+        items(crosses.size) { index ->
+            val (from, rate) = crosses[index]
             RateCard(
-                title = "1 RUB",
-                value = "${formatRate(rubToRsd, locale)} RSD",
+                title = "1 ${from.name}",
+                value = "${formatRate(rate, locale)} RSD",
                 subtitle = stringResource(R.string.rates_cross),
             )
         }

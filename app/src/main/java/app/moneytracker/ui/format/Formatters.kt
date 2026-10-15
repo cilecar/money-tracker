@@ -41,12 +41,13 @@ fun parsePositiveDecimal(text: String): BigDecimal? {
     return normalized.toBigDecimalOrNull()?.takeIf { it.signum() > 0 }
 }
 
-/** Символ валюты для подписей: «€», «₽», для динара — код (у «дин.» нет общепринятого символа). */
+/** Символ валюты для подписей: «€», «₽», для динара и USDT — код (у «дин.» нет общепринятого символа, «₮» мало кто узнает). */
 val CurrencyCode.symbol: String
     get() = when (this) {
         CurrencyCode.RSD -> "RSD"
         CurrencyCode.EUR -> "€"
         CurrencyCode.RUB -> "₽"
+        CurrencyCode.USDT -> "USDT"
     }
 
 /**

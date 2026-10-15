@@ -84,8 +84,13 @@ class FakeExchangeRateRepository(private val clock: Clock) : ExchangeRateReposit
     }
 
     companion object {
-        fun success(date: LocalDate, rsd: String = "117.15", rub: String = "95.43") = RefreshResult.Success(
-            FetchedRates(date, RateSource.API_PRIMARY, mapOf(CurrencyCode.RSD to BigDecimal(rsd), CurrencyCode.RUB to BigDecimal(rub))),
+        fun success(date: LocalDate, rsd: String = "117.15", rub: String = "95.43", usdt: String? = null) = RefreshResult.Success(
+            FetchedRates(
+                date,
+                RateSource.API_PRIMARY,
+                mapOf(CurrencyCode.RSD to BigDecimal(rsd), CurrencyCode.RUB to BigDecimal(rub)) +
+                    listOfNotNull(usdt?.let { CurrencyCode.USDT to BigDecimal(it) }),
+            ),
         )
     }
 }

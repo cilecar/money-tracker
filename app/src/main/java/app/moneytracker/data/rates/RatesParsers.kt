@@ -1,5 +1,6 @@
 package app.moneytracker.data.rates
 
+import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.CurrentRates
 import app.moneytracker.domain.model.FetchedRates
 import app.moneytracker.domain.model.RateSource
@@ -20,7 +21,7 @@ class BadRatesResponseException(message: String) : RuntimeException(message)
  */
 object RatesParsers {
 
-    /** fawazahmed0/currency-api: `{"date":"2026-10-13","eur":{"rsd":117.40499356,"rub":93.777076,…}}` */
+    /** fawazahmed0/currency-api: `{"date":"2026-10-13","eur":{"rsd":117.40499356,"rub":93.777076,"usdt":1.16,…}}` */
     fun parseFawazahmed(json: JsonObject, source: RateSource): FetchedRates {
         val date = json.string("date").let { runCatching { LocalDate.parse(it) }.getOrNull() }
             ?: fail("bad date")
@@ -28,7 +29,7 @@ object RatesParsers {
         return FetchedRates(
             date = date,
             source = source,
-            perEur = CurrentRates.QUOTED.associateWith { rates.decimal(it.name.lowercase()) },
+            perEur = rates.perEur { it.name.lowercase() },
         )
     }
 
@@ -41,9 +42,18 @@ object RatesParsers {
         return FetchedRates(
             date = Instant.ofEpochSecond(updated).atZone(ZoneOffset.UTC).toLocalDate(),
             source = source,
-            perEur = CurrentRates.QUOTED.associateWith { rates.decimal(it.name) },
+            perEur = rates.perEur { it.name },
         )
     }
+
+    /**
+     * Обязательные валюты ([CurrentRates.QUOTED]) — или ошибка ответа; необязательные (USDT) берём, если они есть:
+     * open.er-api.com USDT не отдаёт, и из-за этого отказываться от его RSD и RUB незачем.
+     * Если необязательная валюта есть, но число испорчено, — это всё-таки ошибка ответа.
+     */
+    private fun JsonObject.perEur(key: (CurrencyCode) -> String): Map<CurrencyCode, BigDecimal> =
+        CurrentRates.QUOTED.associateWith { decimal(key(it)) } +
+            CurrentRates.OPTIONAL.filter { key(it) in this }.associateWith { decimal(key(it)) }
 
     private fun JsonObject.string(key: String): String? =
         (this[key] as? JsonPrimitive)?.takeIf { it.isString }?.content

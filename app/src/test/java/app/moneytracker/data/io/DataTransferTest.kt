@@ -546,6 +546,66 @@ class DataTransferTest {
         assertEquals(Money(150, CurrencyCode.EUR).minor, target.db.expenseDao().get(restored.feeExpenseId!!)!!.expense.amountMinor)
     }
 
+    /** USDT-счёт, расход в USDT с курсом USDT в снапшоте и перевод USDT → RSD переживают выгрузку и загрузку. */
+    @Test
+    fun jsonRoundTripKeepsUsdt() = runTest {
+        val usdtRates = rates.copy(usdtPerEur = BigDecimal("1.1650"))
+        val source = Env()
+        val accounts = source.db.accountDao()
+        val bybit = accounts.upsert(accounts.get(1)!!.copy(id = 0, name = "Bybit", currency = CurrencyCode.USDT, defaultKey = null))
+        val at = Instant.parse("2026-10-05T10:00:00Z")
+        source.expenses.insert(Expense.create(Money(12_34, CurrencyCode.USDT), 1, bybit, at, zone, usdtRates, clock.instant()))
+        app.moneytracker.data.repository.TransferRepositoryImpl(source.db).save(
+            app.moneytracker.domain.model.Transfer.create(bybit, 1, Money(50_00, CurrencyCode.USDT), Money(4900_00, CurrencyCode.RSD), at, zone, usdtRates, clock.instant()),
+            null,
+        )
+        for ((c, v) in listOf(CurrencyCode.RSD to "117", CurrencyCode.RUB to "95", CurrencyCode.USDT to "1.17")) {
+            source.rateRepo.setManualRate(c, BigDecimal(v), LocalDate.of(2026, 10, 14))
+        }
+        // Валюта отображения USDT быть не может — такой файл импортирует остальное и её не трогает.
+        val json = String(source.exportJson()).replace("\"displayCurrency\":\"RSD\"", "\"displayCurrency\":\"USDT\"")
+
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(json.toByteArray()))
+        assertEquals(source.db.expenseDao().getAll().map { it.expense }, target.db.expenseDao().getAll().map { it.expense })
+        assertEquals(source.db.transferDao().getAll(), target.db.transferDao().getAll())
+        assertEquals(source.db.accountDao().getAll(true), target.db.accountDao().getAll(true))
+        val restored = target.expenses.get(target.db.expenseDao().getAll().single().expense.id)!!
+        assertEquals(BigDecimal("1.1650"), restored.rates!!.usdtPerEur)
+        assertEquals(BigDecimal("1.17"), target.rateRepo.current()?.effective?.get(CurrencyCode.USDT)?.perEur)
+        assertEquals(CurrencyCode.RSD, target.settings.settings.first().displayCurrency)
+    }
+
+    /** Файл версии 2 (до USDT): поля usdtPerEur нет — импорт проходит, курс USDT в снапшотах пустой. */
+    @Test
+    fun jsonVersion2WithoutUsdtImports() = runTest {
+        val source = Env()
+        source.add(Money(1000, CurrencyCode.EUR), 1, "2026-10-02T10:00:00Z")
+        val tree = Json.parseToJsonElement(String(source.exportJson())) as JsonObject
+        assertEquals(BackupDto.VERSION, 3)
+        val v2 = tree.toString().replace("\"version\":3", "\"version\":2")
+        assertTrue("в файле нет курса USDT", "usdtPerEur" !in v2)
+
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(v2.toByteArray()))
+        val e = target.expenses.get(target.db.expenseDao().getAll().single().expense.id)!!
+        assertEquals(rates, e.rates)
+        assertNull(e.rates!!.usdtPerEur)
+    }
+
+    /** CSV: колонка rate_usdt_per_eur выгружается и читается; в старых файлах её нет. */
+    @Test
+    fun csvKeepsUsdtRate() = runTest {
+        val source = Env()
+        source.expenses.insert(Expense.create(Money(12_34, CurrencyCode.USDT), 1, 1, Instant.parse("2026-10-05T10:00:00Z"), zone, rates.copy(usdtPerEur = BigDecimal("1.1650")), clock.instant()))
+        val target = Env()
+        assertEquals(1, target.transfer.importCsv(ByteArrayInputStream(source.exportCsv())).imported)
+        val e = target.expenses.get(target.db.expenseDao().getAll().single().expense.id)!!
+        assertEquals(Money(12_34, CurrencyCode.USDT), e.amount)
+        assertEquals(BigDecimal("1.1650"), e.rates!!.usdtPerEur)
+        assertEquals(source.db.expenseDao().getAll().single().expense.eurMinor, e.converted!!.eurMinor)
+    }
+
     /** Сумма перевода не в валюте счёта сломала бы баланс — такой файл отклоняется целиком. */
     @Test
     fun transferInWrongCurrencyIsRejected() = runTest {

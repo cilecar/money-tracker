@@ -153,7 +153,7 @@ class ExpenseEditViewModel @Inject constructor(
             form = form,
             isNew = form.original == null,
             conversions = snapshot?.let { s ->
-                CurrencyCode.entries.filter { it != form.currency }.map { s.convert(money, it) }
+                CurrencyCode.entries.filter { it != form.currency }.mapNotNull { s.convertOrNull(money, it) }
             }.orEmpty(),
             ratesDate = snapshot?.date,
             categories = activeCategories,

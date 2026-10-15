@@ -37,6 +37,7 @@
     <string name="rates_source_fallback">open.er-api.com</string>
     <string name="rates_source_manual">Вручную</string>
     <string name="rates_cross">Кросс-курс через EUR</string>
+    <string name="rates_missing">Курса пока нет — операции в этой валюте ждут его</string>
     <string name="rates_enter_manually">Ввести вручную</string>
     <string name="rates_reset_manual">Сбросить</string>
     <string name="rates_manual_title">Курс вручную</string>

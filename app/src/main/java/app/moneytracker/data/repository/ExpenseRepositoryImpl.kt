@@ -8,6 +8,7 @@ import app.moneytracker.data.db.toDomain
 import app.moneytracker.data.db.toEntity
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
+import app.moneytracker.domain.model.usableFor
 import app.moneytracker.domain.repository.ExpenseRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -51,7 +52,8 @@ class ExpenseRepositoryImpl @Inject constructor(
     override suspend fun update(expense: Expense) {
         require(expense.id != 0L) { "Cannot update unsaved expense" }
         db.withTransaction {
-            val stored = if (expense.rates == null) dao.get(expense.id)?.toDomain()?.rates else null
+            // Снапшот без курса USDT не годится для суммы в USDT — тогда расход по-прежнему ждёт курса.
+            val stored = if (expense.rates == null) dao.get(expense.id)?.toDomain()?.rates.usableFor(expense.amount.currency) else null
             val toWrite = stored?.let { expense.copy(rates = it, converted = it.convertAll(expense.amount)) } ?: expense
             dao.updateWithTags(toWrite.toEntity(), Expense.normalizeTags(toWrite.tags))
         }
@@ -66,6 +68,7 @@ class ExpenseRepositoryImpl @Inject constructor(
             currency = expense.amount.currency.name,
             rsdPerEur = rates.rsdPerEur,
             rubPerEur = rates.rubPerEur,
+            usdtPerEur = rates.usdtPerEur,
             rateDate = rates.date,
             rsdMinor = converted.rsdMinor,
             eurMinor = converted.eurMinor,

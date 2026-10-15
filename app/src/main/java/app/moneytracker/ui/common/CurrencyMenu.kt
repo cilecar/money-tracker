@@ -19,7 +19,7 @@ fun CurrencyMenu(current: CurrencyCode?, onSelect: (CurrencyCode) -> Unit) {
     Box {
         TextButton(onClick = { open = true }) { Text(current?.name.orEmpty()) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            CurrencyCode.entries.forEach { c ->
+            CurrencyCode.DISPLAY.forEach { c ->
                 DropdownMenuItem(
                     text = { Text(c.name) },
                     onClick = {

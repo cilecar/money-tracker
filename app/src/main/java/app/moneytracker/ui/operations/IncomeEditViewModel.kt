@@ -120,7 +120,7 @@ class IncomeEditViewModel @Inject constructor(
         return IncomeEditUiState(
             // Новый доход — по умолчанию первая категория («Зарплата»).
             form = if (f.loaded && f.categoryId == null && f.original == null) f.copy(categoryId = active.firstOrNull()?.id) else f,
-            conversions = snapshot?.let { s -> CurrencyCode.entries.filter { it != f.currency }.map { s.convert(money, it) } }.orEmpty(),
+            conversions = snapshot?.let { s -> CurrencyCode.entries.filter { it != f.currency }.mapNotNull { s.convertOrNull(money, it) } }.orEmpty(),
             ratesDate = snapshot?.date,
             categories = active,
             accounts = accounts.filter { !it.archived || it.id == f.accountId },

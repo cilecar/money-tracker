@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -129,6 +130,54 @@ class MigrationTest {
             db.query("SELECT COUNT(*) FROM category").use { c -> c.moveToFirst(); assertEquals(2, c.getInt(0)) }
         }
         context.deleteDatabase(name)
+    }
+
+    /**
+     * 2→3 на базе с данными: у расходов, доходов, возвратов и переводов появляется пустой курс USDT,
+     * остальные колонки и балансы не меняются, а старый снапшот читается без USDT.
+     */
+    @Test
+    fun migration2To3KeepsDataAndAddsEmptyUsdtRate() = runTest {
+        val name = "migration-2-3-data.db"
+        helper.createDatabase(name, 2).use { db ->
+            db.execSQL("INSERT INTO category (id, name, default_key, icon_key, color, parent_id, sort_order, archived) VALUES (1, 'Еда', 'food', 'restaurant', 1, NULL, 0, 0)")
+            db.execSQL("INSERT INTO income_category (id, name, default_key, icon_key, color, sort_order, archived) VALUES (1, 'Зарплата', 'salary', 'work', 1, 0, 0)")
+            db.execSQL("INSERT INTO account (id, name, type, currency, opening_balance_minor, opening_date, default_key, sort_order, archived) VALUES (1, 'Карта', 'CARD', 'EUR', 10000, 20300, NULL, 0, 0)")
+            db.execSQL("INSERT INTO account (id, name, type, currency, opening_balance_minor, opening_date, default_key, sort_order, archived) VALUES (2, 'Наличные', 'CASH', 'RSD', 0, 20300, NULL, 1, 0)")
+            val rated = "rate_rsd_per_eur, rate_rub_per_eur, rate_date, rsd_minor, eur_minor, rub_minor"
+            db.execSQL("INSERT INTO expense (id, amount_minor, currency, category_id, account_id, occurred_at, local_date, $rated, created_at, updated_at) VALUES (1, 117000, 'RSD', 1, 1, 0, 20301, '117', '95', 20301, 117000, 1000, 9500, 0, 0)")
+            db.execSQL("INSERT INTO income (id, amount_minor, currency, account_id, income_category_id, occurred_at, local_date, $rated, account_amount_minor, created_at, updated_at) VALUES (1, 5000, 'EUR', 1, 1, 0, 20302, '117', '95', 20302, 585000, 5000, 47500, NULL, 0, 0)")
+            db.execSQL("INSERT INTO refund (id, amount_minor, currency, account_id, expense_id, category_id, occurred_at, local_date, $rated, created_at, updated_at) VALUES (1, 200, 'EUR', 1, 1, 1, 0, 20303, '117', '95', 20303, 23400, 200, 1900, 0, 0)")
+            db.execSQL("INSERT INTO transfer (id, from_account_id, to_account_id, from_amount_minor, from_currency, to_amount_minor, to_currency, occurred_at, local_date, rate_rsd_per_eur, rate_rub_per_eur, rate_date, created_at, updated_at) VALUES (1, 1, 2, 2000, 'EUR', 233000, 'RSD', 0, 20304, '117', '95', 20304, 0, 0)")
+        }
+
+        helper.runMigrationsAndValidate(name, 3, true, Migration2To3).use { db ->
+            fun longs(sql: String) = db.query(sql).use { c -> buildList { while (c.moveToNext()) add(c.getLong(0)) } }
+            for (table in listOf("expense", "income", "refund", "transfer")) {
+                assertEquals(table, listOf(1L), longs("SELECT COUNT(*) FROM $table WHERE rate_usdt_per_eur IS NULL"))
+                assertEquals(table, listOf(1L), longs("SELECT COUNT(*) FROM $table WHERE rate_rsd_per_eur = '117' AND rate_date IS NOT NULL"))
+            }
+            assertEquals(listOf(117000L), longs("SELECT rsd_minor FROM expense"))
+            db.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
+        }
+
+        val room = Room.databaseBuilder(context, AppDatabase::class.java, name)
+            .addMigrations(*AppDatabase.MIGRATIONS)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val expense = room.expenseDao().getAll().single().toDomain()
+            assertEquals(java.math.BigDecimal("117"), expense.rates!!.rsdPerEur)
+            assertNull(expense.rates!!.usdtPerEur)
+            assertNull(room.transferDao().getAll().single().toDomain().apiRates!!.usdtPerEur)
+            // Карта EUR: 100 − 10 (1170 RSD) + 50 + 2 − 20 = 122 €; наличные: +2 330 RSD.
+            val balances = room.accountDao().observeBalances().first().associateBy { it.accountId }
+            assertEquals(12200L, balances.getValue(1).balanceMinor)
+            assertEquals(233000L, balances.getValue(2).balanceMinor)
+        } finally {
+            room.close()
+            context.deleteDatabase(name)
+        }
     }
 
     @Test

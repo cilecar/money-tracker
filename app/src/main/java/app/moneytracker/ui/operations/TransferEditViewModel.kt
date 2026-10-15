@@ -138,8 +138,8 @@ class TransferEditViewModel @Inject constructor(
             from = from,
             to = to,
             actualRate = if (exchange && fromMoney != null && toMoney != null && fromMoney.minor > 0 && toMoney.minor > 0) Transfer.rateOf(fromMoney, toMoney) else null,
-            apiRate = if (exchange) snapshot?.rate(from.currency, to.currency) else null,
-            apiEstimate = if (exchange && fromMoney != null && fromMoney.minor > 0) snapshot?.convert(fromMoney, to.currency) else null,
+            apiRate = if (exchange) snapshot?.rateOrNull(from.currency, to.currency) else null,
+            apiEstimate = if (exchange && fromMoney != null && fromMoney.minor > 0) snapshot?.convertOrNull(fromMoney, to.currency) else null,
         )
     }
 

@@ -147,6 +147,35 @@ class RatesUseCasesTest {
     }
 
     @Test
+    fun `manual usdt rate must be between 0_8 and 1_5`() = runTest {
+        assertTrue(SetManualRateUseCase.isPlausible(CurrencyCode.USDT, BigDecimal("0.8")))
+        assertTrue(SetManualRateUseCase.isPlausible(CurrencyCode.USDT, BigDecimal("1.165")))
+        assertTrue(SetManualRateUseCase.isPlausible(CurrencyCode.USDT, BigDecimal("1.5")))
+        assertFalse(SetManualRateUseCase.isPlausible(CurrencyCode.USDT, BigDecimal("0.79")))
+        assertFalse(SetManualRateUseCase.isPlausible(CurrencyCode.USDT, BigDecimal("11.65")))
+        setManual(CurrencyCode.USDT, BigDecimal("1.17"))
+        assertEquals(BigDecimal("1.17"), rates.rows.value.single().perEur)
+    }
+
+    @Test
+    fun `pending usdt expense waits for a usdt rate, others are filled`() = runTest {
+        val usdtId = expenses.insert(Expense.create(Money(10_00, CurrencyCode.USDT), 1, 1, now, ZoneOffset.UTC, rates = null, now = now))
+        val eurId = addPendingExpense()
+
+        // Запасной API без USDT: EUR-расход получает курс, USDT-расход ждёт.
+        rates.nextResult = { FakeExchangeRateRepository.success(today) }
+        refresh()
+        assertEquals(117150L, expenses.get(eurId)!!.converted!!.rsdMinor)
+        assertNull(expenses.get(usdtId)!!.rates)
+
+        setManual(CurrencyCode.USDT, BigDecimal("1.25"))
+        val filled = expenses.get(usdtId)!!
+        assertEquals(BigDecimal("1.25"), filled.rates!!.usdtPerEur)
+        assertEquals(8_00L, filled.converted!!.eurMinor) // 10 / 1.25
+        assertEquals(937_20L, filled.converted!!.rsdMinor) // 10 × 117.15 / 1.25
+    }
+
+    @Test
     fun `fill does not revert an edit made while it was running`() = runTest {
         rates.nextResult = { FakeExchangeRateRepository.success(today) }
         rates.refresh()

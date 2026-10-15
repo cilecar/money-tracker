@@ -13,7 +13,8 @@ interface RatedAmount {
     val converted: ConvertedAmounts?
 
     /** Сумма в [currency] для отчётов; без курса известна только сумма в исходной валюте. */
-    fun amountIn(currency: CurrencyCode): Money? = converted?.get(currency) ?: amount.takeIf { it.currency == currency }
+    fun amountIn(currency: CurrencyCode): Money? =
+        converted?.takeIf { currency.isDisplay }?.get(currency) ?: amount.takeIf { it.currency == currency }
 }
 
 /** Категория дохода — отдельный от расходов набор (Зарплата, Фриланс, Подарок, Другое). */
@@ -47,8 +48,10 @@ data class Income(
     fun withOccurredAt(instant: Instant, zone: ZoneId, now: Instant) =
         copy(occurredAt = instant, localDate = instant.atZone(zone).toLocalDate(), updatedAt = now)
 
-    fun withAmount(newAmount: Money, now: Instant) =
-        copy(amount = newAmount, converted = rates?.convertAll(newAmount), accountAmountMinor = null, updatedAt = now)
+    /** Как [Expense.withAmount]: без курса новой валюты в снапшоте операция снова ждёт курса. */
+    fun withAmount(newAmount: Money, now: Instant) = rates.usableFor(newAmount.currency).let { usable ->
+        copy(amount = newAmount, rates = usable, converted = usable?.convertAll(newAmount), accountAmountMinor = null, updatedAt = now)
+    }
 
     fun withRates(newRates: RateSnapshot, now: Instant) =
         copy(rates = newRates, converted = newRates.convertAll(amount), updatedAt = now)
@@ -70,8 +73,8 @@ data class Income(
             occurredAt = occurredAt,
             localDate = occurredAt.atZone(zone).toLocalDate(),
             comment = cleanComment(comment),
-            rates = rates,
-            converted = rates?.convertAll(amount),
+            rates = rates.usableFor(amount.currency),
+            converted = rates.usableFor(amount.currency)?.convertAll(amount),
             createdAt = now,
             updatedAt = now,
         )
@@ -102,8 +105,10 @@ data class Refund(
     fun withOccurredAt(instant: Instant, zone: ZoneId, now: Instant) =
         copy(occurredAt = instant, localDate = instant.atZone(zone).toLocalDate(), updatedAt = now)
 
-    fun withAmount(newAmount: Money, now: Instant) =
-        copy(amount = newAmount, converted = rates?.convertAll(newAmount), accountAmountMinor = null, updatedAt = now)
+    /** Как [Expense.withAmount]: без курса новой валюты в снапшоте операция снова ждёт курса. */
+    fun withAmount(newAmount: Money, now: Instant) = rates.usableFor(newAmount.currency).let { usable ->
+        copy(amount = newAmount, rates = usable, converted = usable?.convertAll(newAmount), accountAmountMinor = null, updatedAt = now)
+    }
 
     fun withRates(newRates: RateSnapshot, now: Instant) =
         copy(rates = newRates, converted = newRates.convertAll(amount), updatedAt = now)
@@ -120,7 +125,7 @@ data class Refund(
         occurredAt = occurredAt,
         localDate = localDate,
         rates = rates,
-        converted = converted?.let { ConvertedAmounts(-it.rsdMinor, -it.eurMinor, -it.rubMinor) },
+        converted = converted?.let { -it },
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
@@ -144,8 +149,8 @@ data class Refund(
             occurredAt = occurredAt,
             localDate = occurredAt.atZone(zone).toLocalDate(),
             comment = cleanComment(comment),
-            rates = rates,
-            converted = rates?.convertAll(amount),
+            rates = rates.usableFor(amount.currency),
+            converted = rates.usableFor(amount.currency)?.convertAll(amount),
             createdAt = now,
             updatedAt = now,
         )

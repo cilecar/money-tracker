@@ -8,13 +8,28 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import app.moneytracker.data.db.entity.AccountEntity
 import app.moneytracker.data.db.entity.BalanceAdjustmentEntity
+import app.moneytracker.domain.model.CurrencyCode
 import kotlinx.coroutines.flow.Flow
+import java.math.BigDecimal
+import java.time.LocalDate
 
 /** Остаток счёта в его валюте; [unconverted] — операции в чужой валюте без курса и суммы списания. */
 data class AccountBalanceRow(
     @ColumnInfo(name = "account_id") val accountId: Long,
     @ColumnInfo(name = "balance_minor") val balanceMinor: Long,
     val unconverted: Int,
+)
+
+/** Операция USDT-счёта, которую надо пересчитать в USDT по её снапшоту, см. [AccountDao.observeUsdtConversions]. */
+data class UsdtConversionRow(
+    @ColumnInfo(name = "account_id") val accountId: Long,
+    val sign: Int,
+    @ColumnInfo(name = "amount_minor") val amountMinor: Long,
+    val currency: CurrencyCode,
+    @ColumnInfo(name = "rate_rsd_per_eur") val rateRsdPerEur: BigDecimal?,
+    @ColumnInfo(name = "rate_rub_per_eur") val rateRubPerEur: BigDecimal?,
+    @ColumnInfo(name = "rate_usdt_per_eur") val rateUsdtPerEur: BigDecimal?,
+    @ColumnInfo(name = "rate_date") val rateDate: LocalDate?,
 )
 
 @Dao
@@ -42,6 +57,9 @@ abstract class AccountDao {
      * Сумма операции в валюте счёта: сумма списания, если записана; иначе сама сумма, если валюта совпадает;
      * иначе пересчёт по снапшоту курса операции (rsd/eur/rub_minor). Без снапшота CASE даёт NULL —
      * SUM его пропускает, а такие операции считаются в unconverted.
+     *
+     * У USDT-счёта готовой колонки usdt_minor нет: такие операции CASE тоже пропускает, но в unconverted
+     * не считает — их пересчитывает по снапшоту [observeUsdtConversions].
      * Операции раньше opening_date не учитываются: они уже вошли в начальный остаток.
      */
     @Query(
@@ -81,18 +99,47 @@ abstract class AccountDao {
             AS balance_minor,
             (SELECT COUNT(*) FROM expense e
                 WHERE e.account_id = a.id AND e.local_date >= a.opening_date
-                AND e.account_amount_minor IS NULL AND e.currency <> a.currency AND e.rsd_minor IS NULL)
+                AND e.account_amount_minor IS NULL AND e.currency <> a.currency AND e.rsd_minor IS NULL
+                AND a.currency <> 'USDT')
             + (SELECT COUNT(*) FROM income i
                 WHERE i.account_id = a.id AND i.local_date >= a.opening_date
-                AND i.account_amount_minor IS NULL AND i.currency <> a.currency AND i.rsd_minor IS NULL)
+                AND i.account_amount_minor IS NULL AND i.currency <> a.currency AND i.rsd_minor IS NULL
+                AND a.currency <> 'USDT')
             + (SELECT COUNT(*) FROM refund r
                 WHERE r.account_id = a.id AND r.local_date >= a.opening_date
-                AND r.account_amount_minor IS NULL AND r.currency <> a.currency AND r.rsd_minor IS NULL)
+                AND r.account_amount_minor IS NULL AND r.currency <> a.currency AND r.rsd_minor IS NULL
+                AND a.currency <> 'USDT')
             AS unconverted
         FROM account a
         """,
     )
     abstract fun observeBalances(): Flow<List<AccountBalanceRow>>
+
+    /**
+     * Операции USDT-счёта в другой валюте без суммы списания — для пересчёта по снапшоту в коде
+     * (курс хранится текстом ради точности, в SQL его не посчитать без потерь). [UsdtConversionRow.sign]:
+     * −1 расход, +1 доход и возврат. Переводы сюда не попадают: их суммы уже в валютах счетов.
+     */
+    @Query(
+        """
+        SELECT a.id AS account_id, -1 AS sign, e.amount_minor, e.currency, e.rate_rsd_per_eur, e.rate_rub_per_eur,
+            e.rate_usdt_per_eur, e.rate_date
+        FROM expense e JOIN account a ON a.id = e.account_id
+        WHERE a.currency = 'USDT' AND e.currency <> 'USDT' AND e.account_amount_minor IS NULL
+            AND e.local_date >= a.opening_date
+        UNION ALL
+        SELECT a.id, 1, i.amount_minor, i.currency, i.rate_rsd_per_eur, i.rate_rub_per_eur, i.rate_usdt_per_eur, i.rate_date
+        FROM income i JOIN account a ON a.id = i.account_id
+        WHERE a.currency = 'USDT' AND i.currency <> 'USDT' AND i.account_amount_minor IS NULL
+            AND i.local_date >= a.opening_date
+        UNION ALL
+        SELECT a.id, 1, r.amount_minor, r.currency, r.rate_rsd_per_eur, r.rate_rub_per_eur, r.rate_usdt_per_eur, r.rate_date
+        FROM refund r JOIN account a ON a.id = r.account_id
+        WHERE a.currency = 'USDT' AND r.currency <> 'USDT' AND r.account_amount_minor IS NULL
+            AND r.local_date >= a.opening_date
+        """,
+    )
+    abstract fun observeUsdtConversions(): Flow<List<UsdtConversionRow>>
 
     @Insert
     abstract suspend fun insertAdjustment(adjustment: BalanceAdjustmentEntity): Long

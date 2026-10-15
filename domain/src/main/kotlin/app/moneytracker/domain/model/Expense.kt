@@ -39,10 +39,14 @@ data class Expense(
         updatedAt = now,
     )
 
-    /** Смена суммы или валюты: пересчитываем converted по тому же снапшоту, сумма списания устарела. */
+    /**
+     * Смена суммы или валюты: пересчитываем converted по тому же снапшоту, сумма списания устарела.
+     * Если в снапшоте нет курса новой валюты (USDT в старом снапшоте), расход снова ждёт курса.
+     */
     fun withAmount(newAmount: Money, now: Instant): Expense = copy(
         amount = newAmount,
-        converted = rates?.convertAll(newAmount),
+        rates = rates.usableFor(newAmount.currency),
+        converted = rates.usableFor(newAmount.currency)?.convertAll(newAmount),
         accountAmountMinor = null,
         updatedAt = now,
     )
@@ -76,8 +80,8 @@ data class Expense(
             localDate = occurredAt.atZone(zone).toLocalDate(),
             comment = cleanComment(comment),
             tags = normalizeTags(tags),
-            rates = rates,
-            converted = rates?.convertAll(amount),
+            rates = rates.usableFor(amount.currency),
+            converted = rates.usableFor(amount.currency)?.convertAll(amount),
             recurringId = recurringId,
             createdAt = now,
             updatedAt = now,

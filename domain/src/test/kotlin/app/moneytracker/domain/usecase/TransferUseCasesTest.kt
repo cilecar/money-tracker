@@ -34,7 +34,8 @@ class TransferUseCasesTest {
     private val opening = LocalDate.of(2026, 1, 1)
     private val eurCard = Account(id = 1, name = "Bybit", type = AccountType.CARD, currency = CurrencyCode.EUR, openingDate = opening)
     private val rsdCash = Account(id = 2, name = "Наличные", type = AccountType.CASH, currency = CurrencyCode.RSD, openingDate = opening)
-    private val accounts = FakeAccountRepository(listOf(eurCard, rsdCash))
+    private val usdtCard = Account(id = 3, name = "Bybit USDT", type = AccountType.CARD, currency = CurrencyCode.USDT, openingDate = opening)
+    private val accounts = FakeAccountRepository(listOf(eurCard, rsdCash, usdtCard))
     private val expenses = FakeExpenseRepository()
     private val categories = FakeCategoryRepository(listOf(Category(id = 11, name = "Комиссии", defaultKey = "fees", iconKey = "receipt", color = 0)))
     private val rates = FakeExchangeRateRepository(clock)
@@ -58,6 +59,39 @@ class TransferUseCasesTest {
         assertEquals(0, BigDecimal("117.20").compareTo(t.apiRate))
         // Обменник дал на 0.60% меньше API.
         assertEquals(BigDecimal("-0.60"), Transfer.deviationPercent(t.exchangeRate, t.apiRate))
+    }
+
+    @Test
+    fun `usdt to rsd exchange keeps both amounts as entered`() = runTest {
+        rates.setManualRate(CurrencyCode.RSD, BigDecimal("117.15"), LocalDate.of(2026, 10, 14))
+        rates.setManualRate(CurrencyCode.RUB, BigDecimal("95"), LocalDate.of(2026, 10, 14))
+        rates.setManualRate(CurrencyCode.USDT, BigDecimal("1.165"), LocalDate.of(2026, 10, 14))
+        val usdt = Money(50_00, CurrencyCode.USDT)
+        val fee = Money(1_00, CurrencyCode.USDT)
+        val id = (save(TransferInput(fromAccountId = 3, toAccountId = 2, fromAmount = usdt, toAmount = rsd(4900_00), fee = fee, occurredAt = now)) as TransferResult.Success).id
+
+        val t = transfers.get(id)!!
+        assertEquals(usdt, t.fromAmount)
+        assertEquals(rsd(4900_00), t.toAmount)
+        assertEquals(0, BigDecimal("98").compareTo(t.exchangeRate))
+        // API: 117.15 / 1.165 = 100.5579… RSD за 1 USDT; обменник дал на 2.54% меньше.
+        assertEquals(BigDecimal("-2.54"), Transfer.deviationPercent(t.exchangeRate, t.apiRate))
+        // Комиссия в USDT — обычный расход с курсом USDT в снапшоте.
+        val feeExpense = expenses.get(t.feeExpenseId!!)!!
+        assertEquals(fee, feeExpense.amount)
+        assertEquals(86L, feeExpense.converted!!.eurMinor) // 1 / 1.165 = 0.858…
+
+        // Обратно RSD → USDT тоже без пересчёта.
+        val back = (save(TransferInput(fromAccountId = 2, toAccountId = 3, fromAmount = rsd(1000_00), toAmount = Money(9_80, CurrencyCode.USDT), occurredAt = now)) as TransferResult.Success).id
+        assertEquals(Money(9_80, CurrencyCode.USDT), transfers.get(back)!!.toAmount)
+    }
+
+    @Test
+    fun `transfer without usdt rate has no api rate to compare`() = runTest {
+        rates.setManualRate(CurrencyCode.RSD, BigDecimal("117.15"), LocalDate.of(2026, 10, 14))
+        rates.setManualRate(CurrencyCode.RUB, BigDecimal("95"), LocalDate.of(2026, 10, 14))
+        val id = (save(TransferInput(fromAccountId = 3, toAccountId = 2, fromAmount = Money(50_00, CurrencyCode.USDT), toAmount = rsd(4900_00), occurredAt = now)) as TransferResult.Success).id
+        assertNull(transfers.get(id)!!.apiRate)
     }
 
     @Test

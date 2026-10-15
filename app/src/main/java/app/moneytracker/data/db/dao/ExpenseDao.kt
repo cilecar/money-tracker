@@ -92,7 +92,7 @@ abstract class ExpenseDao {
     @Query(
         """
         UPDATE expense SET
-            rate_rsd_per_eur = :rsdPerEur, rate_rub_per_eur = :rubPerEur, rate_date = :rateDate,
+            rate_rsd_per_eur = :rsdPerEur, rate_rub_per_eur = :rubPerEur, rate_usdt_per_eur = :usdtPerEur, rate_date = :rateDate,
             rsd_minor = :rsdMinor, eur_minor = :eurMinor, rub_minor = :rubMinor, updated_at = :updatedAt
         WHERE id = :id AND rate_date IS NULL AND amount_minor = :amountMinor AND currency = :currency
         """,
@@ -103,6 +103,7 @@ abstract class ExpenseDao {
         currency: String,
         rsdPerEur: BigDecimal,
         rubPerEur: BigDecimal,
+        usdtPerEur: BigDecimal?,
         rateDate: LocalDate,
         rsdMinor: Long,
         eurMinor: Long,

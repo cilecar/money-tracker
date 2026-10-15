@@ -29,6 +29,9 @@ class SetManualRateUseCase @Inject constructor(
         private val PLAUSIBLE: Map<CurrencyCode, ClosedRange<BigDecimal>> = mapOf(
             CurrencyCode.RSD to BigDecimal("50")..BigDecimal("300"),
             CurrencyCode.RUB to BigDecimal("30")..BigDecimal("500"),
+            // USDT привязан к доллару: 1 EUR ≈ 1.05–1.2 USDT. Граница уже, чем у остальных, —
+            // ошибка на порядок здесь выглядит как 11 или 0.11.
+            CurrencyCode.USDT to BigDecimal("0.8")..BigDecimal("1.5"),
         )
 
         /** null для EUR: его курс всегда 1. */

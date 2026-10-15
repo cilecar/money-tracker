@@ -66,13 +66,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "money_tracker.db"
-        const val VERSION = 2
+        const val VERSION = 3
 
         /**
          * Миграции схемы, регистрируются в DataModule. Новая версия базы = миграция сюда
          * (MigrationTest прогонит её по экспортированным схемам из app/schemas).
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(Migration1To2)
+        val MIGRATIONS: Array<Migration> = arrayOf(Migration1To2, Migration2To3)
 
         /** Есть ли цепочка миграций from → to. Нужна, чтобы не принять резервную копию, которую Room не откроет. */
         fun hasMigrationPath(from: Int, to: Int): Boolean {

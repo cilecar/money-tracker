@@ -226,4 +226,69 @@ class AccountBalanceTest {
         assertNull(transfers.get(id))
         assertEquals(Money(100_00, CurrencyCode.EUR), balance(card).balance)
     }
+
+    // 1 EUR = 117 RSD = 95 RUB = 1.17 USDT
+    private val usdtRates = RateSnapshot(BigDecimal("117"), BigDecimal("95"), LocalDate.of(2026, 10, 1), usdtPerEur = BigDecimal("1.17"))
+
+    private suspend fun usdtCard(opening: Long = 0) = accounts.upsert(
+        Account(name = "Bybit", type = AccountType.CARD, currency = CurrencyCode.USDT, openingBalanceMinor = opening, openingDate = LocalDate.of(2026, 10, 1)),
+    )
+
+    private fun usdt(minor: Long) = Money(minor, CurrencyCode.USDT)
+
+    /**
+     * У USDT нет колонки usdt_minor: остаток берёт сумму списания, а без неё пересчитывает по снапшоту операции.
+     * Снапшот без курса USDT (запись до USDT) пересчитать нельзя — операция в unconverted.
+     */
+    @Test
+    fun usdtAccountBalanceUsesAccountAmountThenSnapshot() = runTest {
+        val id = usdtCard(opening = 100_00)
+        suspend fun spendUsdt(amount: Money, at: String, snapshot: RateSnapshot?, accountAmount: Long? = null) = expenses.insert(
+            Expense.create(amount, 1, id, Instant.parse(at), zone, snapshot, clock.instant()).copy(accountAmountMinor = accountAmount),
+        )
+        spendUsdt(usdt(10_00), "2026-10-02T10:00:00Z", usdtRates)
+        // Карта списала 10.20 USDT за 1170 RSD — фактическая сумма, а не снапшот.
+        spendUsdt(Money(1170_00, CurrencyCode.RSD), "2026-10-03T10:00:00Z", usdtRates, accountAmount = 10_20)
+        // Без суммы списания: 1170 RSD × 1.17 / 117 = 11.70 USDT.
+        spendUsdt(Money(1170_00, CurrencyCode.RSD), "2026-10-04T10:00:00Z", usdtRates)
+        // Снапшот без курса USDT — пересчитать не по чему.
+        spendUsdt(Money(5_00, CurrencyCode.EUR), "2026-10-05T10:00:00Z", rates)
+        // До даты начального остатка.
+        spendUsdt(usdt(99_00), "2026-09-30T10:00:00Z", usdtRates)
+        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(db.incomeDao())
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db.refundDao())
+        // Доход 10 € = 11.70 USDT, возврат 95 RUB = 1.17 USDT.
+        incomes.insert(app.moneytracker.domain.model.Income.create(Money(10_00, CurrencyCode.EUR), id, 1, Instant.parse("2026-10-06T10:00:00Z"), zone, usdtRates, clock.instant()))
+        refunds.insert(app.moneytracker.domain.model.Refund.create(Money(95_00, CurrencyCode.RUB), id, null, 1, Instant.parse("2026-10-07T10:00:00Z"), zone, usdtRates, clock.instant()))
+
+        val b = balance(id)
+        assertEquals(usdt(100_00 - 10_00 - 10_20 - 11_70 + 11_70 + 1_17), b.balance)
+        assertEquals(1, b.unconverted)
+
+        // Обратное направление: USDT-расход с RSD-счёта идёт через готовую rsd_minor.
+        val cash = rsdCash(opening = 2000_00)
+        expenses.insert(Expense.create(usdt(10_00), 1, cash, Instant.parse("2026-10-02T10:00:00Z"), zone, usdtRates, clock.instant()))
+        assertEquals(Money(2000_00 - 1000_00, CurrencyCode.RSD), balance(cash).balance)
+        assertTrue(balance(cash).isExact)
+
+        // Итог в RSD по текущему курсу: 80.97 USDT × 117 / 1.17 = 8 097 RSD.
+        val total = app.moneytracker.domain.model.AccountsTotal.of(accounts.observeBalances().first(), CurrencyCode.RSD, usdtRates)
+        assertEquals(Money(8097_00 + 1000_00, CurrencyCode.RSD), total.total)
+    }
+
+    /** USDT → RSD в обменнике и обратно: обе суммы как ввели, без пересчёта по API. */
+    @Test
+    fun usdtToRsdTransferMovesBothBalancesByStoredAmounts() = runTest {
+        val card = usdtCard(opening = 100_00)
+        val cash = rsdCash()
+        transfers.save(app.moneytracker.domain.model.Transfer.create(card, cash, usdt(50_00), Money(4900_00, CurrencyCode.RSD), Instant.parse("2026-10-05T10:00:00Z"), zone, usdtRates, clock.instant()), null)
+        transfers.save(app.moneytracker.domain.model.Transfer.create(cash, card, Money(1000_00, CurrencyCode.RSD), usdt(9_80), Instant.parse("2026-10-06T10:00:00Z"), zone, usdtRates, clock.instant()), null)
+
+        assertEquals(usdt(100_00 - 50_00 + 9_80), balance(card).balance)
+        assertEquals(Money(4900_00 - 1000_00, CurrencyCode.RSD), balance(cash).balance)
+        assertTrue(balance(card).isExact)
+        val stored = transfers.get(db.transferDao().getAll().single { it.fromCurrency == CurrencyCode.USDT }.id)!!
+        assertEquals(BigDecimal("1.17"), stored.apiRates!!.usdtPerEur)
+        assertEquals(0, BigDecimal("98").compareTo(stored.exchangeRate))
+    }
 }

@@ -39,7 +39,7 @@ data class Transfer(
     val exchangeRate: BigDecimal? get() = if (isExchange) rateOf(fromAmount, toAmount) else null
 
     /** Курс API той же пары на момент перевода; без пересчёта сумм. */
-    val apiRate: BigDecimal? get() = if (isExchange) apiRates?.rate(fromAmount.currency, toAmount.currency) else null
+    val apiRate: BigDecimal? get() = if (isExchange) apiRates?.rateOrNull(fromAmount.currency, toAmount.currency) else null
 
     fun withOccurredAt(instant: Instant, zone: ZoneId, now: Instant) =
         copy(occurredAt = instant, localDate = instant.atZone(zone).toLocalDate(), updatedAt = now)

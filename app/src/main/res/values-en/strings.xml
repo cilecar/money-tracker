@@ -34,6 +34,7 @@
     <string name="rates_source_fallback">open.er-api.com</string>
     <string name="rates_source_manual">Manual</string>
     <string name="rates_cross">Cross rate via EUR</string>
+    <string name="rates_missing">No rate yet — operations in this currency wait for it</string>
     <string name="rates_enter_manually">Enter manually</string>
     <string name="rates_reset_manual">Reset</string>
     <string name="rates_manual_title">Manual rate</string>

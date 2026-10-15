@@ -37,9 +37,11 @@ data class ExpenseEntity(
     @ColumnInfo(name = "occurred_at") val occurredAt: Instant,
     @ColumnInfo(name = "local_date") val localDate: LocalDate,
     val comment: String?,
-    // Снапшот курсов на момент добавления; все три NULL — курсов ещё не было
+    // Снапшот курсов на момент добавления; rsd/rub/date NULL — курсов ещё не было
     @ColumnInfo(name = "rate_rsd_per_eur") val rateRsdPerEur: BigDecimal?,
     @ColumnInfo(name = "rate_rub_per_eur") val rateRubPerEur: BigDecimal?,
+    // Колонка из версии 3: NULL у записей до USDT и если курса USDT не было
+    @ColumnInfo(name = "rate_usdt_per_eur") val rateUsdtPerEur: BigDecimal? = null,
     @ColumnInfo(name = "rate_date") val rateDate: LocalDate?,
     // Денормализованные суммы во всех валютах (по снапшоту) — для SQL-агрегаций
     @ColumnInfo(name = "rsd_minor") val rsdMinor: Long?,

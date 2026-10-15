@@ -1,12 +1,15 @@
 package app.moneytracker.data.repository
 
 import app.moneytracker.data.db.dao.AccountDao
+import app.moneytracker.data.db.dao.UsdtConversionRow
+import app.moneytracker.data.db.snapshot
 import app.moneytracker.data.db.toDomain
 import app.moneytracker.data.db.toEntity
 import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.AccountBalance
 import app.moneytracker.domain.model.AccountUsage
 import app.moneytracker.domain.model.BalanceAdjustment
+import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.repository.AccountRepository
 import kotlinx.coroutines.flow.Flow
@@ -22,14 +25,36 @@ class AccountRepositoryImpl @Inject constructor(
         dao.observeAll(includeArchived).map { list -> list.map { it.toDomain() } }
 
     override fun observeBalances(): Flow<List<AccountBalance>> =
-        combine(dao.observeAll(true), dao.observeBalances()) { accounts, rows ->
+        combine(dao.observeAll(true), dao.observeBalances(), dao.observeUsdtConversions()) { accounts, rows, usdtRows ->
             val byId = rows.associateBy { it.accountId }
+            val usdt = usdtRows.groupBy { it.accountId }.mapValues { (_, list) -> convertToUsdt(list) }
             accounts.map { entity ->
                 val account = entity.toDomain()
                 val row = byId[account.id]
-                AccountBalance(account, Money(row?.balanceMinor ?: account.openingBalance.minor, account.currency), row?.unconverted ?: 0)
+                val (extraMinor, extraUnconverted) = usdt[account.id] ?: (0L to 0)
+                AccountBalance(
+                    account,
+                    Money((row?.balanceMinor ?: account.openingBalance.minor) + extraMinor, account.currency),
+                    (row?.unconverted ?: 0) + extraUnconverted,
+                )
             }
         }
+
+    /**
+     * Сумма операций USDT-счёта в USDT по их снапшотам — как SQL делает с rsd/eur/rub_minor: каждая операция
+     * округляется отдельно. Без снапшота или без курса USDT в нём (записи до USDT) операция не вошла.
+     * @return сумма в минорных USDT и число непересчитанных операций.
+     */
+    private fun convertToUsdt(rows: List<UsdtConversionRow>): Pair<Long, Int> {
+        var sum = 0L
+        var unconverted = 0
+        for (row in rows) {
+            val converted = snapshot(row.rateRsdPerEur, row.rateRubPerEur, row.rateDate, row.rateUsdtPerEur)
+                ?.convertOrNull(Money(row.amountMinor, row.currency), CurrencyCode.USDT)
+            if (converted == null) unconverted++ else sum += row.sign * converted.minor
+        }
+        return sum to unconverted
+    }
 
     override suspend fun getAll(includeArchived: Boolean): List<Account> = dao.getAll(includeArchived).map { it.toDomain() }
 

@@ -72,10 +72,10 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
             DefaultAccount(s, viewModel::setDefaultAccount)
 
             Labeled(stringResource(R.string.settings_input_currency), stringResource(R.string.settings_input_currency_hint)) {
-                CurrencySegments(s.settings.inputCurrency, viewModel::setInputCurrency)
+                CurrencySegments(CurrencyCode.entries, s.settings.inputCurrency, viewModel::setInputCurrency)
             }
             Labeled(stringResource(R.string.settings_display_currency), stringResource(R.string.settings_display_currency_hint)) {
-                CurrencySegments(s.settings.displayCurrency, viewModel::setDisplayCurrency)
+                CurrencySegments(CurrencyCode.DISPLAY, s.settings.displayCurrency, viewModel::setDisplayCurrency)
             }
 
             HorizontalDivider()
@@ -172,13 +172,13 @@ private fun Labeled(title: String, hint: String?, content: @Composable () -> Uni
 }
 
 @Composable
-private fun CurrencySegments(selected: CurrencyCode, onSelect: (CurrencyCode) -> Unit) {
+private fun CurrencySegments(options: List<CurrencyCode>, selected: CurrencyCode, onSelect: (CurrencyCode) -> Unit) {
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        CurrencyCode.entries.forEachIndexed { i, c ->
+        options.forEachIndexed { i, c ->
             SegmentedButton(
                 selected = selected == c,
                 onClick = { onSelect(c) },
-                shape = SegmentedButtonDefaults.itemShape(i, CurrencyCode.entries.size),
+                shape = SegmentedButtonDefaults.itemShape(i, options.size),
             ) { Text(c.name) }
         }
     }

@@ -36,7 +36,7 @@ class IncomeRepositoryImpl @Inject constructor(private val dao: IncomeDao) : Inc
         val rates = requireNotNull(income.rates) { "Nothing to fill" }
         val converted = requireNotNull(income.converted)
         return dao.fillRates(
-            income.id, income.amount.minor, income.amount.currency.name, rates.rsdPerEur, rates.rubPerEur, rates.date,
+            income.id, income.amount.minor, income.amount.currency.name, rates.rsdPerEur, rates.rubPerEur, rates.usdtPerEur, rates.date,
             converted.rsdMinor, converted.eurMinor, converted.rubMinor, income.updatedAt,
         ) == 1
     }
@@ -63,7 +63,7 @@ class RefundRepositoryImpl @Inject constructor(private val dao: RefundDao) : Ref
         val rates = requireNotNull(refund.rates) { "Nothing to fill" }
         val converted = requireNotNull(refund.converted)
         return dao.fillRates(
-            refund.id, refund.amount.minor, refund.amount.currency.name, rates.rsdPerEur, rates.rubPerEur, rates.date,
+            refund.id, refund.amount.minor, refund.amount.currency.name, rates.rsdPerEur, rates.rubPerEur, rates.usdtPerEur, rates.date,
             converted.rsdMinor, converted.eurMinor, converted.rubMinor, refund.updatedAt,
         ) == 1
     }
