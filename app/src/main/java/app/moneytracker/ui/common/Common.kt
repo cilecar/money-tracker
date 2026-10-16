@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -79,4 +82,13 @@ fun ComingSoon(text: String, modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+/**
+ * Snackbar с читаемой кнопкой действия. Штатный actionColor — inversePrimary, а в динамической палитре
+ * некоторых прошивок (vivo) он почти сливается с фоном снекбара; inverseOnSurface контрастен всегда.
+ */
+@Composable
+fun AppSnackbarHost(state: SnackbarHostState) {
+    SnackbarHost(state) { data -> Snackbar(data, actionColor = MaterialTheme.colorScheme.inverseOnSurface) }
 }

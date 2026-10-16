@@ -62,6 +62,7 @@ import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Значения для графиков — Double: это координаты пикселей, а не деньги.
@@ -74,6 +75,12 @@ internal fun compactNumber(value: Double): String = when {
     value >= 1_000_000 -> trim(value / 1_000_000) + "M"
     value >= 1_000 -> trim(value / 1_000) + "k"
     else -> value.toLong().toString()
+}
+
+/** Доля в процентах с округлением, а не отбрасыванием: 10,7% — «11%». Ненулевая крошка — «<1%», а не «0%». */
+fun formatShare(share: Float): String = when {
+    share > 0f && share < 0.005f -> "<1%"
+    else -> "${(share * 100).roundToInt()}%"
 }
 
 private fun trim(v: Double): String = if (v < 10) "%.1f".format(v).trimEnd('0').trimEnd('.', ',') else v.toLong().toString()
@@ -255,7 +262,7 @@ fun PaymentBars(slices: List<PaymentSlice>, onClick: (PaymentSlice) -> Unit) {
                     )
                     Text(formatMoney(s.amount, locale), style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "${(s.share * 100).toInt()}%",
+                        formatShare(s.share),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.End,

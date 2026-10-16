@@ -256,7 +256,7 @@ private fun CategoriesCard(r: AnalyticsReport, onOpen: (CategorySlice) -> Unit) 
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(formatMoney(selected.amount, locale), style = MaterialTheme.typography.titleLarge)
-                Text("${(selected.share * 100).toInt()}%", style = MaterialTheme.typography.bodyMedium)
+                Text(formatShare(selected.share), style = MaterialTheme.typography.bodyMedium)
             } else {
                 Text(stringResource(R.string.analytics_total), style = MaterialTheme.typography.labelLarge)
                 Text(formatMoney(r.total.total, locale), style = MaterialTheme.typography.titleLarge)
@@ -277,7 +277,7 @@ private fun CategoriesCard(r: AnalyticsReport, onOpen: (CategorySlice) -> Unit) 
                 Column(Modifier.weight(1f)) {
                     Text(slice.category?.displayName() ?: "—", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
-                        "${(slice.share * 100).toInt()}%",
+                        formatShare(slice.share),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

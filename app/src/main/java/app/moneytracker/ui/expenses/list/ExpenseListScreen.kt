@@ -12,6 +12,7 @@ import app.moneytracker.domain.model.IncomeItem
 import app.moneytracker.domain.model.Money
 import app.moneytracker.domain.model.MonthSummary
 import app.moneytracker.domain.model.RefundItem
+import app.moneytracker.ui.common.AppSnackbarHost
 import app.moneytracker.ui.common.IncomeCategoryAvatar
 import app.moneytracker.ui.operations.IncomeColor
 import androidx.compose.foundation.layout.Spacer
@@ -48,16 +49,16 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -175,7 +177,7 @@ fun ExpenseListScreen(
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.expense_new))
             }
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { AppSnackbarHost(snackbar) },
     ) { padding ->
         if (state.loading) return@Scaffold
         LazyColumn(
@@ -382,7 +384,11 @@ private fun ExpenseRow(item: ExpenseDetails, displayCurrency: CurrencyCode, onCl
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
-    val state = rememberSwipeToDismissBoxState()
+    // Не rememberSwipeToDismissBoxState: он saveable, и LazyColumn хранит «смахнуто» по ключу строки.
+    // После «Отменить» запись возвращается с тем же id, получает это состояние и тут же удаляется снова.
+    val density = LocalDensity.current
+    val threshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val state = remember { SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, density, positionalThreshold = threshold) }
     SwipeToDismissBox(
         state = state,
         enableDismissFromStartToEnd = false,

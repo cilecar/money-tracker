@@ -46,7 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.moneytracker.R
@@ -125,9 +127,10 @@ fun AmountHeader(
         Spacer(Modifier.height(12.dp))
         Text(
             text = prefix + amount.display(locale) + " " + currency.symbol,
-            fontSize = 44.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
+            // Длинная сумма («999 999 999,99 RSD») уменьшается, а не обрезается и не налезает сама на себя.
+            autoSize = TextAutoSize.StepBased(minFontSize = 20.sp, maxFontSize = 44.sp),
             color = when {
                 amount.isEmpty -> MaterialTheme.colorScheme.outline
                 color != Color.Unspecified -> color
@@ -138,7 +141,7 @@ fun AmountHeader(
             conversions.isNotEmpty() -> conversions.joinToString("   ") { formatMoney(it, locale, approx = true) }
             else -> stringResource(R.string.expense_no_rates)
         }
-        Text(sub, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(sub, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
         ratesDate?.let {
             Text(
                 stringResource(R.string.rates_as_of, formatDate(it, locale)),

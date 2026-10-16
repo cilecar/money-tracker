@@ -23,7 +23,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -46,6 +45,7 @@ import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.CurrentRates
 import app.moneytracker.domain.model.RateSource
 import app.moneytracker.domain.model.RefreshResult
+import app.moneytracker.ui.common.AppSnackbarHost
 import app.moneytracker.ui.format.currentLocale
 import app.moneytracker.ui.format.formatDate
 import app.moneytracker.ui.format.formatDateTime
@@ -86,7 +86,7 @@ fun RatesScreen(onBack: () -> Unit, viewModel: RatesViewModel = hiltViewModel())
                 },
             )
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { AppSnackbarHost(snackbar) },
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = state.refreshing,
