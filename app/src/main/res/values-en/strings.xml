@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Expenses</string>
+    <string name="app_name_debug">Expenses (debug)</string>
 
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>

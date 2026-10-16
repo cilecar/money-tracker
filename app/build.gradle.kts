@@ -20,7 +20,19 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Отдельный пакет: debug ставится рядом с основным приложением и не трогает его данные.
+            // `-PmainApp` собирает debug в основной пакет — так обновляется приложение с реальными данными.
+            if (providers.gradleProperty("mainApp").isPresent) {
+                manifestPlaceholders["appLabel"] = "@string/app_name"
+            } else {
+                applicationIdSuffix = ".debug"
+                versionNameSuffix = "-debug"
+                manifestPlaceholders["appLabel"] = "@string/app_name_debug"
+            }
+        }
         release {
+            manifestPlaceholders["appLabel"] = "@string/app_name"
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
