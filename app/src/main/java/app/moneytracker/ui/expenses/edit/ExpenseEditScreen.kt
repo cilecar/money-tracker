@@ -131,7 +131,11 @@ fun ExpenseEditScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 if (s.isNew && onSwitchKind != null) OperationKindTabs(NewOperationKind.EXPENSE, onSwitchKind)
-                AmountHeader(s.form.amount, s.form.currency, s.conversions, s.ratesDate, onCurrency = viewModel::onCurrency)
+                AmountHeader(
+                    s.form.amount, s.form.currency, s.conversions, s.ratesDate,
+                    onCurrency = viewModel::onCurrency,
+                    currencySwitchedFrom = s.form.currencySwitchedFrom,
+                )
                 CategoryRow(s, onSelect = viewModel::onCategory)
                 AccountChips(s.accounts, s.form.accountId, onSelect = viewModel::onAccount)
                 DateTimeRow(s.form.dateTime, onDate = viewModel::onDate, onTime = viewModel::onTime)

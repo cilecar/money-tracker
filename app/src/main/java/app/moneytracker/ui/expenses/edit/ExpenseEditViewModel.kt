@@ -50,6 +50,8 @@ data class ExpenseForm(
     val comment: String = "",
     val tags: List<String> = emptyList(),
     val tagDraft: String = "",
+    /** Валюта до того, как её сменил выбор счёта, — пока пользователь не тронул сумму или валюту. */
+    val currencySwitchedFrom: CurrencyCode? = null,
     /** Исходный расход при редактировании. */
     val original: Expense? = null,
     val saving: Boolean = false,
@@ -195,16 +197,25 @@ class ExpenseEditViewModel @Inject constructor(
         )
     }
 
-    fun onKey(key: KeypadKey) = form.update { it.copy(amount = it.amount.press(key, it.currency.fractionDigits)) }
+    fun onKey(key: KeypadKey) = form.update {
+        it.copy(amount = it.amount.press(key, it.currency.fractionDigits), currencySwitchedFrom = null)
+    }
 
-    fun onCurrency(currency: CurrencyCode) = form.update { it.copy(currency = currency, amount = it.amount.fitTo(currency)) }
+    fun onCurrency(currency: CurrencyCode) = form.update {
+        it.copy(currency = currency, amount = it.amount.fitTo(currency), currencySwitchedFrom = null)
+    }
 
     fun onCategory(id: Long) = form.update { it.copy(categoryId = id) }
 
     /** Выбор счёта переключает валюту ввода на валюту счёта (её можно сменить вручную). */
     fun onAccount(method: Account) = form.update {
         val currency = method.currency
-        it.copy(accountId = method.id, currency = currency, amount = it.amount.fitTo(currency))
+        it.copy(
+            accountId = method.id,
+            currency = currency,
+            amount = it.amount.fitTo(currency),
+            currencySwitchedFrom = it.amount.currencySwitchedFrom(it.currency, currency, it.currencySwitchedFrom),
+        )
     }
 
     fun onDate(date: LocalDate) = form.update { it.copy(dateTime = LocalDateTime.of(date, it.dateTime.toLocalTime())) }

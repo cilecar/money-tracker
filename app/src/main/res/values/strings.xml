@@ -163,6 +163,8 @@
     <string name="account_opening_hint">Операции раньше этой даты в остаток не входят</string>
     <string name="account_error_currency_locked">По счёту уже есть операции — валюту не изменить</string>
     <string name="account_error_bad_amount">Некорректная сумма</string>
+    <string name="amount_currency_switched">Валюта сменилась по счёту: %1$s → %2$s</string>
+    <string name="amount_currency_revert">Вернуть %1$s</string>
     <string name="accounts_total">Всего</string>
     <string name="accounts_total_no_rates">Нет курсов — счета в других валютах не вошли</string>
     <string name="account_unconverted">без курса: %1$d</string>

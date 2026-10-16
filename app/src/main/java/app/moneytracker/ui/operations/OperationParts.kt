@@ -3,6 +3,7 @@ package app.moneytracker.ui.operations
 import android.text.format.DateFormat
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -112,6 +113,8 @@ fun AmountHeader(
     onCurrency: (CurrencyCode) -> Unit,
     color: Color = Color.Unspecified,
     prefix: String = "",
+    /** Валюту сменил выбор счёта, а число осталось — напоминаем и даём вернуть прежнюю. */
+    currencySwitchedFrom: CurrencyCode? = null,
 ) {
     val locale = currentLocale()
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -137,6 +140,20 @@ fun AmountHeader(
                 else -> MaterialTheme.colorScheme.onSurface
             },
         )
+        currencySwitchedFrom?.let { from ->
+            FlowRow(
+                horizontalArrangement = Arrangement.Center,
+                itemVerticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    stringResource(R.string.amount_currency_switched, from.name, currency.name),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                TextButton(onClick = { onCurrency(from) }) { Text(stringResource(R.string.amount_currency_revert, from.name)) }
+            }
+        }
         val sub = when {
             conversions.isNotEmpty() -> conversions.joinToString("   ") { formatMoney(it, locale, approx = true) }
             else -> stringResource(R.string.expense_no_rates)

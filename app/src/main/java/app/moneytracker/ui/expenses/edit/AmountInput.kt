@@ -86,3 +86,13 @@ data class AmountInput(
         }
     }
 }
+
+/**
+ * Выбор счёта переключает валюту, а набранное число остаётся: «100 RSD» молча становится «100 €».
+ * Возвращает валюту, о которой надо напомнить («была RSD»), или null. При нескольких сменах подряд
+ * помним самую первую; вернулись к ней — напоминать не о чем. Пустая сумма — тоже.
+ */
+fun AmountInput.currencySwitchedFrom(current: CurrencyCode, accountCurrency: CurrencyCode, pending: CurrencyCode?): CurrencyCode? {
+    if (isEmpty) return null
+    return (pending ?: current).takeIf { it != accountCurrency }
+}

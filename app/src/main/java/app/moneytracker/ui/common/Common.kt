@@ -22,10 +22,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import app.moneytracker.R
 import app.moneytracker.data.db.DefaultData
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.Account
 import app.moneytracker.domain.model.IncomeCategory
+import app.moneytracker.domain.model.Money
+import app.moneytracker.ui.format.currentLocale
+import app.moneytracker.ui.format.formatMoney
 
 /** Название с учётом локали: для нетронутых категорий по умолчанию — из ресурсов. */
 @Composable
@@ -91,4 +95,15 @@ fun ComingSoon(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun AppSnackbarHost(state: SnackbarHostState) {
     SnackbarHost(state) { data -> Snackbar(data, actionColor = MaterialTheme.colorScheme.inverseOnSurface) }
+}
+
+/**
+ * Подсказка под текстовым полем суммы — как понят ввод. «500.555» в EUR — это 500 555 (точка — тысячи),
+ * и это должно быть видно в поле, а не по итогу на счёте. Пустое поле — без подсказки.
+ */
+@Composable
+fun amountHint(text: String, parsed: Money?): (@Composable () -> Unit)? {
+    if (text.isBlank()) return null
+    val hint = parsed?.let { "= " + formatMoney(it, currentLocale()) } ?: stringResource(R.string.account_error_bad_amount)
+    return { Text(hint) }
 }

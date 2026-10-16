@@ -58,6 +58,7 @@ import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Frequency
 import app.moneytracker.ui.common.CategoryAvatar
 import app.moneytracker.ui.common.CategoryIcons
+import app.moneytracker.ui.common.amountHint
 import app.moneytracker.ui.common.displayName
 import app.moneytracker.ui.expenses.edit.CategoryPickerSheet
 import app.moneytracker.ui.format.currentLocale
@@ -105,6 +106,7 @@ fun RecurringEditScreen(onClose: () -> Unit, viewModel: RecurringEditViewModel =
                     suffix = { Text(f.currency.name) },
                     singleLine = true,
                     isError = f.amountText.isNotBlank() && f.amount == null,
+                    supportingText = amountHint(f.amountText, f.amount),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )

@@ -85,4 +85,23 @@ class AmountInputTest {
         assertEquals("1,234,567.5", type("1234567,5").display(Locale.US))
         assertEquals("0", AmountInput().display(Locale.US))
     }
+
+    @Test
+    fun `account switch remembers the currency the amount was typed in`() {
+        assertEquals(CurrencyCode.RSD, type("100").currencySwitchedFrom(CurrencyCode.RSD, CurrencyCode.EUR, pending = null))
+    }
+
+    @Test
+    fun `account switch with the same currency or empty amount needs no warning`() {
+        assertEquals(null, type("100").currencySwitchedFrom(CurrencyCode.RSD, CurrencyCode.RSD, pending = null))
+        assertEquals(null, AmountInput().currencySwitchedFrom(CurrencyCode.RSD, CurrencyCode.EUR, pending = null))
+    }
+
+    @Test
+    fun `repeated account switches keep the original currency until it is back`() {
+        // RSD → EUR → USDT: напоминаем про RSD, а не про промежуточный EUR.
+        assertEquals(CurrencyCode.RSD, type("100").currencySwitchedFrom(CurrencyCode.EUR, CurrencyCode.USDT, pending = CurrencyCode.RSD))
+        // … → снова RSD: всё совпало, предупреждение снимается.
+        assertEquals(null, type("100").currencySwitchedFrom(CurrencyCode.USDT, CurrencyCode.RSD, pending = CurrencyCode.RSD))
+    }
 }

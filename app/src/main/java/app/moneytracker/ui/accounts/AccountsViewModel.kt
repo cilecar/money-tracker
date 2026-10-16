@@ -43,7 +43,9 @@ data class AccountDraft(
     val error: AccountError? = null,
     val badAmount: Boolean = false,
     val cardSuffix: String = "",
-)
+) {
+    val openingBalance: Money? get() = parseSignedMoney(openingBalanceText, currency)
+}
 
 /** Диалог сверки: посчитанный остаток и введённый фактический. */
 data class ReconcileDraft(val balance: AccountBalance, val actualText: String = "") {
@@ -138,7 +140,7 @@ class AccountsViewModel @Inject constructor(
         val original = d.original
         val keepKey = original?.defaultKey != null &&
             d.name.trim().equals(defaultNames.resolve(original.defaultKey, original.name), ignoreCase = true)
-        val opening = parseSignedMoney(d.openingBalanceText, d.currency)
+        val opening = d.openingBalance
             ?: return dialogs.update { it.copy(draft = d.copy(badAmount = true)) }
         val method = Account(
             id = original?.id ?: 0,

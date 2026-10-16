@@ -145,6 +145,8 @@
     <string name="account_opening_hint">Operations before this date are not counted</string>
     <string name="account_error_currency_locked">The account already has operations — its currency can\'t change</string>
     <string name="account_error_bad_amount">Invalid amount</string>
+    <string name="amount_currency_switched">Currency changed with the account: %1$s → %2$s</string>
+    <string name="amount_currency_revert">Keep %1$s</string>
     <string name="accounts_total">Total</string>
     <string name="accounts_total_no_rates">No rates — accounts in other currencies are not included</string>
     <string name="account_unconverted">no rate: %1$d</string>

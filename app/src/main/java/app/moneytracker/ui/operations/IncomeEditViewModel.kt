@@ -19,6 +19,7 @@ import app.moneytracker.domain.usecase.IncomeInput
 import app.moneytracker.domain.usecase.SaveIncomeUseCase
 import app.moneytracker.ui.expenses.edit.AmountInput
 import app.moneytracker.ui.expenses.edit.KeypadKey
+import app.moneytracker.ui.expenses.edit.currencySwitchedFrom
 import app.moneytracker.ui.navigation.IncomeEditRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -45,6 +46,8 @@ data class IncomeForm(
     val accountId: Long? = null,
     val dateTime: LocalDateTime,
     val comment: String = "",
+    /** Валюта до того, как её сменил выбор счёта, — пока пользователь не тронул сумму или валюту. */
+    val currencySwitchedFrom: CurrencyCode? = null,
     val original: Income? = null,
     val saving: Boolean = false,
 )
@@ -127,14 +130,23 @@ class IncomeEditViewModel @Inject constructor(
         )
     }
 
-    fun onKey(key: KeypadKey) = form.update { it.copy(amount = it.amount.press(key, it.currency.fractionDigits)) }
+    fun onKey(key: KeypadKey) = form.update {
+        it.copy(amount = it.amount.press(key, it.currency.fractionDigits), currencySwitchedFrom = null)
+    }
 
-    fun onCurrency(currency: CurrencyCode) = form.update { it.copy(currency = currency, amount = it.amount.fitTo(currency)) }
+    fun onCurrency(currency: CurrencyCode) = form.update {
+        it.copy(currency = currency, amount = it.amount.fitTo(currency), currencySwitchedFrom = null)
+    }
 
     fun onCategory(id: Long) = form.update { it.copy(categoryId = id) }
 
     fun onAccount(account: Account) = form.update {
-        it.copy(accountId = account.id, currency = account.currency, amount = it.amount.fitTo(account.currency))
+        it.copy(
+            accountId = account.id,
+            currency = account.currency,
+            amount = it.amount.fitTo(account.currency),
+            currencySwitchedFrom = it.amount.currencySwitchedFrom(it.currency, account.currency, it.currencySwitchedFrom),
+        )
     }
 
     fun onDate(date: LocalDate) = form.update { it.copy(dateTime = LocalDateTime.of(date, it.dateTime.toLocalTime())) }

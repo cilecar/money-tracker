@@ -69,6 +69,7 @@ import app.moneytracker.ui.common.CategoryIcons
 import app.moneytracker.ui.common.ConfirmDialog
 import app.moneytracker.ui.common.DeleteWithMoveDialog
 import app.moneytracker.ui.common.MoveTarget
+import app.moneytracker.ui.common.amountHint
 import app.moneytracker.ui.common.displayName
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -201,8 +202,8 @@ private fun EditDialog(d: AccountDraft, viewModel: AccountsViewModel) {
                     label = { Text(stringResource(R.string.account_opening_balance)) },
                     suffix = { Text(d.currency.symbol) },
                     singleLine = true,
-                    isError = d.badAmount,
-                    supportingText = if (d.badAmount) ({ Text(stringResource(R.string.account_error_bad_amount)) }) else null,
+                    isError = d.badAmount || d.openingBalance == null,
+                    supportingText = amountHint(d.openingBalanceText, d.openingBalance),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -339,6 +340,7 @@ private fun ReconcileDialog(d: ReconcileDraft, viewModel: AccountsViewModel) {
                     suffix = { Text(d.balance.account.currency.symbol) },
                     singleLine = true,
                     isError = d.actualText.isNotBlank() && d.actual == null,
+                    supportingText = amountHint(d.actualText, d.actual),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )

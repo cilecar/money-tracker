@@ -42,7 +42,10 @@ fun IncomeEditScreen(
         decimalEnabled = s.form.currency.fractionDigits > 0,
     ) {
         if (s.isNew && onSwitchKind != null) OperationKindTabs(NewOperationKind.INCOME, onSwitchKind)
-        AmountHeader(s.form.amount, s.form.currency, s.conversions, s.ratesDate, viewModel::onCurrency, color = IncomeColor, prefix = "+")
+        AmountHeader(
+            s.form.amount, s.form.currency, s.conversions, s.ratesDate, viewModel::onCurrency,
+            color = IncomeColor, prefix = "+", currencySwitchedFrom = s.form.currencySwitchedFrom,
+        )
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             s.categories.forEach { c ->
                 FilterChip(

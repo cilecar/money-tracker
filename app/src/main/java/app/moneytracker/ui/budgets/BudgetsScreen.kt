@@ -64,6 +64,7 @@ import app.moneytracker.domain.model.BudgetProgress
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.ui.common.CategoryAvatar
 import app.moneytracker.ui.common.ComingSoon
+import app.moneytracker.ui.common.amountHint
 import app.moneytracker.ui.common.categoryTitle
 import app.moneytracker.ui.format.currentLocale
 import app.moneytracker.ui.format.formatMoney
@@ -236,6 +237,7 @@ private fun BudgetDialog(
                     label = { Text(stringResource(R.string.budget_limit)) },
                     singleLine = true,
                     isError = draft.amountText.isNotBlank() && draft.parsed == null,
+                    supportingText = amountHint(draft.amountText, draft.parsed),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
                 )
