@@ -26,6 +26,9 @@ abstract class CaptureDao {
     @Query("UPDATE captured_purchase SET status = :status, expense_id = COALESCE(:expenseId, expense_id) WHERE id = :id")
     abstract suspend fun setStatus(id: Long, status: String, expenseId: Long?)
 
+    @Query("UPDATE captured_purchase SET status = 'DISMISSED' WHERE id = :id AND status = 'PENDING'")
+    abstract suspend fun dismissIfPending(id: Long): Int
+
     @Query("SELECT category_id FROM merchant_rule WHERE merchant_key = :key")
     abstract suspend fun ruleFor(key: String): Long?
 

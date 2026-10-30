@@ -14,6 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import kotlin.time.Duration.Companion.hours
@@ -42,5 +43,6 @@ class ObserveMonthSummaryUseCaseTest {
         runCurrent()
         assertEquals(YearMonth.of(2026, 11), seen.last().month)
         assertEquals(30L, seen.last().daysLeft)
+        assertEquals(LocalDate.of(2026, 11, 1), seen.last().today)
     }
 }

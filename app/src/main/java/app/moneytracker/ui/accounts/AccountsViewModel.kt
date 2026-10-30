@@ -106,6 +106,9 @@ class AccountsViewModel @Inject constructor(
             total = AccountsTotal.of(all, s.displayCurrency, r?.snapshot),
             // Если по умолчанию ничего не задано, фактически используется первый в списке.
             defaultId = s.defaultAccountId ?: all.firstOrNull { !it.account.archived }?.account?.id,
+            // Остаток в открытом диалоге сверки — живой: пришла операция без курса или курсы подтянулись,
+            // и кнопка «Сохранить» с предупреждением сразу это отражают.
+            reconcile = d.reconcile?.let { r -> all.firstOrNull { it.account.id == r.balance.account.id }?.let { r.copy(balance = it) } ?: r },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AccountsUiState())
 
@@ -203,11 +206,11 @@ class AccountsViewModel @Inject constructor(
     fun closeReconcile() = dialogs.update { it.copy(reconcile = null) }
 
     fun confirmReconcile(comment: String) {
-        val d = dialogs.value.reconcile ?: return
+        val d = state.value.reconcile ?: return
         val actual = d.actual ?: return
         viewModelScope.launch {
-            reconcileAccount(d.balance.account.id, actual, comment)
-            closeReconcile()
+            // null и остаток не совпал — он стал приблизительным: диалог остаётся, предупреждение в нём уже видно.
+            if (reconcileAccount(d.balance.account.id, actual, comment) != null || actual == d.balance.balance) closeReconcile()
         }
     }
 }

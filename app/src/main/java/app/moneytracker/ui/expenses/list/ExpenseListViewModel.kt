@@ -59,6 +59,8 @@ data class ExpenseListUiState(
     val sections: List<DaySection> = emptyList(),
     val displayCurrency: CurrencyCode = CurrencyCode.RSD,
     val month: YearMonth = YearMonth.now(),
+    /** Для «Сегодня»/«Вчера» в заголовках дней — из сводки, чтобы сменилось в полночь. */
+    val today: LocalDate = LocalDate.now(),
     /** «Осталось до конца месяца» — доходы, траты и остаток текущего месяца. */
     val monthSummary: MonthSummary? = null,
     /** Итог трат по найденному (за вычетом возвратов) — только когда фильтр или поиск активны. */
@@ -176,6 +178,7 @@ class ExpenseListViewModel @Inject constructor(
             displayCurrency = currency,
             // Месяц — из сводки: после полуночи 1-го числа он сменится вместе с ней.
             month = summary.month,
+            today = summary.today,
             // Сводка — в валюте отображения; пока она не пересчиталась после смены валюты, не показываем старую.
             monthSummary = summary.takeIf { it.remaining.currency == currency },
             filteredTotal = if (active) Total.spending(ops.expenses, ops.refunds, currency) else null,

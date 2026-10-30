@@ -18,6 +18,8 @@ data class MonthSummary(
     val daysLeft: Long,
     /** null — тратить уже нечего (перерасход или ноль) или месяц прошёл. */
     val perDay: Money?,
+    /** На какую дату посчитано; экраны берут «сегодня» отсюда — оно сменится вместе со сводкой в полночь. */
+    val today: LocalDate,
 ) {
     val overspent: Boolean get() = remaining.minor < 0
 
@@ -44,7 +46,7 @@ data class MonthSummary(
             }
             // Округляем вниз: если тратить ровно столько каждый день, в остаток гарантированно уложишься.
             val perDay = if (daysLeft > 0 && remaining.minor > 0) Money(remaining.minor / daysLeft, currency) else null
-            return MonthSummary(month, income, spent, remaining, daysLeft, perDay)
+            return MonthSummary(month, income, spent, remaining, daysLeft, perDay, today)
         }
     }
 }

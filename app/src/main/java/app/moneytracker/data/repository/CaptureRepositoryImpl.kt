@@ -27,6 +27,8 @@ class CaptureRepositoryImpl @Inject constructor(
 
     override suspend fun setStatus(id: Long, status: CaptureStatus, expenseId: Long?) = dao.setStatus(id, status.name, expenseId)
 
+    override suspend fun dismissIfPending(id: Long) = dao.dismissIfPending(id) == 1
+
     override suspend fun ruleFor(merchantKey: String) = dao.ruleFor(merchantKey)
 
     override suspend fun saveRule(merchantKey: String, categoryId: Long) =

@@ -206,7 +206,7 @@ fun ExpenseListScreen(
                 }
             }
             state.sections.forEach { section ->
-                stickyHeader(key = "day-${section.date}") { DayHeader(section) }
+                stickyHeader(key = "day-${section.date}") { DayHeader(section, state.today) }
                 items(section.items, key = { it.key }) { item ->
                     when (item) {
                         is ExpenseItem -> SwipeToDelete(onDelete = { viewModel.delete(item.details.expense.id) }) {
@@ -324,9 +324,8 @@ private fun TotalText(total: Total) {
 }
 
 @Composable
-private fun DayHeader(section: DaySection) {
+private fun DayHeader(section: DaySection, today: LocalDate) {
     val locale = currentLocale()
-    val today = LocalDate.now()
     val label = when (section.date) {
         today -> stringResource(R.string.day_today)
         today.minusDays(1) -> stringResource(R.string.day_yesterday)

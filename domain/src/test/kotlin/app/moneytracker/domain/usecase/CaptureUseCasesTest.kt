@@ -154,6 +154,15 @@ class CaptureUseCasesTest {
     }
 
     @Test
+    fun `dismiss after add keeps the purchase confirmed`() = runTest {
+        val p = (capture(wallet()) as CaptureResult.Captured).purchase
+        val expenseId = confirm(p.id, categoryId = 2)!!
+        assertFalse(DismissCaptureUseCase(captures)(p.id))
+        assertEquals(CaptureStatus.CONFIRMED, captures.get(p.id)!!.status)
+        assertEquals(expenseId, captures.get(p.id)!!.expenseId)
+    }
+
+    @Test
     fun `dismiss keeps it out of pending`() = runTest {
         val p = (capture(wallet()) as CaptureResult.Captured).purchase
         DismissCaptureUseCase(captures)(p.id)

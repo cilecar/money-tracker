@@ -73,8 +73,8 @@ private fun Money.chartValue(): Double = amount.toDouble()
 
 /** Подписи оси Y: 950, 1,2k, 15k, 1,5M. */
 internal fun compactNumber(value: Double): String = when {
-    // День, где был только возврат, — ниже нуля.
-    value < 0 -> "−" + compactNumber(-value)
+    // День, где был только возврат, — ниже нуля. Между −1 и 0 — просто «0», а не «−0».
+    value <= -1 -> "−" + compactNumber(-value)
     value >= 1_000_000 -> trim(value / 1_000_000) + "M"
     value >= 1_000 -> trim(value / 1_000) + "k"
     else -> value.toLong().toString()
@@ -146,10 +146,12 @@ fun SpendingColumnChart(values: List<Money>, labels: List<String>, labelSpacing:
 @Composable
 fun ComparisonLineChart(current: List<Money>, previous: List<Money>, labels: List<String>, labelSpacing: Int, modifier: Modifier = Modifier) {
     val producer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(current, previous, labels) {
-        // Ось X — дни текущего периода: прошлый период длиннее (31 октября при ноябре) обрезаем,
-        // иначе для лишних точек нет подписи. Vico не принимает пустую серию — подставляем одну точку 0.
-        val prev = previous.take(labels.size).map { it.chartValue() }.ifEmpty { listOf(0.0) }
+    // Ось X — дни текущего периода: прошлый период длиннее (31 октября при ноябре) обрезаем,
+    // иначе для лишних точек нет подписи. Масштаб оси Y — тоже только по нарисованным точкам.
+    val shownPrevious = previous.take(labels.size)
+    LaunchedEffect(current, shownPrevious, labels) {
+        // Vico не принимает пустую серию — подставляем одну точку 0.
+        val prev = shownPrevious.map { it.chartValue() }.ifEmpty { listOf(0.0) }
         val cur = current.map { it.chartValue() }.ifEmpty { listOf(0.0) }
         producer.runTransaction {
             lineSeries {
@@ -161,8 +163,8 @@ fun ComparisonLineChart(current: List<Money>, previous: List<Money>, labels: Lis
     }
     val currentColor = MaterialTheme.colorScheme.primary
     val previousColor = MaterialTheme.colorScheme.outline
-    val maxY = (current + previous).maxOfOrNull { it.chartValue() } ?: 0.0
-    val minY = minOf(0.0, (current + previous).minOfOrNull { it.chartValue() } ?: 0.0)
+    val maxY = (current + shownPrevious).maxOfOrNull { it.chartValue() } ?: 0.0
+    val minY = minOf(0.0, (current + shownPrevious).minOfOrNull { it.chartValue() } ?: 0.0)
     ProvideVicoTheme(rememberM3VicoTheme()) {
         CartesianChartHost(
             chart = rememberCartesianChart(

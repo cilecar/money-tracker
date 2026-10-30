@@ -26,6 +26,11 @@ class FakeCaptureRepository : CaptureRepository {
     override suspend fun setStatus(id: Long, status: CaptureStatus, expenseId: Long?) {
         items.value = items.value.map { if (it.id == id) it.copy(status = status, expenseId = expenseId ?: it.expenseId) else it }
     }
+    override suspend fun dismissIfPending(id: Long): Boolean {
+        if (items.value.none { it.id == id && it.status == CaptureStatus.PENDING }) return false
+        setStatus(id, CaptureStatus.DISMISSED)
+        return true
+    }
     override suspend fun ruleFor(merchantKey: String) = rules[merchantKey]
     override suspend fun saveRule(merchantKey: String, categoryId: Long) {
         rules[merchantKey] = categoryId

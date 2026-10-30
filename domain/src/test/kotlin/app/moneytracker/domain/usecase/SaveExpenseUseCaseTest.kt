@@ -68,6 +68,15 @@ class SaveExpenseUseCaseTest {
         assertEquals(2000L, e.converted!!.eurMinor) // 2340 RSD / 117
     }
 
+    @Test
+    fun `saving an expense deleted while the editor was open saves it anew`() = runTest {
+        val id = save(input())
+        expenses.delete(id)
+        val again = save(input(id = id, amount = Money(500_00, CurrencyCode.RSD)))
+        assertEquals(Money(500_00, CurrencyCode.RSD), expenses.get(again)!!.amount)
+        assertEquals(1, expenses.items.value.size)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `zero amount is rejected`() = runTest {
         save(input(amount = Money.zero(CurrencyCode.RSD)))

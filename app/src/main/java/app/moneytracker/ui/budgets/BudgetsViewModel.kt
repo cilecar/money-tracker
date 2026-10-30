@@ -12,12 +12,14 @@ import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.SettingsRepository
 import app.moneytracker.domain.usecase.ObserveBudgetsUseCase
 import app.moneytracker.domain.usecase.SaveBudgetUseCase
+import app.moneytracker.domain.usecase.observeToday
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -62,30 +64,40 @@ class BudgetsViewModel @Inject constructor(
     private val clock: Clock,
 ) : ViewModel() {
 
-    private val month = MutableStateFlow(YearMonth.now(clock))
+    private val today = clock.observeToday()
+
+    /** null — текущий месяц: после полуночи 1-го он сменится сам. Пролистанный месяц остаётся. */
+    private val selected = MutableStateFlow<YearMonth?>(null)
+    private val month = combine(selected, today) { s, t -> s ?: YearMonth.from(t) }.distinctUntilChanged()
     private val draft = MutableStateFlow<BudgetDraft?>(null)
 
     val state: StateFlow<BudgetsUiState> = combine(
         month.flatMapLatest { observeBudgets(it) },
         month,
+        today,
         categories.observeAll(),
         draft,
-    ) { items, m, cats, d ->
+    ) { items, m, t, cats, d ->
         val used = items.map { it.budget.categoryId }.toSet()
         BudgetsUiState(
             loading = false,
             month = m,
-            today = LocalDate.now(clock),
+            today = t,
             // Сначала превышенные и близкие к лимиту — они важнее.
             items = items.sortedByDescending { it.ratio },
             freeCategories = cats.filter { it.id !in used },
             allCategories = cats,
             draft = d,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetsUiState(month = month.value, today = LocalDate.now(clock)))
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BudgetsUiState(month = YearMonth.now(clock), today = LocalDate.now(clock)))
 
-    fun previousMonth() = month.update { it.minusMonths(1) }
-    fun nextMonth() = month.update { if (it.isBefore(YearMonth.now(clock))) it.plusMonths(1) else it }
+    fun previousMonth() = selected.update { (it ?: YearMonth.now(clock)).minusMonths(1) }
+
+    /** Дальше текущего не листаем; дошли до него — снова «текущий», чтобы он менялся в полночь. */
+    fun nextMonth() = selected.update { s ->
+        val next = s?.plusMonths(1) ?: return@update null
+        if (next.isBefore(YearMonth.now(clock))) next else null
+    }
 
     fun openNew() {
         viewModelScope.launch {

@@ -33,7 +33,9 @@ class SaveExpenseUseCase @Inject constructor(
         val now = clock.instant()
         val zone = clock.zone
 
-        val id = if (input.id == 0L) {
+        // Расход могли удалить, пока был открыт редактор: тогда сохраняем его как новый — правки не теряем.
+        val old = if (input.id != 0L) expenses.get(input.id) else null
+        val id = if (old == null) {
             // Новый расход: фиксируем текущие курсы (или null, если их ещё нет).
             expenses.insert(
                 Expense.create(
@@ -49,7 +51,6 @@ class SaveExpenseUseCase @Inject constructor(
                 ),
             )
         } else {
-            val old = requireNotNull(expenses.get(input.id)) { "Expense ${input.id} not found" }
             // Редактирование: снапшот курса остаётся прежним при любых изменениях.
             var updated = old
             if (input.occurredAt != old.occurredAt) updated = updated.withOccurredAt(input.occurredAt, zone, now)

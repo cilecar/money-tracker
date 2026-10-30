@@ -17,6 +17,9 @@ interface CaptureRepository {
 
     suspend fun setStatus(id: Long, status: CaptureStatus, expenseId: Long? = null)
 
+    /** «Скрыть» — только если покупка ещё ждёт: уже добавленную не перебиваем. @return false, если не ждала. */
+    suspend fun dismissIfPending(id: Long): Boolean
+
     /** Категория, выбранная для мерчанта в прошлый раз. */
     suspend fun ruleFor(merchantKey: String): Long?
 

@@ -131,6 +131,7 @@ class ConfirmCaptureUseCase @Inject constructor(
     }
 }
 
+/** «Скрыть». Одной операцией в базе: «Добавить», нажатое почти одновременно, не будет перебито. */
 class DismissCaptureUseCase @Inject constructor(private val captures: CaptureRepository) {
-    suspend operator fun invoke(captureId: Long) = captures.setStatus(captureId, CaptureStatus.DISMISSED)
+    suspend operator fun invoke(captureId: Long): Boolean = captures.dismissIfPending(captureId)
 }
