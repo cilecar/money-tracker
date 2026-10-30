@@ -59,7 +59,10 @@ class NotificationDebugStore @Inject constructor(@ApplicationContext context: Co
 
     suspend fun add(n: RawNotification) = mutex.withLock {
         val entry = DebugNotification(n.packageName, n.key, n.title, n.text, n.bigText, n.subText, n.postedAt.toString())
-        write((listOf(entry) + ensureLoaded()).take(LIMIT))
+        // Wallet публикует одно и то же уведомление повторно (тот же key и postTime) — копия примеру не нужна.
+        val current = ensureLoaded()
+        if (entry in current) return@withLock
+        write((listOf(entry) + current).take(LIMIT))
     }
 
     suspend fun clear() = mutex.withLock { write(emptyList()) }

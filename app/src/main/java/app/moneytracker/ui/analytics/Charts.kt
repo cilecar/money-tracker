@@ -57,6 +57,7 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.Fill
 import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
+import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
 import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import kotlin.math.atan2
@@ -85,12 +86,27 @@ fun formatShare(share: Float): String = when {
 
 private fun trim(v: Double): String = if (v < 10) "%.1f".format(v).trimEnd('0').trimEnd('.', ',') else v.toLong().toString()
 
+/**
+ * Подписи оси X едут в модели вместе с сериями, а не замыканием из композиции: при смене периода
+ * (31 день → 7) новые подписи приходили раньше новых данных, и для x ≥ 7 форматтер отдавал "" —
+ * Vico на пустой подписи падает. Запасной вариант тоже не пустой.
+ */
+private val XLabelsKey = ExtraStore.Key<List<String>>()
+
+private val XLabelFormatter = CartesianValueFormatter { context, x, _ ->
+    context.model.extraStore.getOrNull(XLabelsKey)?.getOrNull(x.toInt())?.takeIf { it.isNotBlank() }
+        ?: (x.toInt() + 1).toString()
+}
+
 /** 1. Расходы по дням/месяцам — столбцы. */
 @Composable
 fun SpendingColumnChart(values: List<Money>, labels: List<String>, labelSpacing: Int, modifier: Modifier = Modifier) {
     val producer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(values) {
-        producer.runTransaction { columnSeries { series(values.map { it.chartValue() }) } }
+    LaunchedEffect(values, labels) {
+        producer.runTransaction {
+            columnSeries { series(values.map { it.chartValue() }) }
+            extras { it[XLabelsKey] = labels }
+        }
     }
     val color = MaterialTheme.colorScheme.primary
     val maxY = values.maxOfOrNull { it.chartValue() } ?: 0.0
@@ -109,7 +125,7 @@ fun SpendingColumnChart(values: List<Money>, labels: List<String>, labelSpacing:
                     itemPlacer = remember { VerticalAxis.ItemPlacer.count({ 4 }) },
                 ),
                 bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = remember(labels) { CartesianValueFormatter { _, x, _ -> labels.getOrElse(x.toInt()) { "" } } },
+                    valueFormatter = XLabelFormatter,
                     itemPlacer = remember(labelSpacing) { HorizontalAxis.ItemPlacer.aligned(spacing = { labelSpacing }) },
                     guideline = null,
                 ),
@@ -127,15 +143,17 @@ fun SpendingColumnChart(values: List<Money>, labels: List<String>, labelSpacing:
 @Composable
 fun ComparisonLineChart(current: List<Money>, previous: List<Money>, labels: List<String>, labelSpacing: Int, modifier: Modifier = Modifier) {
     val producer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(current, previous) {
-        // Vico не принимает пустую серию — подставляем одну точку 0.
-        val prev = previous.map { it.chartValue() }.ifEmpty { listOf(0.0) }
+    LaunchedEffect(current, previous, labels) {
+        // Ось X — дни текущего периода: прошлый период длиннее (31 октября при ноябре) обрезаем,
+        // иначе для лишних точек нет подписи. Vico не принимает пустую серию — подставляем одну точку 0.
+        val prev = previous.take(labels.size).map { it.chartValue() }.ifEmpty { listOf(0.0) }
         val cur = current.map { it.chartValue() }.ifEmpty { listOf(0.0) }
         producer.runTransaction {
             lineSeries {
                 series(prev)
                 series(cur)
             }
+            extras { it[XLabelsKey] = labels }
         }
     }
     val currentColor = MaterialTheme.colorScheme.primary
@@ -162,7 +180,7 @@ fun ComparisonLineChart(current: List<Money>, previous: List<Money>, labels: Lis
                     itemPlacer = remember { VerticalAxis.ItemPlacer.count({ 4 }) },
                 ),
                 bottomAxis = HorizontalAxis.rememberBottom(
-                    valueFormatter = remember(labels) { CartesianValueFormatter { _, x, _ -> labels.getOrElse(x.toInt()) { "" } } },
+                    valueFormatter = XLabelFormatter,
                     itemPlacer = remember(labelSpacing) { HorizontalAxis.ItemPlacer.aligned(spacing = { labelSpacing }) },
                     guideline = null,
                 ),

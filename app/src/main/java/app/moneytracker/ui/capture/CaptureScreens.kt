@@ -208,7 +208,8 @@ fun CaptureDebugScreen(onBack: () -> Unit, viewModel: CaptureDebugViewModel = hi
             return@BackScaffold
         }
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(list, key = { it.key + it.postedAt }) { n ->
+            // Без key: у обновлённого уведомления key и postTime те же, а текст другой — ключ не уникален.
+            items(list) { n ->
                 Card {
                     Row(Modifier.padding(12.dp)) {
                         SelectionContainer(Modifier.weight(1f)) {
