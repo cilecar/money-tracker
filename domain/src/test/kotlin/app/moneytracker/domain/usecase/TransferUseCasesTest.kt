@@ -62,6 +62,20 @@ class TransferUseCasesTest {
     }
 
     @Test
+    fun `moving the transfer to another source account resets the fee's debited amount`() = runTest {
+        val revolut = accounts.upsert(Account(name = "Revolut", type = AccountType.CARD, currency = CurrencyCode.EUR, openingDate = opening))
+        val id = exchange(fee = eur(1_50))
+        val feeId = transfers.get(id)!!.feeExpenseId!!
+        // Сумма списания в валюте счёта (из импорта) — относится к старому счёту.
+        expenses.update(expenses.get(feeId)!!.copy(accountAmountMinor = 1_49))
+
+        save(TransferInput(id = id, fromAccountId = revolut, toAccountId = 2, fromAmount = eur(100_00), toAmount = rsd(11650_00), fee = eur(1_50), occurredAt = now))
+        val fee = expenses.get(feeId)!!
+        assertEquals(revolut, fee.accountId)
+        assertNull(fee.accountAmountMinor)
+    }
+
+    @Test
     fun `usdt to rsd exchange keeps both amounts as entered`() = runTest {
         rates.setManualRate(CurrencyCode.RSD, BigDecimal("117.15"), LocalDate.of(2026, 10, 14))
         rates.setManualRate(CurrencyCode.RUB, BigDecimal("95"), LocalDate.of(2026, 10, 14))

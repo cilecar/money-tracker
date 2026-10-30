@@ -86,7 +86,13 @@ class SaveTransferUseCase @Inject constructor(
                 var e = oldFee
                 if (e.amount != amount) e = e.withAmount(amount, now)
                 if (e.occurredAt != transfer.occurredAt) e = e.withOccurredAt(transfer.occurredAt, zone, now)
-                e.copy(accountId = from.id, comment = transfer.comment, updatedAt = now)
+                // Сумма списания в валюте счёта относится к старому счёту — как в SaveExpenseUseCase.
+                e.copy(
+                    accountId = from.id,
+                    accountAmountMinor = e.accountAmountMinor.takeIf { from.id == oldFee.accountId },
+                    comment = transfer.comment,
+                    updatedAt = now,
+                )
             } else {
                 Expense.create(amount, feesCategoryId(), from.id, transfer.occurredAt, zone, transfer.apiRates ?: rates.current()?.snapshot, now, transfer.comment)
             }
