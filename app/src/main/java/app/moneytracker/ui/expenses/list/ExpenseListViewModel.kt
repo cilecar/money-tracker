@@ -50,7 +50,6 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Clock
 import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
@@ -91,7 +90,6 @@ class ExpenseListViewModel @Inject constructor(
     categoryRepository: CategoryRepository,
     accountRepository: AccountRepository,
     private val settingsRepository: SettingsRepository,
-    clock: Clock,
     private val defaultNames: DefaultNames,
     private val checkBudgets: CheckBudgetsUseCase,
     private val incomes: IncomeRepository,
@@ -103,8 +101,6 @@ class ExpenseListViewModel @Inject constructor(
     private val deleteTransfer: DeleteTransferUseCase,
     captures: CaptureRepository,
 ) : ViewModel() {
-
-    private val month = YearMonth.now(clock)
 
     /**
      * Аргументы [FilteredExpensesRoute] лежат в SavedStateHandle под именами полей.
@@ -178,7 +174,8 @@ class ExpenseListViewModel @Inject constructor(
             loading = false,
             sections = ExpenseSections.byDay(ops, cats.associateBy { it.id }, methods.associateBy { it.id }, incomeCats.associateBy { it.id }, currency),
             displayCurrency = currency,
-            month = month,
+            // Месяц — из сводки: после полуночи 1-го числа он сменится вместе с ней.
+            month = summary.month,
             // Сводка — в валюте отображения; пока она не пересчиталась после смены валюты, не показываем старую.
             monthSummary = summary.takeIf { it.remaining.currency == currency },
             filteredTotal = if (active) Total.spending(ops.expenses, ops.refunds, currency) else null,
