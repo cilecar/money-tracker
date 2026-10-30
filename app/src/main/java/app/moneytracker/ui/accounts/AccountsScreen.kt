@@ -364,7 +364,8 @@ private fun ReconcileDialog(d: ReconcileDraft, viewModel: AccountsViewModel) {
         confirmButton = {
             TextButton(
                 onClick = { viewModel.confirmReconcile(comment) },
-                enabled = d.actualText.isNotBlank() && difference != null && !difference.isZero,
+                // Приблизительный остаток не сверяем — см. ReconcileAccountUseCase.
+                enabled = d.balance.isExact && d.actualText.isNotBlank() && difference != null && !difference.isZero,
             ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = { TextButton(onClick = viewModel::closeReconcile) { Text(stringResource(R.string.action_cancel)) } },

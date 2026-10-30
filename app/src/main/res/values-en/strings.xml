@@ -156,7 +156,7 @@
     <string name="account_reconcile_actual">Actual balance</string>
     <string name="account_reconcile_difference">Adjustment: %1$s</string>
     <string name="account_reconcile_same">The balance matches</string>
-    <string name="account_reconcile_inexact">Some operations have no rate — the calculated balance is approximate</string>
+    <string name="account_reconcile_inexact">Some operations have no rate, so the balance is approximate. You can reconcile once rates are loaded or entered manually in Exchange rates; otherwise such an operation would be counted twice.</string>
     <string name="account_reconcile_hint">The difference is recorded as an adjustment — neither an expense nor income</string>
     <string name="account_adjustment_comment">Reconciliation</string>
     <string name="account_delete_title">Delete “%1$s”?</string>

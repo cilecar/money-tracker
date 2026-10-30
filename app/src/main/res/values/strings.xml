@@ -174,7 +174,7 @@
     <string name="account_reconcile_actual">Фактический остаток</string>
     <string name="account_reconcile_difference">Корректировка: %1$s</string>
     <string name="account_reconcile_same">Остаток совпадает</string>
-    <string name="account_reconcile_inexact">Часть операций без курса — остаток по записям приблизительный</string>
+    <string name="account_reconcile_inexact">Часть операций без курса — остаток приблизительный. Сверить можно, когда курсы загрузятся или будут введены вручную в «Курсах валют»: иначе такая операция учтётся дважды.</string>
     <string name="account_reconcile_hint">Разница запишется корректировкой — это не расход и не доход</string>
     <string name="account_adjustment_comment">Сверка</string>
     <string name="account_delete_title">Удалить «%1$s»?</string>

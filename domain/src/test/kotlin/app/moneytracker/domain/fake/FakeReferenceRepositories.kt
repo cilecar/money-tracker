@@ -75,12 +75,14 @@ class FakeAccountRepository(initial: List<Account> = emptyList()) : AccountRepos
 
     /** Расходы по счёту в его валюте — вместо SQL-запроса баланса. */
     val spent = mutableMapOf<Long, Long>()
+    /** Операции без курса по счёту — остаток приблизительный. */
+    val unconverted = mutableMapOf<Long, Int>()
     val adjustments = MutableStateFlow<List<BalanceAdjustment>>(emptyList())
 
     override fun observeBalances(): Flow<List<AccountBalance>> = combine(items, adjustments) { accounts, adj ->
         accounts.map { a ->
             val minor = a.openingBalance.minor - (spent[a.id] ?: 0) + adj.filter { it.accountId == a.id }.sumOf { it.amount.minor }
-            AccountBalance(a, Money(minor, a.currency))
+            AccountBalance(a, Money(minor, a.currency), unconverted[a.id] ?: 0)
         }
     }
     override suspend fun hasOperations(id: Long) = (expenseCounts[id] ?: 0) > 0 || adjustments.value.any { it.accountId == id }

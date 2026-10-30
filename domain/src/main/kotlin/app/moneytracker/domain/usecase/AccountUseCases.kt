@@ -99,12 +99,17 @@ class ReconcileAccountUseCase @Inject constructor(
     private val repository: AccountRepository,
     private val clock: Clock,
 ) {
-    /** @return созданная корректировка или null, если остаток уже совпадает. */
+    /**
+     * @return созданная корректировка или null, если остаток уже совпадает или он приблизительный.
+     * Приблизительный (есть операции без курса) не сверяем: корректировка «съела» бы такую операцию,
+     * а когда курс подтянется, она войдёт в остаток второй раз.
+     */
     suspend operator fun invoke(accountId: Long, actual: Money, comment: String? = null): BalanceAdjustment? {
         val current = requireNotNull(repository.observeBalances().first().firstOrNull { it.account.id == accountId }) {
             "Account $accountId not found"
         }
         require(actual.currency == current.account.currency) { "Balance must be in ${current.account.currency}" }
+        if (!current.isExact) return null
         val difference = actual - current.balance
         if (difference.isZero) return null
         val now = clock.instant()

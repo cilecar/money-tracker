@@ -101,6 +101,15 @@ class AccountUseCasesTest {
     }
 
     @Test
+    fun `approximate balance is not reconciled`() = runTest {
+        // Расход в другой валюте ждёт курса: корректировка «съела» бы его, а с курсом он учёлся бы второй раз.
+        val reconcile = ReconcileAccountUseCase(repo, Clock.systemUTC())
+        repo.unconverted[1] = 1
+        assertNull(reconcile(1, Money(-200_00, CurrencyCode.RSD)))
+        assertTrue(repo.adjustments.value.isEmpty())
+    }
+
+    @Test
     fun `accounts total converts by current rates and flags missing ones`() {
         val rates = RateSnapshot(BigDecimal("117"), BigDecimal("95"), OPENING)
         val rsd = AccountBalance(repo.items.value[0], Money(1170_00, CurrencyCode.RSD))
