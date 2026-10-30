@@ -295,6 +295,10 @@
     </plurals>
     <string name="data_csv_created_categories">Categories created: %1$d</string>
     <string name="data_csv_created_methods">Accounts created: %1$d</string>
+    <plurals name="data_csv_before_opening">
+        <item quantity="one">%1$d expense predates its account\'s opening date and is not in the balance: it is already part of the opening balance</item>
+        <item quantity="other">%1$d expenses predate their account\'s opening date and are not in the balance: they are already part of the opening balance</item>
+    </plurals>
     <plurals name="data_csv_errors">
         <item quantity="one">%1$d row with an error:</item>
         <item quantity="other">%1$d rows with errors:</item>

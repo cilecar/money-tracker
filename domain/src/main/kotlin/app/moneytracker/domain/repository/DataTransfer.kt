@@ -18,6 +18,11 @@ data class CsvImportResult(
     val createdCategories: Int,
     val createdAccounts: Int,
     val errors: List<CsvRowError>,
+    /**
+     * Импортированы, но раньше даты открытия своего (уже существовавшего) счёта: в остаток не входят,
+     * они уже учтены в начальном остатке. В ленте и аналитике видны.
+     */
+    val beforeOpeningDate: Int = 0,
 )
 
 data class JsonImportResult(val expenses: Int, val categories: Int, val accounts: Int, val budgets: Int, val recurring: Int)

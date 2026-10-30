@@ -332,6 +332,12 @@
     </plurals>
     <string name="data_csv_created_categories">Создано категорий: %1$d</string>
     <string name="data_csv_created_methods">Создано счетов: %1$d</string>
+    <plurals name="data_csv_before_opening">
+        <item quantity="one">%1$d расход раньше даты открытия счёта — в остаток не вошёл: он уже учтён в начальном остатке</item>
+        <item quantity="few">%1$d расхода раньше даты открытия счёта — в остаток не вошли: они уже учтены в начальном остатке</item>
+        <item quantity="many">%1$d расходов раньше даты открытия счёта — в остаток не вошли: они уже учтены в начальном остатке</item>
+        <item quantity="other">%1$d расхода раньше даты открытия счёта — в остаток не вошли: они уже учтены в начальном остатке</item>
+    </plurals>
     <plurals name="data_csv_errors">
         <item quantity="one">%1$d строка с ошибкой:</item>
         <item quantity="few">%1$d строки с ошибками:</item>

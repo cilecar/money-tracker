@@ -147,6 +147,7 @@ class DataTransferImpl @Inject constructor(
         var imported = 0
         var duplicates = 0
         var createdMethods = 0
+        var beforeOpening = 0
         // Начальная дата нового счёта — самый ранний расход из файла, иначе его же расходы не попали бы в баланс.
         val createdOpening = mutableMapOf<Long, LocalDate>()
         val errors = mutableListOf<CsvRowError>()
@@ -227,12 +228,14 @@ class DataTransferImpl @Inject constructor(
                 )
                 db.expenseDao().insertWithTags(expense.toEntity(), expense.tags)
                 imported++
+                // У созданного счёта дата открытия ниже сдвинется на самый ранний расход; у существующего — нет.
+                if (methodId !in createdOpening && expense.localDate < methods.first { it.id == methodId }.openingDate) beforeOpening++
             }
             createdOpening.forEach { (id, date) ->
                 methods.first { it.id == id }.let { db.accountDao().upsert(it.copy(openingDate = date)) }
             }
         }
-        CsvImportResult(imported, duplicates, categories.created, createdMethods, errors)
+        CsvImportResult(imported, duplicates, categories.created, createdMethods, errors, beforeOpening)
     }
 
     /** Поиск категории по имени (и по переводу для категорий по умолчанию) с созданием недостающих. */

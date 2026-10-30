@@ -499,6 +499,28 @@ class DataTransferTest {
         assertEquals(LocalDate.of(2026, 9, 1), revolut.openingDate)
     }
 
+    /** Расходы до даты открытия существующего счёта уже учтены в начальном остатке — импорт говорит об этом, а не молчит. */
+    @Test
+    fun csvCountsExpensesBeforeOpeningDateOfExistingAccount() = runTest {
+        val env = Env()
+        env.db.accountDao().upsert(
+            app.moneytracker.data.db.entity.AccountEntity(
+                id = 0, name = "Intesa", type = app.moneytracker.domain.model.AccountType.CARD, currency = CurrencyCode.RSD,
+                openingBalanceMinor = 0, openingDate = LocalDate.of(2026, 10, 10), defaultKey = null, sortOrder = 9, archived = false,
+            ),
+        )
+        val csv = """
+            date,amount,currency,category,account
+            2026-10-12 12:00,10,RSD,Еда,Intesa
+            2026-09-01 12:00,5,RSD,Еда,Intesa
+            2026-08-01 12:00,7,EUR,Еда,Новый
+        """.trimIndent()
+        val result = env.transfer.importCsv(ByteArrayInputStream(csv.toByteArray()))
+        assertEquals(3, result.imported)
+        // У созданного счёта дата открытия сдвигается на самый ранний расход — он не в счёт.
+        assertEquals(1, result.beforeOpeningDate)
+    }
+
     @Test
     fun jsonRoundTripKeepsIncomesAndRefunds() = runTest {
         val source = Env()
