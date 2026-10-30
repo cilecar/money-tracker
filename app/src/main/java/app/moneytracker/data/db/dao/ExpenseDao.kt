@@ -85,6 +85,25 @@ abstract class ExpenseDao {
     @Query("DELETE FROM expense WHERE id = :id")
     abstract suspend fun delete(id: Long)
 
+    // Ссылки на расход с ON DELETE SET NULL — запоминаем перед удалением, чтобы «Отменить» их вернул.
+    @Query("SELECT id FROM refund WHERE expense_id = :id")
+    abstract suspend fun refundIdsFor(id: Long): List<Long>
+
+    @Query("SELECT id FROM transfer WHERE fee_expense_id = :id")
+    abstract suspend fun transferIdsWithFee(id: Long): List<Long>
+
+    @Query("SELECT id FROM captured_purchase WHERE expense_id = :id")
+    abstract suspend fun captureIdsFor(id: Long): List<Long>
+
+    @Query("UPDATE refund SET expense_id = :id WHERE id IN (:refundIds) AND expense_id IS NULL")
+    abstract suspend fun relinkRefunds(id: Long, refundIds: List<Long>)
+
+    @Query("UPDATE transfer SET fee_expense_id = :id WHERE id IN (:transferIds) AND fee_expense_id IS NULL")
+    abstract suspend fun relinkTransferFees(id: Long, transferIds: List<Long>)
+
+    @Query("UPDATE captured_purchase SET expense_id = :id WHERE id IN (:captureIds) AND expense_id IS NULL")
+    abstract suspend fun relinkCaptures(id: Long, captureIds: List<Long>)
+
     /**
      * Compare-and-set: пишем только колонки курсов и только пока у строки нет курса и сумма та же,
      * что была прочитана. Так параллельная правка пользователя не откатывается. @return 0 или 1.

@@ -8,6 +8,7 @@ import app.moneytracker.domain.model.AppSettings
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.DaySection
+import app.moneytracker.domain.model.DeletedExpense
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
 import app.moneytracker.domain.model.ExpenseSections
@@ -76,7 +77,7 @@ data class ExpenseListUiState(
 )
 
 sealed interface ExpenseListEvent {
-    data class Deleted(val expense: Expense) : ExpenseListEvent
+    data class Deleted(val deleted: DeletedExpense) : ExpenseListEvent
     data class IncomeDeleted(val income: Income) : ExpenseListEvent
     data class RefundDeleted(val refund: Refund) : ExpenseListEvent
     data class TransferDeleted(val transfer: Transfer, val fee: Expense?) : ExpenseListEvent
@@ -221,18 +222,17 @@ class ExpenseListViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setDisplayCurrency(currency) }
     }
 
-    /** Удаляем сразу, а копию отдаём в Snackbar: «Отменить» вставит её обратно с тем же id. */
+    /** Удаляем сразу, а копию отдаём в Snackbar: «Отменить» вставит её обратно с тем же id и прежними ссылками. */
     fun delete(id: Long) {
         viewModelScope.launch {
-            val expense = expenses.get(id) ?: return@launch
-            expenses.delete(id)
-            _events.send(ExpenseListEvent.Deleted(expense))
+            val deleted = expenses.deleteForUndo(id) ?: return@launch
+            _events.send(ExpenseListEvent.Deleted(deleted))
         }
     }
 
-    fun restore(expense: Expense) {
+    fun restore(deleted: DeletedExpense) {
         viewModelScope.launch {
-            expenses.insert(expense)
+            expenses.restore(deleted)
             checkBudgets()
         }
     }

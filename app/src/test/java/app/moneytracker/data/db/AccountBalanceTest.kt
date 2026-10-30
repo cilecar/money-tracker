@@ -168,6 +168,37 @@ class AccountBalanceTest {
         assertEquals(Money(5_00, CurrencyCode.EUR), balance(id).balance)
     }
 
+    /** «Отменить» после удаления: расход возвращается с тем же id, и всё, что на него ссылалось (SET NULL), — тоже. */
+    @Test
+    fun undoDeleteRestoresLinksToTheExpense() = runTest {
+        val id = card(opening = 100_00)
+        val cash = rsdCash()
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db.refundDao())
+        val captures = app.moneytracker.data.repository.CaptureRepositoryImpl(db.captureDao(), clock)
+        val e = spend(id, Money(30_00, CurrencyCode.EUR), "2026-10-02T10:00:00Z")
+        val r = refunds.insert(app.moneytracker.domain.model.Refund.create(Money(5_00, CurrencyCode.EUR), id, e, 1, Instant.parse("2026-10-04T10:00:00Z"), zone, null, clock.instant()))
+        val c = captures.insert(
+            app.moneytracker.domain.capture.CapturedPurchase(
+                source = "wallet", amount = Money(30_00, CurrencyCode.EUR), merchant = "Maxi", merchantKey = "maxi", cardSuffix = null,
+                occurredAt = Instant.parse("2026-10-02T10:00:00Z"), notificationKey = "k", createdAt = clock.instant(),
+            ),
+        )
+        captures.setStatus(c, app.moneytracker.domain.capture.CaptureStatus.CONFIRMED, e)
+        val fee = Expense.create(Money(1_50, CurrencyCode.EUR), 1, id, Instant.parse("2026-10-05T10:00:00Z"), zone, rates, clock.instant())
+        val t = transfers.save(transfer(id, cash, Money(10_00, CurrencyCode.EUR), Money(1165_00, CurrencyCode.RSD)), fee)
+        val feeId = transfers.get(t)!!.feeExpenseId!!
+
+        val deleted = expenses.deleteForUndo(e)!!
+        assertNull(refunds.get(r)!!.expenseId)
+        expenses.restore(deleted)
+        assertEquals(e, refunds.get(r)!!.expenseId)
+        assertEquals(e, captures.get(c)!!.expenseId)
+
+        expenses.restore(expenses.deleteForUndo(feeId)!!)
+        assertEquals(feeId, transfers.get(t)!!.feeExpenseId)
+        assertEquals(Money(100_00 - 30_00 + 5_00 - 10_00 - 1_50, CurrencyCode.EUR), balance(id).balance)
+    }
+
     private val transfers by lazy { app.moneytracker.data.repository.TransferRepositoryImpl(db) }
 
     private suspend fun rsdCash(opening: Long = 0) = accounts.upsert(

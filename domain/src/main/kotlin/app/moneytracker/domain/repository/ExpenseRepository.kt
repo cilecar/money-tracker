@@ -1,5 +1,6 @@
 package app.moneytracker.domain.repository
 
+import app.moneytracker.domain.model.DeletedExpense
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
 import kotlinx.coroutines.flow.Flow
@@ -39,4 +40,13 @@ interface ExpenseRepository {
     suspend fun fillRates(expense: Expense): Boolean
 
     suspend fun delete(id: Long)
+
+    /** Удаление с запоминанием ссылок на расход — для «Отменить». @return null, если расхода уже нет. */
+    suspend fun deleteForUndo(id: Long): DeletedExpense?
+
+    /**
+     * «Отменить»: расход с тем же id и восстановленные ссылки. Ссылку, которую за это время заняли
+     * (у перевода уже другая комиссия) или чей владелец удалён, не трогаем.
+     */
+    suspend fun restore(deleted: DeletedExpense)
 }

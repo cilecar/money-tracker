@@ -6,6 +6,7 @@ import app.moneytracker.data.db.ExpenseQueries
 import app.moneytracker.data.db.dao.ExpenseDao
 import app.moneytracker.data.db.toDomain
 import app.moneytracker.data.db.toEntity
+import app.moneytracker.domain.model.DeletedExpense
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
 import app.moneytracker.domain.model.usableFor
@@ -78,4 +79,20 @@ class ExpenseRepositoryImpl @Inject constructor(
     }
 
     override suspend fun delete(id: Long) = dao.delete(id)
+
+    override suspend fun deleteForUndo(id: Long): DeletedExpense? = db.withTransaction {
+        val expense = dao.get(id)?.toDomain() ?: return@withTransaction null
+        val deleted = DeletedExpense(expense, dao.refundIdsFor(id), dao.transferIdsWithFee(id), dao.captureIdsFor(id))
+        dao.delete(id)
+        deleted
+    }
+
+    override suspend fun restore(deleted: DeletedExpense) {
+        db.withTransaction {
+            val id = insert(deleted.expense)
+            dao.relinkRefunds(id, deleted.refundIds)
+            dao.relinkTransferFees(id, deleted.feeOfTransferIds)
+            dao.relinkCaptures(id, deleted.captureIds)
+        }
+    }
 }

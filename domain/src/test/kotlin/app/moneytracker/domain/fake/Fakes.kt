@@ -4,6 +4,7 @@ import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.CurrentRates
 import app.moneytracker.domain.model.ExchangeRate
 import app.moneytracker.domain.model.AppSettings
+import app.moneytracker.domain.model.DeletedExpense
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
 import app.moneytracker.domain.model.ThemeMode
@@ -52,6 +53,8 @@ class FakeExpenseRepository : ExpenseRepository {
         return true
     }
     override suspend fun delete(id: Long) { items.value -= id }
+    override suspend fun deleteForUndo(id: Long): DeletedExpense? = items.value[id]?.let { DeletedExpense(it) }.also { delete(id) }
+    override suspend fun restore(deleted: DeletedExpense) { insert(deleted.expense) }
 }
 
 class FakeExchangeRateRepository(private val clock: Clock) : ExchangeRateRepository {

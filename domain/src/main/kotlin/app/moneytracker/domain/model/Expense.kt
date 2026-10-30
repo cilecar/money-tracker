@@ -92,3 +92,15 @@ data class Expense(
             tags.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }
     }
 }
+
+/**
+ * Удалённый расход и то, что на него ссылалось: при удалении эти ссылки обнуляются (SET NULL),
+ * и «Отменить» без них вернул бы расход, но не его возвраты, комиссию перевода и покупку из уведомления.
+ */
+data class DeletedExpense(
+    val expense: Expense,
+    val refundIds: List<Long> = emptyList(),
+    /** Переводы, у которых этот расход был комиссией. */
+    val feeOfTransferIds: List<Long> = emptyList(),
+    val captureIds: List<Long> = emptyList(),
+)

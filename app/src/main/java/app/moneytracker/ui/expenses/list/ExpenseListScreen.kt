@@ -122,7 +122,7 @@ fun ExpenseListScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is ExpenseListEvent.Deleted -> scope.launch {
-                    if (undo(snackbar, resources.getString(R.string.expense_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.expense)
+                    if (undo(snackbar, resources.getString(R.string.expense_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.deleted)
                 }
                 is ExpenseListEvent.IncomeDeleted -> scope.launch {
                     if (undo(snackbar, resources.getString(R.string.income_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.income)
