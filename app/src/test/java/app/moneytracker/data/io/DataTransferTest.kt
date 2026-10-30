@@ -99,7 +99,7 @@ class DataTransferTest {
         val runRecurring = RunRecurringUseCase(
             recurring,
             rateRepo,
-            CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories, RefundRepositoryImpl(db.refundDao())), budgets, NoNotifier, clock),
+            CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories, RefundRepositoryImpl(db, db.refundDao())), budgets, NoNotifier, clock),
             clock,
         )
         val transfer = DataTransferImpl(
@@ -506,8 +506,8 @@ class DataTransferTest {
         val incomeCats = source.db.incomeCategoryDao()
         val freelance = incomeCats.getAll(true).first { it.defaultKey == "freelance" }
         incomeCats.upsert(freelance.copy(name = "Заказы", defaultKey = null, archived = true))
-        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(source.db.incomeDao())
-        val refunds = RefundRepositoryImpl(source.db.refundDao())
+        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(source.db, source.db.incomeDao())
+        val refunds = RefundRepositoryImpl(source.db, source.db.refundDao())
         incomes.insert(app.moneytracker.domain.model.Income.create(Money(500000, CurrencyCode.RSD), 1, freelance.id, Instant.parse("2026-10-03T10:00:00Z"), zone, rates, clock.instant(), "аванс"))
         refunds.insert(app.moneytracker.domain.model.Refund.create(Money(300, CurrencyCode.EUR), 1, e, 1, Instant.parse("2026-10-04T10:00:00Z"), zone, null, clock.instant()))
 

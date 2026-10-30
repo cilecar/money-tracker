@@ -98,7 +98,7 @@ class CategoryRepositoryTest {
     /** Возврат ссылается на категорию (RESTRICT): без переноса удаление упало бы на внешнем ключе. */
     @Test
     fun deleteWithMoveCarriesRefunds() = runTest {
-        val refunds = RefundRepositoryImpl(db.refundDao())
+        val refunds = RefundRepositoryImpl(db, db.refundDao())
         val r = refunds.insert(
             app.moneytracker.domain.model.Refund.create(
                 app.moneytracker.domain.model.Money(100, CurrencyCode.RSD), 1, null, 2, java.time.Instant.parse("2026-10-01T10:00:00Z"),

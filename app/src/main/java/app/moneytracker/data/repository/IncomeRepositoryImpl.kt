@@ -1,5 +1,7 @@
 package app.moneytracker.data.repository
 
+import androidx.room.withTransaction
+import app.moneytracker.data.db.AppDatabase
 import app.moneytracker.data.db.dao.IncomeCategoryDao
 import app.moneytracker.data.db.dao.IncomeDao
 import app.moneytracker.data.db.dao.RefundDao
@@ -8,6 +10,7 @@ import app.moneytracker.data.db.toEntity
 import app.moneytracker.domain.model.Income
 import app.moneytracker.domain.model.IncomeCategory
 import app.moneytracker.domain.model.Refund
+import app.moneytracker.domain.model.usableFor
 import app.moneytracker.domain.repository.IncomeCategoryRepository
 import app.moneytracker.domain.repository.IncomeRepository
 import app.moneytracker.domain.repository.RefundRepository
@@ -18,7 +21,7 @@ import javax.inject.Inject
 
 private fun LocalDate?.dayOr(default: Long) = this?.toEpochDay() ?: default
 
-class IncomeRepositoryImpl @Inject constructor(private val dao: IncomeDao) : IncomeRepository {
+class IncomeRepositoryImpl @Inject constructor(private val db: AppDatabase, private val dao: IncomeDao) : IncomeRepository {
     override fun observeBetween(from: LocalDate?, to: LocalDate?): Flow<List<Income>> =
         dao.observeBetween(from.dayOr(Long.MIN_VALUE), to.dayOr(Long.MAX_VALUE)).map { list -> list.map { it.toDomain() } }
 
@@ -26,7 +29,13 @@ class IncomeRepositoryImpl @Inject constructor(private val dao: IncomeDao) : Inc
 
     override suspend fun insert(income: Income): Long = dao.insert(income.toEntity())
 
-    override suspend fun update(income: Income) = dao.update(income.toEntity())
+    /** Как [ExpenseRepositoryImpl.update]: копия без курса не затирает курс, записанный после чтения. */
+    override suspend fun update(income: Income) {
+        db.withTransaction {
+            val stored = if (income.rates == null) dao.get(income.id)?.toDomain()?.rates.usableFor(income.amount.currency) else null
+            dao.update((stored?.let { income.copy(rates = it, converted = it.convertAll(income.amount)) } ?: income).toEntity())
+        }
+    }
 
     override suspend fun delete(id: Long) = dao.delete(id)
 
@@ -42,7 +51,7 @@ class IncomeRepositoryImpl @Inject constructor(private val dao: IncomeDao) : Inc
     }
 }
 
-class RefundRepositoryImpl @Inject constructor(private val dao: RefundDao) : RefundRepository {
+class RefundRepositoryImpl @Inject constructor(private val db: AppDatabase, private val dao: RefundDao) : RefundRepository {
     override fun observeBetween(from: LocalDate?, to: LocalDate?): Flow<List<Refund>> =
         dao.observeBetween(from.dayOr(Long.MIN_VALUE), to.dayOr(Long.MAX_VALUE)).map { list -> list.map { it.toDomain() } }
 
@@ -53,7 +62,13 @@ class RefundRepositoryImpl @Inject constructor(private val dao: RefundDao) : Ref
 
     override suspend fun insert(refund: Refund): Long = dao.insert(refund.toEntity())
 
-    override suspend fun update(refund: Refund) = dao.update(refund.toEntity())
+    /** Как [ExpenseRepositoryImpl.update]: копия без курса не затирает курс, записанный после чтения. */
+    override suspend fun update(refund: Refund) {
+        db.withTransaction {
+            val stored = if (refund.rates == null) dao.get(refund.id)?.toDomain()?.rates.usableFor(refund.amount.currency) else null
+            dao.update((stored?.let { refund.copy(rates = it, converted = it.convertAll(refund.amount)) } ?: refund).toEntity())
+        }
+    }
 
     override suspend fun delete(id: Long) = dao.delete(id)
 

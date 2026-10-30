@@ -139,8 +139,8 @@ class AccountBalanceTest {
     @Test
     fun incomesAndRefundsAddToBalance() = runTest {
         val id = card(opening = 10_00)
-        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(db.incomeDao())
-        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db.refundDao())
+        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(db, db.incomeDao())
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db, db.refundDao())
         val e = spend(id, Money(30_00, CurrencyCode.EUR), "2026-10-02T10:00:00Z")
         // 11 700 RSD = 100 € по снапшоту.
         incomes.insert(app.moneytracker.domain.model.Income.create(Money(11700_00, CurrencyCode.RSD), id, 1, Instant.parse("2026-10-03T10:00:00Z"), zone, rates, clock.instant()))
@@ -158,7 +158,7 @@ class AccountBalanceTest {
     @Test
     fun refundOutlivesItsExpense() = runTest {
         val id = card()
-        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db.refundDao())
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db, db.refundDao())
         val e = spend(id, Money(30_00, CurrencyCode.EUR), "2026-10-02T10:00:00Z")
         val r = refunds.insert(app.moneytracker.domain.model.Refund.create(Money(5_00, CurrencyCode.EUR), id, e, 1, Instant.parse("2026-10-04T10:00:00Z"), zone, null, clock.instant()))
         expenses.delete(e)
@@ -173,7 +173,7 @@ class AccountBalanceTest {
     fun undoDeleteRestoresLinksToTheExpense() = runTest {
         val id = card(opening = 100_00)
         val cash = rsdCash()
-        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db.refundDao())
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db, db.refundDao())
         val captures = app.moneytracker.data.repository.CaptureRepositoryImpl(db.captureDao(), clock)
         val e = spend(id, Money(30_00, CurrencyCode.EUR), "2026-10-02T10:00:00Z")
         val r = refunds.insert(app.moneytracker.domain.model.Refund.create(Money(5_00, CurrencyCode.EUR), id, e, 1, Instant.parse("2026-10-04T10:00:00Z"), zone, null, clock.instant()))
@@ -197,6 +197,30 @@ class AccountBalanceTest {
         expenses.restore(expenses.deleteForUndo(feeId)!!)
         assertEquals(feeId, transfers.get(t)!!.feeExpenseId)
         assertEquals(Money(100_00 - 30_00 + 5_00 - 10_00 - 1_50, CurrencyCode.EUR), balance(id).balance)
+    }
+
+    /** Как у расходов: копия из редактора без курса не затирает курс, записанный FillPendingRates после чтения. */
+    @Test
+    fun incomeAndRefundUpdateFromStaleCopyKeepsRatesFilledMeanwhile() = runTest {
+        val id = card()
+        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(db, db.incomeDao())
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db, db.refundDao())
+        val now = clock.instant()
+        val i = incomes.insert(app.moneytracker.domain.model.Income.create(Money(1170_00, CurrencyCode.RSD), id, 1, now, zone, null, now))
+        val r = refunds.insert(app.moneytracker.domain.model.Refund.create(Money(117_00, CurrencyCode.RSD), id, null, 1, now, zone, null, now))
+        val readIncome = incomes.get(i)!!
+        val readRefund = refunds.get(r)!!
+        assertTrue(incomes.fillRates(readIncome.withRates(rates, now)))
+        assertTrue(refunds.fillRates(readRefund.withRates(rates, now)))
+
+        incomes.update(readIncome.withAmount(Money(2340_00, CurrencyCode.RSD), now).copy(comment = "правка"))
+        refunds.update(readRefund.withAmount(Money(234_00, CurrencyCode.RSD), now))
+        val income = incomes.get(i)!!
+        assertEquals("правка", income.comment)
+        assertEquals(rates, income.rates)
+        assertEquals(rates.convertAll(Money(2340_00, CurrencyCode.RSD)), income.converted)
+        assertEquals(rates, refunds.get(r)!!.rates)
+        assertEquals(rates.convertAll(Money(234_00, CurrencyCode.RSD)), refunds.get(r)!!.converted)
     }
 
     private val transfers by lazy { app.moneytracker.data.repository.TransferRepositoryImpl(db) }
@@ -286,8 +310,8 @@ class AccountBalanceTest {
         spendUsdt(Money(5_00, CurrencyCode.EUR), "2026-10-05T10:00:00Z", rates)
         // До даты начального остатка.
         spendUsdt(usdt(99_00), "2026-09-30T10:00:00Z", usdtRates)
-        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(db.incomeDao())
-        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db.refundDao())
+        val incomes = app.moneytracker.data.repository.IncomeRepositoryImpl(db, db.incomeDao())
+        val refunds = app.moneytracker.data.repository.RefundRepositoryImpl(db, db.refundDao())
         // Доход 10 € = 11.70 USDT, возврат 95 RUB = 1.17 USDT.
         incomes.insert(app.moneytracker.domain.model.Income.create(Money(10_00, CurrencyCode.EUR), id, 1, Instant.parse("2026-10-06T10:00:00Z"), zone, usdtRates, clock.instant()))
         refunds.insert(app.moneytracker.domain.model.Refund.create(Money(95_00, CurrencyCode.RUB), id, null, 1, Instant.parse("2026-10-07T10:00:00Z"), zone, usdtRates, clock.instant()))
