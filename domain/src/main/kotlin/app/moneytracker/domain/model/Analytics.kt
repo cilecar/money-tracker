@@ -109,8 +109,8 @@ object Analytics {
             buckets = buckets,
             cumulative = cumulative(buckets.take(visibleBuckets), currency),
             previousCumulative = cumulative(previousBuckets, currency),
-            categories = categorySlices(current, previous, currency, categories, total.total),
-            accounts = paymentSlices(current, currency, accounts, total.total),
+            categories = categorySlices(current, previous, currency, categories),
+            accounts = paymentSlices(current, currency, accounts),
             income = income,
             previousIncome = Total.of(incomes.filter { it.localDate in previousPeriod }, currency),
             incomeCategories = currentIncome.groupBy { it.categoryId }
@@ -146,7 +146,6 @@ object Analytics {
         previous: List<Expense>,
         currency: CurrencyCode,
         categories: Map<Long, Category>,
-        total: Money,
     ): List<CategorySlice> {
         fun topLevelId(e: Expense): Long? {
             val c = categories[e.categoryId] ?: return null
@@ -154,29 +153,36 @@ object Analytics {
         }
         val currentByTop = current.groupBy(::topLevelId)
         val previousByTop = previous.groupBy(::topLevelId)
-        return currentByTop.map { (topId, list) ->
-            val amount = sum(list, currency)
+        val slices = currentByTop.map { (topId, list) ->
             CategorySlice(
                 category = topId?.let(categories::get),
-                amount = amount,
+                amount = sum(list, currency),
                 previous = sum(previousByTop[topId].orEmpty(), currency),
-                share = share(amount, total),
+                share = 0f,
             )
-        }.filter { it.amount.minor > 0 }.sortedByDescending { it.amount.minor }
+        }.filter { it.amount.minor > 0 }
+        val shown = shownTotal(slices.map { it.amount }, currency)
+        return slices.map { it.copy(share = share(it.amount, shown)) }.sortedByDescending { it.amount.minor }
     }
 
     private fun paymentSlices(
         current: List<Expense>,
         currency: CurrencyCode,
         methods: Map<Long, Account>,
-        total: Money,
-    ): List<PaymentSlice> = current.groupBy { it.accountId }
-        .map { (id, list) ->
-            val amount = sum(list, currency)
-            PaymentSlice(methods[id], amount, share(amount, total))
-        }
-        .filter { it.amount.minor > 0 }
-        .sortedByDescending { it.amount.minor }
+    ): List<PaymentSlice> {
+        val slices = current.groupBy { it.accountId }
+            .map { (id, list) -> PaymentSlice(methods[id], sum(list, currency), 0f) }
+            .filter { it.amount.minor > 0 }
+        val shown = shownTotal(slices.map { it.amount }, currency)
+        return slices.map { it.copy(share = share(it.amount, shown)) }.sortedByDescending { it.amount.minor }
+    }
+
+    /**
+     * Доли — от суммы показанных срезов, а не от итога: срез, где возврат больше трат, отброшен,
+     * и при делении на итог (он меньше на этот возврат) доли остальных превысили бы 100%.
+     */
+    private fun shownTotal(amounts: List<Money>, currency: CurrencyCode): Money =
+        amounts.fold(Money.zero(currency)) { acc, m -> acc + m }
 
     /** Сумма по расходам, у которых известна сумма в [currency] (без курса — пропускаются). */
     private fun sum(expenses: List<Expense>, currency: CurrencyCode): Money = Total.of(expenses, currency).total

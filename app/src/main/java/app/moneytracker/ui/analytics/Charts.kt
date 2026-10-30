@@ -73,6 +73,8 @@ private fun Money.chartValue(): Double = amount.toDouble()
 
 /** Подписи оси Y: 950, 1,2k, 15k, 1,5M. */
 internal fun compactNumber(value: Double): String = when {
+    // День, где был только возврат, — ниже нуля.
+    value < 0 -> "−" + compactNumber(-value)
     value >= 1_000_000 -> trim(value / 1_000_000) + "M"
     value >= 1_000 -> trim(value / 1_000) + "k"
     else -> value.toLong().toString()
@@ -110,6 +112,7 @@ fun SpendingColumnChart(values: List<Money>, labels: List<String>, labelSpacing:
     }
     val color = MaterialTheme.colorScheme.primary
     val maxY = values.maxOfOrNull { it.chartValue() } ?: 0.0
+    val minY = minOf(0.0, values.minOfOrNull { it.chartValue() } ?: 0.0)
     ProvideVicoTheme(rememberM3VicoTheme()) {
         CartesianChartHost(
             chart = rememberCartesianChart(
@@ -117,8 +120,8 @@ fun SpendingColumnChart(values: List<Money>, labels: List<String>, labelSpacing:
                     columnProvider = ColumnCartesianLayer.ColumnProvider.series(
                         rememberLineComponent(Fill(color), thickness = 10.dp, shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)),
                     ),
-                    // Все нули — фиксируем ось, иначе диапазон 0..0 вырождается.
-                    rangeProvider = remember(maxY) { CartesianLayerRangeProvider.fixed(minY = 0.0, maxY = if (maxY <= 0.0) 1.0 else null) },
+                    // Все нули — фиксируем ось, иначе диапазон 0..0 вырождается. Возвраты могут дать день ниже нуля.
+                    rangeProvider = remember(minY, maxY) { CartesianLayerRangeProvider.fixed(minY = minY, maxY = if (maxY <= 0.0) 1.0 else null) },
                 ),
                 startAxis = VerticalAxis.rememberStart(
                     valueFormatter = remember { CartesianValueFormatter { _, value, _ -> compactNumber(value) } },
@@ -159,6 +162,7 @@ fun ComparisonLineChart(current: List<Money>, previous: List<Money>, labels: Lis
     val currentColor = MaterialTheme.colorScheme.primary
     val previousColor = MaterialTheme.colorScheme.outline
     val maxY = (current + previous).maxOfOrNull { it.chartValue() } ?: 0.0
+    val minY = minOf(0.0, (current + previous).minOfOrNull { it.chartValue() } ?: 0.0)
     ProvideVicoTheme(rememberM3VicoTheme()) {
         CartesianChartHost(
             chart = rememberCartesianChart(
@@ -173,7 +177,7 @@ fun ComparisonLineChart(current: List<Money>, previous: List<Money>, labels: Lis
                             stroke = LineCartesianLayer.LineStroke.Continuous(thickness = 3.dp, cap = StrokeCap.Round),
                         ),
                     ),
-                    rangeProvider = remember(maxY) { CartesianLayerRangeProvider.fixed(minY = 0.0, maxY = if (maxY <= 0.0) 1.0 else null) },
+                    rangeProvider = remember(minY, maxY) { CartesianLayerRangeProvider.fixed(minY = minY, maxY = if (maxY <= 0.0) 1.0 else null) },
                 ),
                 startAxis = VerticalAxis.rememberStart(
                     valueFormatter = remember { CartesianValueFormatter { _, value, _ -> compactNumber(value) } },

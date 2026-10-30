@@ -62,6 +62,16 @@ class IncomeAndRefundTest {
     }
 
     @Test
+    fun `refund in a category without spending does not push other shares over 100 percent`() {
+        // Транспорт: только возврат 400 за прошлую покупку. Итог 1000 − 400 = 600, но доля «Еды» — от показанных срезов.
+        val r = report(listOf(e("2026-10-02", eur(1000_00), 1)), refunds = listOf(refund("2026-10-03", eur(400_00), 3)))
+        assertEquals(eur(600_00), r.total.total)
+        assertEquals(listOf(food), r.categories.map { it.category })
+        assertEquals(1f, r.categories.single().share, 0.0001f)
+        assertEquals(1f, r.accounts.single().share, 0.0001f)
+    }
+
+    @Test
     fun `refund counts in the month of the refund date`() {
         val r = report(
             expenses = listOf(e("2026-09-28", eur(4000), 1), e("2026-10-02", eur(1000), 1)),
