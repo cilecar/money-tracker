@@ -5,6 +5,7 @@ import app.moneytracker.domain.capture.CapturedPurchase
 import app.moneytracker.domain.repository.CaptureRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.yield
 import java.time.Instant
 
 class FakeCaptureRepository : CaptureRepository {
@@ -13,8 +14,10 @@ class FakeCaptureRepository : CaptureRepository {
     private var nextId = 1L
 
     override fun observePending() = items.map { list -> list.filter { it.status == CaptureStatus.PENDING } }
-    override suspend fun get(id: Long) = items.value.firstOrNull { it.id == id }
-    override suspend fun getBetween(from: Instant, to: Instant) = items.value.filter { it.occurredAt in from..to }
+    // yield() после чтения — как ответ с потока базы: параллельный вызов успевает прочитать то же самое.
+    override suspend fun get(id: Long): CapturedPurchase? = items.value.firstOrNull { it.id == id }.also { yield() }
+    override suspend fun getBetween(from: Instant, to: Instant): List<CapturedPurchase> =
+        items.value.filter { it.occurredAt in from..to }.also { yield() }
     override suspend fun insert(purchase: CapturedPurchase): Long {
         val id = nextId++
         items.value += purchase.copy(id = id)

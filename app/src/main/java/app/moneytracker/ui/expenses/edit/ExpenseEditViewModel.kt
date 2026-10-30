@@ -1,5 +1,6 @@
 package app.moneytracker.ui.expenses.edit
 
+import app.moneytracker.domain.capture.CaptureStatus
 import app.moneytracker.domain.repository.CaptureRepository
 import app.moneytracker.domain.usecase.ConfirmCaptureUseCase
 import app.moneytracker.domain.usecase.SuggestCaptureUseCase
@@ -120,27 +121,18 @@ class ExpenseEditViewModel @Inject constructor(
 
     private suspend fun load() {
         if (expenseId != 0L) {
-            val e = expenses.get(expenseId)
-            if (e == null) {
-                _events.send(ExpenseEditEvent.Close)
-                return
-            }
-            form.value = ExpenseForm(
-                loaded = true,
-                amount = AmountInput.from(e.amount),
-                currency = e.amount.currency,
-                categoryId = e.categoryId,
-                accountId = e.accountId,
-                dateTime = LocalDateTime.ofInstant(e.occurredAt, clock.zone),
-                comment = e.comment.orEmpty(),
-                tags = e.tags,
-                original = e,
-            )
+            loadExpense(expenseId)
         } else if (captureId != 0L) {
             // Покупка из уведомления: сумма, мерчант (в комментарий) и время — из неё, категория и счёт — по подсказке.
             val p = captures.get(captureId)
             if (p == null) {
                 _events.send(ExpenseEditEvent.Close)
+                return
+            }
+            // Уже добавлена (кнопкой в уведомлении или старое «Изменить») — открываем её расход, а не новый.
+            val confirmedExpense = p.expenseId?.takeIf { p.status == CaptureStatus.CONFIRMED }
+            if (confirmedExpense != null) {
+                loadExpense(confirmedExpense)
                 return
             }
             val suggestion = suggestCapture(p)
@@ -165,6 +157,25 @@ class ExpenseEditViewModel @Inject constructor(
                 it.copy(loaded = true, accountId = method?.id, currency = method?.currency ?: s.inputCurrency)
             }
         }
+    }
+
+    private suspend fun loadExpense(id: Long) {
+        val e = expenses.get(id)
+        if (e == null) {
+            _events.send(ExpenseEditEvent.Close)
+            return
+        }
+        form.value = ExpenseForm(
+            loaded = true,
+            amount = AmountInput.from(e.amount),
+            currency = e.amount.currency,
+            categoryId = e.categoryId,
+            accountId = e.accountId,
+            dateTime = LocalDateTime.ofInstant(e.occurredAt, clock.zone),
+            comment = e.comment.orEmpty(),
+            tags = e.tags,
+            original = e,
+        )
     }
 
     private fun buildState(form: ExpenseForm, refs: References, current: CurrentRates?): ExpenseEditUiState {
@@ -259,19 +270,19 @@ class ExpenseEditViewModel @Inject constructor(
             } else {
                 f.dateTime.atZone(clock.zone).toInstant()
             }
-            val savedId = saveExpense(
-                ExpenseInput(
-                    id = expenseId,
-                    amount = f.amount.toMoney(f.currency),
-                    categoryId = f.categoryId!!,
-                    accountId = f.accountId!!,
-                    occurredAt = occurredAt,
-                    comment = f.comment,
-                    // Недописанный тег в поле тоже сохраняем — иначе он молча потеряется.
-                    tags = f.tags + listOfNotNull(f.tagDraft.trim().takeIf { it.isNotEmpty() }),
-                ),
+            val input = ExpenseInput(
+                // original — и при открытии по id, и для уже подтверждённой покупки.
+                id = original?.id ?: 0L,
+                amount = f.amount.toMoney(f.currency),
+                categoryId = f.categoryId!!,
+                accountId = f.accountId!!,
+                occurredAt = occurredAt,
+                comment = f.comment,
+                // Недописанный тег в поле тоже сохраняем — иначе он молча потеряется.
+                tags = f.tags + listOfNotNull(f.tagDraft.trim().takeIf { it.isNotEmpty() }),
             )
-            if (captureId != 0L) confirmCapture.linkExpense(captureId, savedId, f.categoryId!!)
+            // Покупка — через ConfirmCapture: под его замком, чтобы не задвоить с кнопкой «Добавить».
+            if (captureId != 0L) confirmCapture.saveEdited(captureId, input) else saveExpense(input)
             _events.send(ExpenseEditEvent.Close)
         }
     }

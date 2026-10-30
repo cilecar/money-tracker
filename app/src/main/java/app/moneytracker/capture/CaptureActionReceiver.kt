@@ -3,9 +3,11 @@ package app.moneytracker.capture
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import app.moneytracker.domain.usecase.ConfirmCaptureUseCase
 import app.moneytracker.ui.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,6 +28,12 @@ class CaptureActionReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 if (confirm(id) != null) notifications.cancel(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Счёт или категорию успели удалить, база отказала — без обработчика это роняет процесс.
+                // Уведомление остаётся: покупку можно добавить через «Изменить».
+                Log.w(TAG, "Capture $id: confirm failed", e)
             } finally {
                 pending.finish()
             }
@@ -34,6 +42,7 @@ class CaptureActionReceiver : BroadcastReceiver() {
 
     companion object {
         const val ACTION_ADD = "app.moneytracker.action.CAPTURE_ADD"
+        private const val TAG = "CaptureAction"
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 }

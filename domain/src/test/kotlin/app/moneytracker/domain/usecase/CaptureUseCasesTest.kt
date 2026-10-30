@@ -15,6 +15,8 @@ import app.moneytracker.domain.model.AccountType
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Money
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -64,6 +66,14 @@ class CaptureUseCasesTest {
     }
 
     @Test
+    fun `same notification posted twice at once is captured once`() = runTest {
+        // Wallet публикует уведомление повторно, сервис обрабатывает оба поста параллельно.
+        val results = listOf(async { capture(wallet()) }, async { capture(wallet()) }).awaitAll()
+        assertEquals(1, results.count { it is CaptureResult.Captured })
+        assertEquals(1, captures.items.value.size)
+    }
+
+    @Test
     fun `other apps and non-purchases are ignored`() = runTest {
         assertEquals(CaptureResult.Ignored, capture(wallet().copy(packageName = "com.bybit.app")))
         assertEquals(CaptureResult.Ignored, capture(wallet(text = "View the details", title = "Purchase complete")))
@@ -97,6 +107,35 @@ class CaptureUseCasesTest {
         assertEquals(2L, next.suggestion.categoryId)
         assertTrue(next.suggestion.canAddDirectly)
         assertTrue(confirm(next.purchase.id) != null)
+    }
+
+    @Test
+    fun `double tap on add creates one expense`() = runTest {
+        val p = (capture(wallet()) as CaptureResult.Captured).purchase
+        val ids = listOf(async { confirm(p.id, categoryId = 2) }, async { confirm(p.id, categoryId = 2) }).awaitAll()
+        assertEquals(1, expenses.items.value.size)
+        assertEquals(ids[0], ids[1])
+    }
+
+    @Test
+    fun `editor save after the purchase was added edits that expense`() = runTest {
+        val p = (capture(wallet()) as CaptureResult.Captured).purchase
+        // Редактор открыт по «Изменить», а тем временем нажали «Добавить» в уведомлении.
+        val added = confirm(p.id, categoryId = 2)!!
+        val input = ExpenseInput(amount = p.amount, categoryId = 1, accountId = 2, occurredAt = p.occurredAt, comment = "Пекарня")
+        assertEquals(added, confirm.saveEdited(p.id, input))
+        assertEquals(1, expenses.items.value.size)
+        assertEquals(1L, expenses.get(added)!!.categoryId)
+        assertEquals("Пекарня", expenses.get(added)!!.comment)
+        assertEquals(1L, captures.rules["bakery"])
+    }
+
+    @Test
+    fun `editor save and add at the same time create one expense`() = runTest {
+        val p = (capture(wallet()) as CaptureResult.Captured).purchase
+        val input = ExpenseInput(amount = p.amount, categoryId = 1, accountId = 2, occurredAt = p.occurredAt)
+        listOf(async { confirm.saveEdited(p.id, input) }, async { confirm(p.id, categoryId = 2) }).awaitAll()
+        assertEquals(1, expenses.items.value.size)
     }
 
     @Test

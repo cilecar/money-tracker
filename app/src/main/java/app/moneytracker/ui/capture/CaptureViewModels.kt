@@ -1,5 +1,6 @@
 package app.moneytracker.ui.capture
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.moneytracker.capture.CaptureNotifications
@@ -17,6 +18,7 @@ import app.moneytracker.domain.usecase.ConfirmCaptureUseCase
 import app.moneytracker.domain.usecase.DismissCaptureUseCase
 import app.moneytracker.domain.usecase.SuggestCaptureUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -82,7 +84,14 @@ class PendingCapturesViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     fun add(id: Long) = viewModelScope.launch {
-        if (confirm(id) != null) notifications.cancel(id)
+        try {
+            if (confirm(id) != null) notifications.cancel(id)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Как в CaptureActionReceiver: покупка остаётся в списке, добавить можно через «Изменить».
+            Log.w("PendingCaptures", "Capture $id: confirm failed", e)
+        }
     }
 
     fun dismiss(id: Long) = viewModelScope.launch {
