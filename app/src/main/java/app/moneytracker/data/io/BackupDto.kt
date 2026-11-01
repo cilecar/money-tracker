@@ -21,6 +21,8 @@ import kotlinx.serialization.json.JsonNames
  * Цифры карты у счёта и правила «мерчант → категория» (автозахват) — необязательные поля без смены версии:
  * старое приложение просто их не прочитает, данные при этом не искажаются. Захваченные покупки
  * в ожидании подтверждения в файл не попадают — это временные записи.
+ *
+ * Долги (люди, доли «мне должны», «за меня заплатили») — тоже необязательные поля без смены версии.
  */
 @Serializable
 data class BackupDto(
@@ -42,6 +44,9 @@ data class BackupDto(
     val refunds: List<RefundDto> = emptyList(),
     val transfers: List<TransferDto> = emptyList(),
     val merchantRules: List<MerchantRuleDto> = emptyList(),
+    val persons: List<PersonDto> = emptyList(),
+    val expenseShares: List<ExpenseShareDto> = emptyList(),
+    val paidForMe: List<PaidForMeDto> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "money-tracker-backup"
@@ -216,6 +221,52 @@ data class TransferDto(
     val localDate: String,
     val comment: String? = null,
     val apiRates: RatesDto? = null,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class PersonDto(
+    val id: Long,
+    val name: String,
+    val archived: Boolean = false,
+    val sortOrder: Int = 0,
+)
+
+/** Сумма — в валюте счёта погашения. */
+@Serializable
+data class SettlementDto(
+    val accountId: Long,
+    val amountMinor: Long,
+    val currency: String,
+    val occurredAt: String,
+    val localDate: String,
+)
+
+/** Валюта доли — валюта её расхода. */
+@Serializable
+data class ExpenseShareDto(
+    val id: Long,
+    val expenseId: Long,
+    val personId: Long,
+    val amountMinor: Long,
+    val settlement: SettlementDto? = null,
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+@Serializable
+data class PaidForMeDto(
+    val id: Long,
+    val personId: Long,
+    val amountMinor: Long,
+    val currency: String,
+    val categoryId: Long,
+    val occurredAt: String,
+    val localDate: String,
+    val comment: String? = null,
+    val rates: RatesDto? = null,
+    val settlement: SettlementDto? = null,
     val createdAt: String,
     val updatedAt: String,
 )

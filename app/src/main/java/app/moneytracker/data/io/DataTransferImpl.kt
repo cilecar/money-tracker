@@ -14,12 +14,18 @@ import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
 import app.moneytracker.data.db.entity.IncomeCategoryEntity
 import app.moneytracker.data.db.entity.MerchantRuleEntity
+import app.moneytracker.data.db.entity.PersonEntity
 import app.moneytracker.data.db.entity.AccountEntity
 import app.moneytracker.data.db.entity.RecurringExpenseEntity
 import app.moneytracker.data.db.toDomain
 import app.moneytracker.data.db.toEntity
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.Expense
+import app.moneytracker.domain.model.ExpenseShare
+import app.moneytracker.domain.model.PaidForMe
+import app.moneytracker.domain.model.Settlement
+import app.moneytracker.domain.model.ShareInput
+import app.moneytracker.domain.model.validateShares
 import app.moneytracker.domain.model.Frequency
 import app.moneytracker.domain.model.Income
 import app.moneytracker.domain.model.Refund
@@ -380,6 +386,19 @@ class DataTransferImpl @Inject constructor(
                         t.apiRates?.toDto(), t.createdAt.toString(), t.updatedAt.toString(),
                     )
                 },
+                persons = db.personDao().getAll().map { PersonDto(it.id, it.name, it.archived, it.sortOrder) },
+                expenseShares = db.debtDao().getAllShares().map {
+                    ExpenseShareDto(
+                        it.id, it.expenseId, it.personId, it.amountMinor, it.settlement?.toDomain()?.toDto(),
+                        it.createdAt.toString(), it.updatedAt.toString(),
+                    )
+                },
+                paidForMe = db.debtDao().getAllPaidForMe().map { it.toDomain() }.map { p ->
+                    PaidForMeDto(
+                        p.id, p.personId, p.amount.minor, p.amount.currency.name, p.categoryId, p.occurredAt.toString(), p.localDate.toString(),
+                        p.comment, p.rates?.toDto(), p.settlement?.toDto(), p.createdAt.toString(), p.updatedAt.toString(),
+                    )
+                },
             )
         }
         out.write(json.encodeToString(BackupDto.serializer(), dto).toByteArray(Charsets.UTF_8))
@@ -423,6 +442,9 @@ class DataTransferImpl @Inject constructor(
                     parsed.expenses.forEach { db.expenseDao().insertWithTags(it.toEntity(), it.tags) }
                     parsed.refunds.forEach { db.refundDao().insert(it.toEntity()) }
                     parsed.transfers.forEach { db.transferDao().upsert(it.toEntity()) }
+                    parsed.persons.forEach { db.personDao().upsert(it) }
+                    db.debtDao().insertShares(parsed.shares.map { it.toEntity() })
+                    parsed.paidForMe.forEach { db.debtDao().insertPaidForMe(it.toEntity()) }
                     parsed.merchantRules.forEach { db.captureDao().saveRule(it) }
                     parsed.budgets.forEach { db.budgetDao().save(it) }
                     parsed.alerts.forEach { db.budgetDao().insertAlert(it) }
@@ -459,6 +481,9 @@ class DataTransferImpl @Inject constructor(
         val refunds: List<Refund>,
         val transfers: List<Transfer>,
         val merchantRules: List<MerchantRuleEntity>,
+        val persons: List<PersonEntity>,
+        val shares: List<ExpenseShare>,
+        val paidForMe: List<PaidForMe>,
     )
 
     private fun parse(dto: BackupDto): Parsed {
@@ -620,13 +645,54 @@ class DataTransferImpl @Inject constructor(
         val merchantRules = dto.merchantRules.filter { it.categoryId in categoryIds }.map {
             MerchantRuleEntity(it.merchantKey, it.categoryId, Instant.parse(it.updatedAt))
         }
-        return Parsed(categories, methods, expenses, budgets, alerts, recurring, rates, adjustments, incomeCategories, incomes, refunds, transfers, merchantRules)
+
+        val persons = dto.persons.map { PersonEntity(it.id, it.name, it.archived, it.sortOrder) }
+        val personIds = unique(persons.map { it.id })
+        // Погашение — в валюте своего счёта: на этом держится баланс.
+        fun settlement(s: SettlementDto?) = s?.let {
+            if (it.accountId !in methodIds || currency(it.currency) != accountCurrency[it.accountId]) inconsistent()
+            Settlement(it.accountId, Money(positive(it.amountMinor), currency(it.currency)), Instant.parse(it.occurredAt), LocalDate.parse(it.localDate))
+        }
+        val expensesById = expenses.associateBy { it.id }
+        val shares = dto.expenseShares.map {
+            val expense = expensesById[it.expenseId] ?: inconsistent()
+            if (it.personId !in personIds) inconsistent()
+            ExpenseShare(
+                id = it.id, expenseId = it.expenseId, personId = it.personId,
+                amount = Money(positive(it.amountMinor), expense.amount.currency), settlement = settlement(it.settlement),
+                createdAt = Instant.parse(it.createdAt), updatedAt = Instant.parse(it.updatedAt),
+            )
+        }
+        unique(shares.map { it.id })
+        // Те же правила, что при сохранении расхода: один человек на расход, сумма долей не больше расхода.
+        shares.groupBy { it.expenseId }.forEach { (expenseId, list) ->
+            if (validateShares(expensesById.getValue(expenseId).amount, list.map { ShareInput(it.personId, it.amount) }) != null) inconsistent()
+        }
+        val paidForMe = dto.paidForMe.map {
+            if (it.personId !in personIds || it.categoryId !in categoryIds) inconsistent()
+            val amount = Money(positive(it.amountMinor), currency(it.currency))
+            val snapshot = it.rates?.toSnapshot()
+            PaidForMe(
+                id = it.id, personId = it.personId, amount = amount, categoryId = it.categoryId,
+                occurredAt = Instant.parse(it.occurredAt), localDate = LocalDate.parse(it.localDate), comment = it.comment,
+                rates = snapshot, converted = snapshot?.convertAll(amount), settlement = settlement(it.settlement),
+                createdAt = Instant.parse(it.createdAt), updatedAt = Instant.parse(it.updatedAt),
+            )
+        }
+        unique(paidForMe.map { it.id })
+        return Parsed(
+            categories, methods, expenses, budgets, alerts, recurring, rates, adjustments, incomeCategories, incomes, refunds, transfers,
+            merchantRules, persons, shares, paidForMe,
+        )
     }
 
     private fun inconsistent(): Nothing = throw BackupFormatException(Reason.INCONSISTENT)
 
     private fun RateSnapshot.toDto() =
         RatesDto(rsdPerEur.toPlainString(), rubPerEur.toPlainString(), date.toString(), usdtPerEur?.toPlainString())
+
+    private fun Settlement.toDto() =
+        SettlementDto(accountId, amount.minor, amount.currency.name, occurredAt.toString(), localDate.toString())
 
     private fun RatesDto.toSnapshot() =
         RateSnapshot(BigDecimal(rsdPerEur), BigDecimal(rubPerEur), LocalDate.parse(date), usdtPerEur?.let(::BigDecimal))

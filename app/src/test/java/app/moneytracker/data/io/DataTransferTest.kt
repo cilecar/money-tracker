@@ -13,6 +13,8 @@ import app.moneytracker.data.rates.RatesApi
 import app.moneytracker.data.rates.RemoteRatesDataSource
 import app.moneytracker.data.repository.BudgetRepositoryImpl
 import app.moneytracker.data.repository.CategoryRepositoryImpl
+import app.moneytracker.data.repository.DebtRepositoryImpl
+import app.moneytracker.data.repository.PersonRepositoryImpl
 import app.moneytracker.data.repository.ExchangeRateRepositoryImpl
 import app.moneytracker.data.repository.ExpenseRepositoryImpl
 import app.moneytracker.data.repository.RecurringRepositoryImpl
@@ -22,6 +24,12 @@ import app.moneytracker.domain.model.BudgetLevel
 import app.moneytracker.domain.model.BudgetProgress
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.CurrencyCode
+import app.moneytracker.domain.model.DebtDirection
+import app.moneytracker.domain.model.DebtRef
+import app.moneytracker.domain.model.ExpenseShare
+import app.moneytracker.domain.model.PaidForMe
+import app.moneytracker.domain.model.Person
+import app.moneytracker.domain.model.Settlement
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.Frequency
 import app.moneytracker.domain.model.Money
@@ -47,6 +55,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -659,5 +668,86 @@ class DataTransferTest {
         target.transfer.importJson(ByteArrayInputStream(source.exportJson()))
         assertEquals("1234", target.db.accountDao().get(1)!!.cardSuffix)
         assertEquals(2L, target.db.captureDao().ruleFor("nicefoods"))
+    }
+
+    /** Петя должен за ужин (погашено), Вася — за ужин (открыто); Пете — за кино (открыто). */
+    private suspend fun Env.addDebts(): Triple<Long, Long, Long> {
+        val persons = PersonRepositoryImpl(db.personDao())
+        val debts = DebtRepositoryImpl(db, db.debtDao(), clock)
+        val petya = persons.upsert(Person(name = "Петя"))
+        val vasya = persons.upsert(Person(name = "Вася", sortOrder = 1, archived = true))
+        val food = db.categoryDao().getAll(true).first().id
+        val now = clock.instant()
+        fun share(person: Long) = ExpenseShare(expenseId = 0, personId = person, amount = Money(100000, CurrencyCode.RSD), createdAt = now, updatedAt = now)
+        val expenseId = expenses.save(
+            Expense.create(Money(300000, CurrencyCode.RSD), food, 1, Instant.parse("2026-10-10T18:00:00Z"), zone, rates, now, "Ужин"),
+            listOf(share(petya), share(vasya)),
+        )
+        val petyaShare = debts.getSharesForExpense(expenseId).single { it.personId == petya }
+        val account = db.accountDao().get(1)!!
+        debts.settle(DebtRef(DebtDirection.OWED_TO_ME, petyaShare.id), Settlement.create(1, Money(1000, account.currency), now, zone))
+        val paid = debts.insertPaidForMe(PaidForMe.create(Money(40000, CurrencyCode.RSD), petya, food, now, zone, rates, now, "Кино"))
+        return Triple(expenseId, petya, paid)
+    }
+
+    @Test
+    fun backupRoundTripKeepsDebtsAndSettlements() = runTest {
+        val source = filledEnv()
+        source.addDebts()
+        val srcDebts = DebtRepositoryImpl(source.db, source.db.debtDao(), clock)
+        val srcPersons = PersonRepositoryImpl(source.db.personDao())
+
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(source.exportJson()))
+        val dstDebts = DebtRepositoryImpl(target.db, target.db.debtDao(), clock)
+        val dstPersons = PersonRepositoryImpl(target.db.personDao())
+
+        assertEquals(srcPersons.observeAll(true).first(), dstPersons.observeAll(true).first())
+        assertEquals(srcDebts.observeDebts().first().sortedBy { it.ref.id }, dstDebts.observeDebts().first().sortedBy { it.ref.id })
+        assertEquals(source.db.debtDao().getAllPaidForMe(), target.db.debtDao().getAllPaidForMe())
+        assertEquals(source.db.debtDao().getAllShares(), target.db.debtDao().getAllShares())
+    }
+
+    @Test
+    fun oldBackupWithoutDebtFieldsImports() = runTest {
+        val source = filledEnv()
+        val obj = backupJson.parseToJsonElement(String(source.exportJson())).jsonObject
+        val old = JsonObject(obj - setOf("persons", "expenseShares", "paidForMe"))
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(old.toString().toByteArray()))
+        assertEquals(source.db.expenseDao().getAll().size, target.db.expenseDao().getAll().size)
+        assertTrue(target.db.personDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun importReplacesExistingDebts() = runTest {
+        val target = filledEnv()
+        target.addDebts()
+        target.transfer.importJson(ByteArrayInputStream(filledEnv().exportJson()))
+        assertTrue(target.db.debtDao().getAllShares().isEmpty())
+        assertTrue(target.db.debtDao().getAllPaidForMe().isEmpty())
+        assertTrue(target.db.personDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun inconsistentDebtsAreRejected() = runTest {
+        val source = filledEnv()
+        source.addDebts()
+        val reason = BackupFormatException.Reason.INCONSISTENT
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(expenseShares = d.expenseShares.map { it.copy(expenseId = 999) }) }, reason, "share of missing expense")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(expenseShares = d.expenseShares.map { it.copy(personId = 999) }) }, reason, "share of missing person")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(paidForMe = d.paidForMe.map { it.copy(categoryId = 999) }) }, reason, "paid for me in missing category")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(persons = d.persons + d.persons.first()) }, reason, "duplicate person")
+        source.assertImportRejected(
+            source.exportJsonWith { d -> d.copy(expenseShares = d.expenseShares.map { it.copy(amountMinor = 400000) }) }, reason, "shares exceed expense",
+        )
+        source.assertImportRejected(
+            source.exportJsonWith { d -> d.copy(expenseShares = d.expenseShares.map { s -> s.copy(settlement = s.settlement?.copy(accountId = 999)) }) },
+            reason, "settlement to missing account",
+        )
+        source.assertImportRejected(
+            source.exportJsonWith { d -> d.copy(expenseShares = d.expenseShares.map { s -> s.copy(settlement = s.settlement?.copy(currency = "USDT")) }) },
+            reason, "settlement not in account currency",
+        )
     }
 }

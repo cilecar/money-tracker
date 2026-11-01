@@ -16,6 +16,9 @@ abstract class MaintenanceDao {
     @Query("SELECT * FROM balance_adjustment") abstract suspend fun allAdjustments(): List<BalanceAdjustmentEntity>
 
     // Порядок важен из-за внешних ключей: сначала ссылающиеся таблицы, потом справочники.
+    @Query("DELETE FROM expense_share") abstract suspend fun deleteExpenseShares()
+    @Query("DELETE FROM paid_for_me") abstract suspend fun deletePaidForMe()
+    @Query("DELETE FROM person") abstract suspend fun deletePersons()
     @Query("DELETE FROM transfer") abstract suspend fun deleteTransfers()
     @Query("DELETE FROM captured_purchase") abstract suspend fun deleteCaptures()
     @Query("DELETE FROM merchant_rule") abstract suspend fun deleteMerchantRules()
@@ -35,6 +38,9 @@ abstract class MaintenanceDao {
     @Query("DELETE FROM exchange_rate") abstract suspend fun deleteRates()
 
     open suspend fun deleteAll() {
+        deleteExpenseShares()
+        deletePaidForMe()
+        deletePersons()
         deleteCaptures()
         deleteMerchantRules()
         deleteTransfers()
