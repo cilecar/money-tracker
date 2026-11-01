@@ -43,7 +43,20 @@ class ExpenseRepositoryImpl @Inject constructor(
 
     override suspend fun getWithoutRates(): List<Expense> = dao.getWithoutRates().map { it.toDomain() }
 
-    override suspend fun save(expense: Expense, shares: List<ExpenseShare>?): Long = TODO("Task 5")
+    override suspend fun save(expense: Expense, shares: List<ExpenseShare>?): Long = db.withTransaction {
+        val id = if (expense.id != 0L && dao.get(expense.id) != null) {
+            update(expense)
+            expense.id
+        } else {
+            insert(expense)
+        }
+        if (shares != null) {
+            val debts = db.debtDao()
+            debts.deleteUnsettledShares(id)
+            debts.insertShares(shares.map { it.copy(id = 0, expenseId = id).toEntity() })
+        }
+        id
+    }
 
     override suspend fun insert(expense: Expense): Long =
         dao.insertWithTags(expense.toEntity(), Expense.normalizeTags(expense.tags))
@@ -85,7 +98,8 @@ class ExpenseRepositoryImpl @Inject constructor(
 
     override suspend fun deleteForUndo(id: Long): DeletedExpense? = db.withTransaction {
         val expense = dao.get(id)?.toDomain() ?: return@withTransaction null
-        val deleted = DeletedExpense(expense, dao.refundIdsFor(id), dao.transferIdsWithFee(id), dao.captureIdsFor(id))
+        val shares = db.debtDao().sharesForExpense(id).map { it.toDomain() }
+        val deleted = DeletedExpense(expense, dao.refundIdsFor(id), dao.transferIdsWithFee(id), dao.captureIdsFor(id), shares)
         dao.delete(id)
         deleted
     }
@@ -96,6 +110,8 @@ class ExpenseRepositoryImpl @Inject constructor(
             dao.relinkRefunds(id, deleted.refundIds)
             dao.relinkTransferFees(id, deleted.feeOfTransferIds)
             dao.relinkCaptures(id, deleted.captureIds)
+            // Доли удалились каскадом — возвращаем с теми же id и погашениями.
+            db.debtDao().insertShares(deleted.shares.map { it.copy(expenseId = id).toEntity() })
         }
     }
 }
