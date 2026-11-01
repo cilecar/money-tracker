@@ -78,9 +78,11 @@ class FakeExpenseRepository : ExpenseRepository {
         items.value -= id
         shares.value = shares.value.filterValues { it.expenseId != id }
     }
-    override suspend fun deleteForUndo(id: Long): DeletedExpense? = items.value[id]
-        ?.let { DeletedExpense(it, shares = shares.value.values.filter { s -> s.expenseId == id }) }
-        .also { delete(id) }
+    override suspend fun deleteForUndo(id: Long): DeletedExpense? {
+        val own = shares.value.values.filter { it.expenseId == id }
+        if (own.any { it.isSettled }) return null
+        return items.value[id]?.let { DeletedExpense(it, shares = own) }.also { delete(id) }
+    }
     override suspend fun restore(deleted: DeletedExpense) {
         insert(deleted.expense)
         shares.value += deleted.shares.associateBy { it.id }

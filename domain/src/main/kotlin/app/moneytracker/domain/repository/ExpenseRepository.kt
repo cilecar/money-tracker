@@ -49,7 +49,10 @@ interface ExpenseRepository {
 
     suspend fun delete(id: Long)
 
-    /** Удаление с запоминанием ссылок на расход — для «Отменить». @return null, если расхода уже нет. */
+    /**
+     * Удаление с запоминанием ссылок на расход — для «Отменить». @return null, если расхода уже нет
+     * или у него есть погашенная доля (сначала отменить погашение).
+     */
     suspend fun deleteForUndo(id: Long): DeletedExpense?
 
     /**

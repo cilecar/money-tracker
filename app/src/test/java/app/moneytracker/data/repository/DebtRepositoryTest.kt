@@ -112,15 +112,28 @@ class DebtRepositoryTest {
     fun deleteForUndoRestoresSharesWithSameIds() = runTest {
         val id = expenses.save(dinner(), listOf(share(petya), share(vasya)))
         val before = debts.getSharesForExpense(id)
-        debts.settle(DebtRef(DebtDirection.OWED_TO_ME, before.first().id), settlement())
-        val settledBefore = debts.getSharesForExpense(id)
 
         val deleted = expenses.deleteForUndo(id)!!
         assertEquals(emptyList<ExpenseShare>(), debts.getSharesForExpense(id))
         assertEquals(2, deleted.shares.size)
 
         expenses.restore(deleted)
-        assertEquals(settledBefore, debts.getSharesForExpense(id))
+        assertEquals(before, debts.getSharesForExpense(id))
+    }
+
+    /** Удаление унесло бы погашение из баланса счёта — как у «в долг»: сначала отменить погашение. */
+    @Test
+    fun expenseWithSettledShareIsNotDeleted() = runTest {
+        val id = expenses.save(dinner(), listOf(share(petya)))
+        val ref = DebtRef(DebtDirection.OWED_TO_ME, debts.getSharesForExpense(id).single().id)
+        debts.settle(ref, settlement())
+
+        assertNull(expenses.deleteForUndo(id))
+        assertTrue(expenses.get(id) != null)
+        assertTrue(debts.getDebt(ref)!!.isSettled)
+
+        debts.unsettle(ref)
+        assertTrue(expenses.deleteForUndo(id) != null)
     }
 
     @Test

@@ -128,9 +128,7 @@ fun ExpenseListScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is ExpenseListEvent.Deleted -> scope.launch {
-                    // Погашенные доли ушли вместе с расходом — и их деньги из баланса счёта; «Отменить» вернёт всё.
-                    val message = if (event.deleted.shares.any { it.isSettled }) R.string.expense_deleted_with_settled else R.string.expense_deleted
-                    if (undo(snackbar, resources.getString(message), resources.getString(R.string.action_undo))) viewModel.restore(event.deleted)
+                    if (undo(snackbar, resources.getString(R.string.expense_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.deleted)
                 }
                 is ExpenseListEvent.PaidForMeDeleted -> scope.launch {
                     if (undo(snackbar, resources.getString(R.string.paid_for_me_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.paidForMe)
@@ -220,8 +218,13 @@ fun ExpenseListScreen(
                 stickyHeader(key = "day-${section.date}") { DayHeader(section, state.today) }
                 items(section.items, key = { it.key }) { item ->
                     when (item) {
-                        is ExpenseItem -> SwipeToDelete(onDelete = { viewModel.delete(item.details.expense.id) }) {
+                        // С погашенной долей не смахнуть: сначала отменить погашение в карточке человека.
+                        is ExpenseItem -> if (item.details.shares.any { it.isSettled }) {
                             ExpenseRow(item.details, state.displayCurrency, onClick = { onEdit(item.details.expense.id) })
+                        } else {
+                            SwipeToDelete(onDelete = { viewModel.delete(item.details.expense.id) }) {
+                                ExpenseRow(item.details, state.displayCurrency, onClick = { onEdit(item.details.expense.id) })
+                            }
                         }
                         is IncomeItem -> SwipeToDelete(onDelete = { viewModel.deleteIncome(item.income.id) }) {
                             IncomeRow(item, state.displayCurrency, onClick = { onEditIncome(item.income.id) })

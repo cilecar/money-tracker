@@ -355,7 +355,6 @@
     <string name="operation_transfer">Transfer</string>
     <string name="operation_debts">Debts</string>
     <string name="expense_my_share">my share %1$s</string>
-    <string name="expense_deleted_with_settled">Expense deleted — together with its settled shares</string>
     <string name="paid_for_me_by">Paid by %1$s</string>
     <string name="paid_for_me_deleted">Debt record deleted</string>
     <string name="debt_settled_in">Debt repaid to you</string>

@@ -99,6 +99,8 @@ class ExpenseRepositoryImpl @Inject constructor(
     override suspend fun deleteForUndo(id: Long): DeletedExpense? = db.withTransaction {
         val expense = dao.get(id)?.toDomain() ?: return@withTransaction null
         val shares = db.debtDao().sharesForExpense(id).map { it.toDomain() }
+        // Погашенная доля держит расход: удаление унесло бы её деньги из баланса счёта.
+        if (shares.any { it.isSettled }) return@withTransaction null
         val deleted = DeletedExpense(expense, dao.refundIdsFor(id), dao.transferIdsWithFee(id), dao.captureIdsFor(id), shares)
         dao.delete(id)
         deleted
