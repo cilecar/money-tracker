@@ -46,6 +46,9 @@ data class FilteredExpensesRoute(
 /** id = 0 — новый перевод. */
 @Serializable data class TransferEditRoute(val id: Long = 0)
 
+/** «За меня заплатили»; id 0 — новая запись. */
+@Serializable data class PaidForMeEditRoute(val id: Long = 0)
+
 @Serializable data object AutoCaptureRoute
 @Serializable data object PendingCapturesRoute
 @Serializable data object CaptureDebugRoute

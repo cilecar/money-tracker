@@ -417,6 +417,10 @@
     <string name="person_new">Новый человек</string>
     <string name="person_rename">Переименовать</string>
     <string name="person_name">Имя</string>
+    <string name="operation_paid_for_me">В долг</string>
+    <string name="paid_for_me_new">Заплатили за меня</string>
+    <string name="paid_for_me_edit">Изменить «в долг»</string>
+    <string name="paid_for_me_who">Кто заплатил</string>
     <string name="transfer_new">Новый перевод</string>
     <string name="transfer_edit">Перевод</string>
     <string name="transfer_deleted">Перевод удалён</string>

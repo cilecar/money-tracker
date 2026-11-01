@@ -77,6 +77,7 @@ enum class NewOperationKind(val labelRes: Int) {
     EXPENSE(R.string.operation_expense),
     INCOME(R.string.operation_income),
     TRANSFER(R.string.operation_transfer),
+    DEBT(R.string.operation_paid_for_me),
 }
 
 fun OperationKind.labelRes(): Int = when (this) {

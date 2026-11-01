@@ -7,6 +7,7 @@ import androidx.navigation.NavHostController
 import app.moneytracker.ui.incomecategories.IncomeCategoriesScreen
 import app.moneytracker.ui.operations.IncomeEditScreen
 import app.moneytracker.ui.operations.NewOperationKind
+import app.moneytracker.ui.operations.PaidForMeEditScreen
 import app.moneytracker.ui.operations.RefundEditScreen
 import app.moneytracker.ui.operations.TransferEditScreen
 import androidx.annotation.StringRes
@@ -127,6 +128,7 @@ fun AppRoot(
                     onEditIncome = { navController.navigate(IncomeEditRoute(it)) },
                     onEditRefund = { navController.navigate(RefundEditRoute(it)) },
                     onEditTransfer = { navController.navigate(TransferEditRoute(it)) },
+                    onEditPaidForMe = { navController.navigate(PaidForMeEditRoute(it)) },
                     onPending = { navController.navigate(PendingCapturesRoute) },
                 )
             }
@@ -155,6 +157,9 @@ fun AppRoot(
             composable<TransferEditRoute> {
                 TransferEditScreen(onClose = { navController.popBackStack() }, onSwitchKind = { navController.switchNewOperation(it) })
             }
+            composable<PaidForMeEditRoute> {
+                PaidForMeEditScreen(onClose = { navController.popBackStack() }, onSwitchKind = { navController.switchNewOperation(it) })
+            }
             composable<IncomeCategoriesRoute> { IncomeCategoriesScreen(onBack = { navController.popBackStack() }) }
             composable<AnalyticsRoute> {
                 AnalyticsScreen(
@@ -173,6 +178,7 @@ fun AppRoot(
                     onEditIncome = { navController.navigate(IncomeEditRoute(it)) },
                     onEditRefund = { navController.navigate(RefundEditRoute(it)) },
                     onEditTransfer = { navController.navigate(TransferEditRoute(it)) },
+                    onEditPaidForMe = { navController.navigate(PaidForMeEditRoute(it)) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -218,6 +224,7 @@ private fun NavHostController.switchNewOperation(kind: NewOperationKind) {
         NewOperationKind.EXPENSE -> ExpenseEditRoute()
         NewOperationKind.INCOME -> IncomeEditRoute()
         NewOperationKind.TRANSFER -> TransferEditRoute()
+        NewOperationKind.DEBT -> PaidForMeEditRoute()
     }
     val current = currentBackStackEntry?.destination?.id ?: return
     navigate(route) { popUpTo(current) { inclusive = true } }

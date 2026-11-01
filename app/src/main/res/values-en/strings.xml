@@ -373,6 +373,10 @@
     <string name="person_new">New person</string>
     <string name="person_rename">Rename</string>
     <string name="person_name">Name</string>
+    <string name="operation_paid_for_me">Owed</string>
+    <string name="paid_for_me_new">Paid for me</string>
+    <string name="paid_for_me_edit">Edit “paid for me”</string>
+    <string name="paid_for_me_who">Who paid</string>
     <string name="transfer_new">New transfer</string>
     <string name="transfer_edit">Transfer</string>
     <string name="transfer_deleted">Transfer deleted</string>
