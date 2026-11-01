@@ -12,6 +12,7 @@ import app.moneytracker.domain.model.DebtDirection
 import app.moneytracker.domain.model.DebtRef
 import app.moneytracker.domain.model.Money
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -36,7 +37,11 @@ class DebtUseCasesTest {
     private val card = Account(id = 1, name = "Карта", type = AccountType.CARD, currency = CurrencyCode.RSD, openingDate = LocalDate.of(2026, 1, 1))
     private val accounts = FakeAccountRepository(listOf(card))
 
-    private val savePaidForMe = SavePaidForMeUseCase(debts, rates, clock)
+    private val budgets = app.moneytracker.domain.fake.FakeBudgetRepository()
+    private val notifier = app.moneytracker.domain.fake.RecordingNotifier()
+    private val categories = app.moneytracker.domain.fake.FakeCategoryRepository(listOf(app.moneytracker.domain.model.Category(id = 5, name = "Кино", iconKey = "", color = 0)))
+    private val checkBudgets = app.moneytracker.domain.fake.checkBudgets(clock, expenses, categories, budgets, notifier, debts = debts)
+    private val savePaidForMe = SavePaidForMeUseCase(debts, rates, checkBudgets, clock)
     private val settle = SettleDebtUseCase(debts, accounts, clock)
     private val unsettle = UnsettleDebtUseCase(debts)
     private val savePerson = SavePersonUseCase(persons)
@@ -101,5 +106,29 @@ class DebtUseCasesTest {
         savePerson(id, "Пётр")
         assertEquals("Пётр", persons.get(id)!!.name)
         assertThrows(IllegalArgumentException::class.java) { runBlocking { savePerson(0, "   ") } }
+    }
+
+    @Test
+    fun `paid for me triggers budget check`() = runTest {
+        budgets.upsert(app.moneytracker.domain.model.Budget(categoryId = 5, limit = rsd(40000)))
+        cinema()
+        assertEquals(1, notifier.sent.size)
+    }
+
+    @Test
+    fun `analytics counts my share and paid for me`() = runTest {
+        val at = Instant.parse("2026-10-12T18:00:00Z")
+        expenses.save(
+            app.moneytracker.domain.model.Expense.create(rsd(300000), 5, 1, at, zone, null, at),
+            listOf(app.moneytracker.domain.model.ExpenseShare(expenseId = 0, personId = 1, amount = rsd(200000), createdAt = at, updatedAt = at)),
+        )
+        cinema()
+        val observe = ObserveAnalyticsUseCase(
+            expenses, categories, accounts, app.moneytracker.domain.fake.FakeIncomeRepository(), app.moneytracker.domain.fake.FakeRefundRepository(),
+            app.moneytracker.domain.fake.FakeIncomeCategoryRepository(), debts, clock,
+        )
+        val report = observe(app.moneytracker.domain.model.AnalyticsPeriod.Month(java.time.YearMonth.of(2026, 10)), CurrencyCode.RSD).first()
+        assertEquals(rsd(140000), report.total.total)
+        assertTrue(report.accounts.any { it.paidByOthers })
     }
 }

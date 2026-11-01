@@ -2,6 +2,7 @@ package app.moneytracker.widget
 
 import android.content.Context
 import androidx.glance.appwidget.updateAll
+import app.moneytracker.domain.repository.DebtRepository
 import app.moneytracker.domain.repository.ExpenseRepository
 import app.moneytracker.domain.repository.RefundRepository
 import app.moneytracker.domain.repository.SettingsRepository
@@ -21,7 +22,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Обновляет виджет при любом изменении расходов или возвратов текущего месяца или валюты отображения.
+ * Обновляет виджет при любом изменении расходов, возвратов, долей или «за меня заплатили» текущего месяца
+ * или валюты отображения.
  * Живёт, пока жив процесс: все изменения данных происходят в процессе приложения
  * (UI, WorkManager), так что отдельный механизм оповещения не нужен. Смену месяца
  * без открытия приложения покрывает updatePeriodMillis в описании виджета.
@@ -31,6 +33,7 @@ class WidgetUpdater @Inject constructor(
     @ApplicationContext private val context: Context,
     private val expenses: ExpenseRepository,
     private val refunds: RefundRepository,
+    private val debts: DebtRepository,
     private val settings: SettingsRepository,
     private val clock: Clock,
 ) {
@@ -40,11 +43,15 @@ class WidgetUpdater @Inject constructor(
     fun start() {
         val month = YearMonth.now(clock)
         scope.launch {
+            val from = month.atDay(1)
+            val to = month.atEndOfMonth()
             combine(
-                expenses.observeBetween(month.atDay(1), month.atEndOfMonth()),
-                refunds.observeBetween(month.atDay(1), month.atEndOfMonth()),
+                expenses.observeBetween(from, to),
+                refunds.observeBetween(from, to),
+                debts.observeSharesBetween(from, to),
+                debts.observePaidForMeBetween(from, to),
                 settings.settings.map { it.displayCurrency }.distinctUntilChanged(),
-            ) { list, refundList, currency -> Triple(list, refundList, currency) }
+            ) { list, refundList, shares, paid, currency -> listOf(list, refundList, shares, paid, currency) }
                 // Импорт CSV меняет сотни строк подряд — перерисовываем один раз в конце.
                 .debounce(1_000)
                 .collect { MonthTotalWidget().updateAll(context) }

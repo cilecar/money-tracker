@@ -8,6 +8,7 @@ import app.moneytracker.domain.repository.BudgetRepository
 import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.ExpenseRepository
 import app.moneytracker.domain.repository.RefundRepository
+import app.moneytracker.domain.repository.DebtRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -25,13 +26,20 @@ class ObserveBudgetsUseCase @Inject constructor(
     private val expenses: ExpenseRepository,
     private val categories: CategoryRepository,
     private val refunds: RefundRepository,
+    private val debts: DebtRepository,
 ) {
-    operator fun invoke(month: YearMonth): Flow<List<BudgetProgress>> = combine(
-        budgets.observeAll(),
-        expenses.observe(ExpenseFilter(from = month.atDay(1), to = month.atEndOfMonth())),
-        categories.observeAll(includeArchived = true),
-        refunds.observeBetween(month.atDay(1), month.atEndOfMonth()),
-    ) { b, e, c, r -> BudgetProgress.compute(b, e, c.associateBy { it.id }, r) }
+    operator fun invoke(month: YearMonth): Flow<List<BudgetProgress>> {
+        val from = month.atDay(1)
+        val to = month.atEndOfMonth()
+        val debtsOfMonth = combine(debts.observeSharesBetween(from, to), debts.observePaidForMeBetween(from, to)) { s, p -> s to p }
+        return combine(
+            budgets.observeAll(),
+            expenses.observe(ExpenseFilter(from = from, to = to)),
+            categories.observeAll(includeArchived = true),
+            refunds.observeBetween(from, to),
+            debtsOfMonth,
+        ) { b, e, c, r, (s, p) -> BudgetProgress.compute(b, e, c.associateBy { it.id }, r, s, p) }
+    }
 }
 
 /**

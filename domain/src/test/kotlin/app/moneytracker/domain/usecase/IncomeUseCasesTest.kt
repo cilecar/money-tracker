@@ -86,7 +86,7 @@ class IncomeUseCasesTest {
         saveIncome(IncomeInput(amount = Money(1_00, CurrencyCode.EUR), accountId = 1, categoryId = 1, occurredAt = now))
         saveRefund(RefundInput(amount = Money(1_00, CurrencyCode.EUR), accountId = 1, categoryId = 1, occurredAt = now))
         withRates()
-        val fill = FillPendingRatesUseCase(expenses, incomes, refunds, rates, checkBudgets(clock, expenses, refunds = refunds), clock)
+        val fill = FillPendingRatesUseCase(expenses, incomes, refunds, app.moneytracker.domain.fake.FakeDebtRepository(expenses), rates, checkBudgets(clock, expenses, refunds = refunds), clock)
         assertEquals(2, fill())
         assertTrue(incomes.items.value.all { it.rates != null })
         assertTrue(refunds.items.value.all { it.rates != null })

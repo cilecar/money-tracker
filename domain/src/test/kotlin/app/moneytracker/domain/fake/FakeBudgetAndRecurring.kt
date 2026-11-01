@@ -81,5 +81,6 @@ fun checkBudgets(
     budgets: FakeBudgetRepository = FakeBudgetRepository(),
     notifier: BudgetNotifier = RecordingNotifier(),
     refunds: RefundRepository = FakeRefundRepository(),
-) = CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories, refunds), budgets, notifier, clock)
+    debts: app.moneytracker.domain.repository.DebtRepository = FakeDebtRepository(expenses as? FakeExpenseRepository ?: FakeExpenseRepository()),
+) = CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories, refunds, debts), budgets, notifier, clock)
 

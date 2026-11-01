@@ -108,7 +108,7 @@ class DataTransferTest {
         val runRecurring = RunRecurringUseCase(
             recurring,
             rateRepo,
-            CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories, RefundRepositoryImpl(db, db.refundDao())), budgets, NoNotifier, clock),
+            CheckBudgetsUseCase(ObserveBudgetsUseCase(budgets, expenses, categories, RefundRepositoryImpl(db, db.refundDao()), DebtRepositoryImpl(db, db.debtDao(), clock)), budgets, NoNotifier, clock),
             clock,
         )
         val transfer = DataTransferImpl(

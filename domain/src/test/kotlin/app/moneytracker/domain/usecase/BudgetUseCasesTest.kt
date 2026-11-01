@@ -46,7 +46,8 @@ class BudgetUseCasesTest {
     private val budgets = FakeBudgetRepository()
     private val notifier = RecordingNotifier()
     private val refunds = FakeRefundRepository()
-    private val observe = ObserveBudgetsUseCase(budgets, expenses, categories, refunds)
+    private val debts = app.moneytracker.domain.fake.FakeDebtRepository(expenses)
+    private val observe = ObserveBudgetsUseCase(budgets, expenses, categories, refunds, debts)
     private val check = CheckBudgetsUseCase(observe, budgets, notifier, clock)
     private val save = SaveBudgetUseCase(budgets, check)
 
@@ -142,5 +143,21 @@ class BudgetUseCasesTest {
     @Test(expected = IllegalArgumentException::class)
     fun `zero limit rejected`() = runTest {
         save(Budget(categoryId = 1, limit = Money(0, CurrencyCode.EUR)))
+    }
+
+    @Test
+    fun `budget alert uses my share`() = runTest {
+        save(Budget(categoryId = 1, limit = Money(200000, CurrencyCode.EUR)))
+        val at = Instant.parse("2026-10-10T12:00:00Z")
+        expenses.save(
+            Expense.create(Money(300000, CurrencyCode.EUR), 1, 1, at, ZoneOffset.UTC, rates, at),
+            listOf(app.moneytracker.domain.model.ExpenseShare(expenseId = 0, personId = 1, amount = Money(150000, CurrencyCode.EUR), createdAt = at, updatedAt = at)),
+        )
+        check()
+        assertEquals(Money(150000, CurrencyCode.EUR), progress().single().spent)
+        assertEquals(emptyList<Any>(), notifier.sent)
+
+        debts.insertPaidForMe(app.moneytracker.domain.model.PaidForMe.create(Money(20000, CurrencyCode.EUR), 1, 2, at, ZoneOffset.UTC, rates, at))
+        assertEquals(Money(170000, CurrencyCode.EUR), progress().single().spent)
     }
 }

@@ -2,6 +2,7 @@ package app.moneytracker.widget
 
 import android.content.Context
 import app.moneytracker.domain.model.Total
+import app.moneytracker.domain.repository.DebtRepository
 import app.moneytracker.domain.repository.ExpenseRepository
 import app.moneytracker.domain.repository.RefundRepository
 import app.moneytracker.domain.repository.SettingsRepository
@@ -19,17 +20,22 @@ class WidgetDataSource @Inject constructor(
     @ApplicationContext private val context: Context,
     private val expenses: ExpenseRepository,
     private val refunds: RefundRepository,
+    private val debts: DebtRepository,
     private val settings: SettingsRepository,
     private val clock: Clock,
 ) {
     suspend fun load(): WidgetData {
         val month = YearMonth.now(clock)
         val currency = settings.settings.first().displayCurrency
-        // Траты месяца за вычетом возвратов — как на главном экране.
+        val from = month.atDay(1)
+        val to = month.atEndOfMonth()
+        // Траты месяца за вычетом возвратов, только моя доля — как на главном экране.
         val total = Total.spending(
-            expenses.observeBetween(month.atDay(1), month.atEndOfMonth()).first(),
-            refunds.observeBetween(month.atDay(1), month.atEndOfMonth()).first(),
+            expenses.observeBetween(from, to).first(),
+            refunds.observeBetween(from, to).first(),
             currency,
+            shares = debts.observeSharesBetween(from, to).first(),
+            paidForMe = debts.observePaidForMeBetween(from, to).first(),
         )
         val locale = context.resources.configuration.locales[0]
         val title = month.month.getDisplayName(TextStyle.FULL_STANDALONE, locale).replaceFirstChar { it.titlecase(locale) }

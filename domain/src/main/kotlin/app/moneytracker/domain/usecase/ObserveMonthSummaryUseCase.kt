@@ -5,6 +5,7 @@ import app.moneytracker.domain.model.MonthSummary
 import app.moneytracker.domain.repository.ExpenseRepository
 import app.moneytracker.domain.repository.IncomeRepository
 import app.moneytracker.domain.repository.RefundRepository
+import app.moneytracker.domain.repository.DebtRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +36,7 @@ class ObserveMonthSummaryUseCase @Inject constructor(
     private val expenses: ExpenseRepository,
     private val incomes: IncomeRepository,
     private val refunds: RefundRepository,
+    private val debts: DebtRepository,
     private val clock: Clock,
 ) {
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -46,6 +48,8 @@ class ObserveMonthSummaryUseCase @Inject constructor(
             expenses.observeBetween(from, to),
             refunds.observeBetween(from, to),
             incomes.observeBetween(from, to),
-        ) { e, r, i -> MonthSummary.of(month, today, currency, e, r, i) }
+            debts.observeSharesBetween(from, to),
+            debts.observePaidForMeBetween(from, to),
+        ) { e, r, i, s, p -> MonthSummary.of(month, today, currency, e, r, i, s, p) }
     }
 }

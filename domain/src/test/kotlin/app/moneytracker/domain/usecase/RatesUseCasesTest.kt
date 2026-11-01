@@ -43,7 +43,8 @@ class RatesUseCasesTest {
     private val incomes = FakeIncomeRepository()
     private val refunds = FakeRefundRepository()
     private val rates = FakeExchangeRateRepository(clock)
-    private val fill = FillPendingRatesUseCase(expenses, incomes, refunds, rates, checkBudgets(clock, expenses), clock)
+    private val debts = app.moneytracker.domain.fake.FakeDebtRepository(expenses)
+    private val fill = FillPendingRatesUseCase(expenses, incomes, refunds, debts, rates, checkBudgets(clock, expenses), clock)
     private val refresh = RefreshRatesUseCase(rates, fill, clock)
     private val setManual = SetManualRateUseCase(rates, fill, clock)
 
@@ -188,7 +189,7 @@ class RatesUseCasesTest {
                 expenses.update(expenses.get(resized)!!.withAmount(Money(5000, CurrencyCode.EUR), now))
             }
         }
-        FillPendingRatesUseCase(racing, FakeIncomeRepository(), FakeRefundRepository(), rates, checkBudgets(clock, expenses), clock)()
+        FillPendingRatesUseCase(racing, FakeIncomeRepository(), FakeRefundRepository(), debts, rates, checkBudgets(clock, expenses), clock)()
 
         val c = expenses.get(commented)!!
         assertEquals("правка", c.comment)
@@ -207,7 +208,19 @@ class RatesUseCasesTest {
         val racing = object : ExpenseRepository by expenses {
             override suspend fun getWithoutRates() = expenses.getWithoutRates().also { expenses.delete(id) }
         }
-        FillPendingRatesUseCase(racing, FakeIncomeRepository(), FakeRefundRepository(), rates, checkBudgets(clock, expenses), clock)()
+        FillPendingRatesUseCase(racing, FakeIncomeRepository(), FakeRefundRepository(), debts, rates, checkBudgets(clock, expenses), clock)()
         assertNull(expenses.get(id))
+    }
+
+    @Test
+    fun `fill pending rates fills paid for me`() = runTest {
+        val id = debts.insertPaidForMe(app.moneytracker.domain.model.PaidForMe.create(Money(1000, CurrencyCode.EUR), 1, 1, now, ZoneOffset.UTC, null, now))
+        rates.nextResult = { FakeExchangeRateRepository.success(today) }
+
+        assertTrue(refresh() is RefreshResult.Success)
+
+        val p = debts.getPaidForMe(id)!!
+        assertEquals(BigDecimal("117.15"), p.rates!!.rsdPerEur)
+        assertEquals(117150L, p.converted!!.rsdMinor)
     }
 }

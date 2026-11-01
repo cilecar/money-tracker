@@ -28,9 +28,12 @@ data class PaidForMeInput(
 class SavePaidForMeUseCase @Inject constructor(
     private val debts: DebtRepository,
     private val rates: ExchangeRateRepository,
+    private val checkBudgets: CheckBudgetsUseCase,
     private val clock: Clock,
 ) {
-    suspend operator fun invoke(input: PaidForMeInput): Long {
+    suspend operator fun invoke(input: PaidForMeInput): Long = save(input).also { checkBudgets() }
+
+    private suspend fun save(input: PaidForMeInput): Long {
         require(input.amount.minor > 0) { "Amount must be positive" }
         val now = clock.instant()
         if (input.id == 0L) {

@@ -4,6 +4,7 @@ import app.moneytracker.domain.repository.ExchangeRateRepository
 import app.moneytracker.domain.repository.ExpenseRepository
 import app.moneytracker.domain.repository.IncomeRepository
 import app.moneytracker.domain.repository.RefundRepository
+import app.moneytracker.domain.repository.DebtRepository
 import java.time.Clock
 import javax.inject.Inject
 
@@ -15,11 +16,12 @@ class FillPendingRatesUseCase @Inject constructor(
     private val expenses: ExpenseRepository,
     private val incomes: IncomeRepository,
     private val refunds: RefundRepository,
+    private val debts: DebtRepository,
     private val rates: ExchangeRateRepository,
     private val checkBudgets: CheckBudgetsUseCase,
     private val clock: Clock,
 ) {
-    /** @return сколько операций (расходов, доходов, возвратов) обновлено. */
+    /** @return сколько операций (расходов, доходов, возвратов, «за меня заплатили») обновлено. */
     suspend operator fun invoke(): Int {
         val current = rates.current() ?: return 0
         val now = clock.instant()
@@ -29,7 +31,9 @@ class FillPendingRatesUseCase @Inject constructor(
         val filled = expenses.getWithoutRates().filter { snapshot.supports(it.amount.currency) }
             .count { expenses.fillRates(it.withRates(snapshot, now)) } +
             refunds.getWithoutRates().filter { snapshot.supports(it.amount.currency) }
-                .count { refunds.fillRates(it.withRates(snapshot, now)) }
+                .count { refunds.fillRates(it.withRates(snapshot, now)) } +
+            debts.getPaidForMeWithoutRates().filter { snapshot.supports(it.amount.currency) }
+                .count { debts.fillPaidForMeRates(it.withRates(snapshot, now)) }
         val filledIncomes = incomes.getWithoutRates().filter { snapshot.supports(it.amount.currency) }
             .count { incomes.fillRates(it.withRates(snapshot, now)) }
         // Расходы в другой валюте теперь учитываются в бюджетах — пороги могли пересечься.
