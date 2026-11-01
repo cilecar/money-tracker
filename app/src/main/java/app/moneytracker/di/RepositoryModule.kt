@@ -28,6 +28,10 @@ import app.moneytracker.domain.repository.IncomeRepository
 import app.moneytracker.domain.repository.RefundRepository
 import app.moneytracker.domain.repository.TransferRepository
 import app.moneytracker.domain.repository.RecurringRepository
+import app.moneytracker.domain.repository.DebtRepository
+import app.moneytracker.domain.repository.PersonRepository
+import app.moneytracker.data.repository.DebtRepositoryImpl
+import app.moneytracker.data.repository.PersonRepositoryImpl
 import app.moneytracker.domain.repository.SettingsRepository
 import app.moneytracker.domain.usecase.BudgetNotifier
 import app.moneytracker.notifications.BudgetNotifications
@@ -55,4 +59,6 @@ interface RepositoryModule {
     @Binds fun dataTransfer(impl: DataTransferImpl): DataTransfer
     @Binds fun budgetNotifier(impl: BudgetNotifications): BudgetNotifier
     @Binds @Singleton fun settings(impl: SettingsRepositoryImpl): SettingsRepository
+    @Binds @Singleton fun persons(impl: PersonRepositoryImpl): PersonRepository
+    @Binds @Singleton fun debts(impl: DebtRepositoryImpl): DebtRepository
 }

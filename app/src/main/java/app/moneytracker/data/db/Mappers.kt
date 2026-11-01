@@ -1,6 +1,11 @@
 package app.moneytracker.data.db
 
 import app.moneytracker.data.db.dao.ExpenseWithTags
+import app.moneytracker.data.db.dao.ShareRow
+import app.moneytracker.data.db.entity.ExpenseShareEntity
+import app.moneytracker.data.db.entity.PaidForMeEntity
+import app.moneytracker.data.db.entity.PersonEntity
+import app.moneytracker.data.db.entity.SettlementColumns
 import app.moneytracker.data.db.entity.BalanceAdjustmentEntity
 import app.moneytracker.data.db.entity.CapturedPurchaseEntity
 import app.moneytracker.data.db.entity.CategoryEntity
@@ -17,6 +22,13 @@ import app.moneytracker.domain.capture.CapturedPurchase
 import app.moneytracker.domain.model.BalanceAdjustment
 import app.moneytracker.domain.model.Category
 import app.moneytracker.domain.model.ConvertedAmounts
+import app.moneytracker.domain.model.Debt
+import app.moneytracker.domain.model.DebtDirection
+import app.moneytracker.domain.model.DebtRef
+import app.moneytracker.domain.model.ExpenseShare
+import app.moneytracker.domain.model.PaidForMe
+import app.moneytracker.domain.model.Person
+import app.moneytracker.domain.model.Settlement
 import app.moneytracker.domain.model.CurrencyCode
 import app.moneytracker.domain.model.ExchangeRate
 import app.moneytracker.domain.model.Expense
@@ -273,4 +285,80 @@ fun CapturedPurchase.toEntity() = CapturedPurchaseEntity(
     status = status.name,
     expenseId = expenseId,
     createdAt = createdAt,
+)
+
+fun PersonEntity.toDomain() = Person(id, name, archived, sortOrder)
+
+fun Person.toEntity() = PersonEntity(id, name, archived, sortOrder)
+
+fun SettlementColumns.toDomain() = Settlement(accountId, Money(amountMinor, currency), settledAt, settledLocalDate)
+
+fun Settlement.toColumns() = SettlementColumns(occurredAt, localDate, accountId, amount.minor, amount.currency)
+
+fun ShareRow.toDomain() = ExpenseShare(
+    id = share.id,
+    expenseId = share.expenseId,
+    personId = share.personId,
+    amount = Money(share.amountMinor, expenseCurrency),
+    settlement = share.settlement?.toDomain(),
+    createdAt = share.createdAt,
+    updatedAt = share.updatedAt,
+)
+
+fun ShareRow.toDebt() = Debt(
+    ref = DebtRef(DebtDirection.OWED_TO_ME, share.id),
+    personId = share.personId,
+    amount = Money(share.amountMinor, expenseCurrency),
+    categoryId = expenseCategoryId,
+    localDate = expenseLocalDate,
+    comment = expenseComment,
+    expenseAccountId = expenseAccountId,
+    settlement = share.settlement?.toDomain(),
+)
+
+/** Валюта доли — валюта расхода, своей колонки у доли нет. */
+fun ExpenseShare.toEntity() = ExpenseShareEntity(
+    id = id,
+    expenseId = expenseId,
+    personId = personId,
+    amountMinor = amount.minor,
+    settlement = settlement?.toColumns(),
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun PaidForMeEntity.toDomain() = PaidForMe(
+    id = id,
+    personId = personId,
+    amount = Money(amountMinor, currency),
+    categoryId = categoryId,
+    occurredAt = occurredAt,
+    localDate = localDate,
+    comment = comment,
+    rates = snapshot(rateRsdPerEur, rateRubPerEur, rateDate, rateUsdtPerEur),
+    converted = converted(rsdMinor, eurMinor, rubMinor),
+    settlement = settlement?.toDomain(),
+    createdAt = createdAt,
+    updatedAt = updatedAt,
+)
+
+fun PaidForMe.toEntity() = PaidForMeEntity(
+    id = id,
+    personId = personId,
+    amountMinor = amount.minor,
+    currency = amount.currency,
+    categoryId = categoryId,
+    occurredAt = occurredAt,
+    localDate = localDate,
+    comment = comment,
+    rateRsdPerEur = rates?.rsdPerEur,
+    rateRubPerEur = rates?.rubPerEur,
+    rateUsdtPerEur = rates?.usdtPerEur,
+    rateDate = rates?.date,
+    rsdMinor = converted?.rsdMinor,
+    eurMinor = converted?.eurMinor,
+    rubMinor = converted?.rubMinor,
+    settlement = settlement?.toColumns(),
+    createdAt = createdAt,
+    updatedAt = updatedAt,
 )

@@ -9,6 +9,7 @@ import app.moneytracker.data.db.toEntity
 import app.moneytracker.domain.model.DeletedExpense
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
+import app.moneytracker.domain.model.ExpenseShare
 import app.moneytracker.domain.model.usableFor
 import app.moneytracker.domain.repository.ExpenseRepository
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +42,8 @@ class ExpenseRepositoryImpl @Inject constructor(
     override suspend fun get(id: Long): Expense? = dao.get(id)?.toDomain()
 
     override suspend fun getWithoutRates(): List<Expense> = dao.getWithoutRates().map { it.toDomain() }
+
+    override suspend fun save(expense: Expense, shares: List<ExpenseShare>?): Long = TODO("Task 5")
 
     override suspend fun insert(expense: Expense): Long =
         dao.insertWithTags(expense.toEntity(), Expense.normalizeTags(expense.tags))

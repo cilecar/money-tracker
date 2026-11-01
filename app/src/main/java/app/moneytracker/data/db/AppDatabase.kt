@@ -8,7 +8,9 @@ import app.moneytracker.data.db.dao.BudgetDao
 import app.moneytracker.data.db.dao.CaptureDao
 import app.moneytracker.data.db.dao.CategoryDao
 import app.moneytracker.data.db.dao.ExchangeRateDao
+import app.moneytracker.data.db.dao.DebtDao
 import app.moneytracker.data.db.dao.ExpenseDao
+import app.moneytracker.data.db.dao.PersonDao
 import app.moneytracker.data.db.dao.IncomeCategoryDao
 import app.moneytracker.data.db.dao.IncomeDao
 import app.moneytracker.data.db.dao.RefundDao
@@ -22,6 +24,9 @@ import app.moneytracker.data.db.entity.BudgetEntity
 import app.moneytracker.data.db.entity.CategoryEntity
 import app.moneytracker.data.db.entity.ExchangeRateEntity
 import app.moneytracker.data.db.entity.ExpenseEntity
+import app.moneytracker.data.db.entity.ExpenseShareEntity
+import app.moneytracker.data.db.entity.PaidForMeEntity
+import app.moneytracker.data.db.entity.PersonEntity
 import app.moneytracker.data.db.entity.ExpenseTagCrossRef
 import app.moneytracker.data.db.entity.IncomeCategoryEntity
 import app.moneytracker.data.db.entity.IncomeEntity
@@ -51,6 +56,9 @@ import app.moneytracker.data.db.entity.TagEntity
         TransferEntity::class,
         CapturedPurchaseEntity::class,
         MerchantRuleEntity::class,
+        PersonEntity::class,
+        ExpenseShareEntity::class,
+        PaidForMeEntity::class,
     ],
     version = AppDatabase.VERSION,
     exportSchema = true,
@@ -69,16 +77,18 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun recurringDao(): RecurringDao
     abstract fun maintenanceDao(): MaintenanceDao
+    abstract fun personDao(): PersonDao
+    abstract fun debtDao(): DebtDao
 
     companion object {
         const val NAME = "money_tracker.db"
-        const val VERSION = 4
+        const val VERSION = 5
 
         /**
          * Миграции схемы, регистрируются в DataModule. Новая версия базы = миграция сюда
          * (MigrationTest прогонит её по экспортированным схемам из app/schemas).
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(Migration1To2, Migration2To3, Migration3To4)
+        val MIGRATIONS: Array<Migration> = arrayOf(Migration1To2, Migration2To3, Migration3To4, Migration4To5)
 
         /** Есть ли цепочка миграций from → to. Нужна, чтобы не принять резервную копию, которую Room не откроет. */
         fun hasMigrationPath(from: Int, to: Int): Boolean {

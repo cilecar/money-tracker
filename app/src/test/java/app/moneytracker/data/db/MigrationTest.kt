@@ -204,6 +204,32 @@ class MigrationTest {
     }
 
     @Test
+    fun migration4To5KeepsDataAndCreatesDebtTables() = runTest {
+        val name = "migration-4-5-data.db"
+        helper.createDatabase(name, 4).use { db ->
+            db.execSQL("INSERT INTO category (id, name, default_key, icon_key, color, parent_id, sort_order, archived) VALUES (1, 'Еда', 'food', 'restaurant', 1, NULL, 0, 0)")
+            db.execSQL("INSERT INTO account (id, name, type, currency, opening_balance_minor, opening_date, default_key, sort_order, archived, card_suffix) VALUES (1, 'Карта', 'CARD', 'RSD', 0, 20300, NULL, 0, 0, NULL)")
+            db.execSQL("INSERT INTO expense (id, amount_minor, currency, category_id, account_id, occurred_at, local_date, created_at, updated_at) VALUES (1, 300000, 'RSD', 1, 1, 0, 20301, 0, 0)")
+        }
+        helper.runMigrationsAndValidate(name, 5, true, Migration4To5).use { db ->
+            fun count(table: String) = db.query("SELECT COUNT(*) FROM $table").use { c -> c.moveToFirst(); c.getInt(0) }
+            assertEquals(1, count("expense"))
+            assertEquals(0, count("person"))
+            assertEquals(0, count("expense_share"))
+            assertEquals(0, count("paid_for_me"))
+
+            // Доля удаляется вместе с расходом.
+            db.execSQL("PRAGMA foreign_keys = ON")
+            db.execSQL("INSERT INTO person (id, name, archived, sort_order) VALUES (1, 'Петя', 0, 0)")
+            db.execSQL("INSERT INTO expense_share (id, expense_id, person_id, amount_minor, created_at, updated_at) VALUES (1, 1, 1, 100000, 0, 0)")
+            db.execSQL("DELETE FROM expense WHERE id = 1")
+            assertEquals(0, count("expense_share"))
+            db.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
+        }
+        context.deleteDatabase(name)
+    }
+
+    @Test
     fun migrationPathCoversEveryOlderVersion() {
         for (from in 1..AppDatabase.VERSION) assertTrue("no path $from → ${AppDatabase.VERSION}", AppDatabase.hasMigrationPath(from, AppDatabase.VERSION))
         assertFalse(AppDatabase.hasMigrationPath(0, AppDatabase.VERSION))

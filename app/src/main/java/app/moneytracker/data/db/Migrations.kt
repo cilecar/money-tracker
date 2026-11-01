@@ -252,3 +252,22 @@ object Migration3To4 : Migration(3, 4) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_merchant_rule_category_id` ON `merchant_rule` (`category_id`)")
     }
 }
+
+/** Долги: люди, доли «мне должны», «за меня заплатили». Существующие таблицы не меняются. SQL — из schemas/5.json. */
+object Migration4To5 : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `person` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `archived` INTEGER NOT NULL, `sort_order` INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `expense_share` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `expense_id` INTEGER NOT NULL, `person_id` INTEGER NOT NULL, `amount_minor` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `settled_at` INTEGER, `settled_local_date` INTEGER, `settle_account_id` INTEGER, `settle_amount_minor` INTEGER, `settle_currency` TEXT, FOREIGN KEY(`expense_id`) REFERENCES `expense`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`person_id`) REFERENCES `person`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`settle_account_id`) REFERENCES `account`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_expense_share_expense_id_person_id` ON `expense_share` (`expense_id`, `person_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_expense_share_person_id` ON `expense_share` (`person_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_expense_share_settle_account_id` ON `expense_share` (`settle_account_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_expense_share_settled_local_date` ON `expense_share` (`settled_local_date`)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `paid_for_me` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `person_id` INTEGER NOT NULL, `amount_minor` INTEGER NOT NULL, `currency` TEXT NOT NULL, `category_id` INTEGER NOT NULL, `occurred_at` INTEGER NOT NULL, `local_date` INTEGER NOT NULL, `comment` TEXT, `rate_rsd_per_eur` TEXT, `rate_rub_per_eur` TEXT, `rate_usdt_per_eur` TEXT, `rate_date` INTEGER, `rsd_minor` INTEGER, `eur_minor` INTEGER, `rub_minor` INTEGER, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, `settled_at` INTEGER, `settled_local_date` INTEGER, `settle_account_id` INTEGER, `settle_amount_minor` INTEGER, `settle_currency` TEXT, FOREIGN KEY(`person_id`) REFERENCES `person`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`category_id`) REFERENCES `category`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`settle_account_id`) REFERENCES `account`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_paid_for_me_person_id` ON `paid_for_me` (`person_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_paid_for_me_local_date` ON `paid_for_me` (`local_date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_paid_for_me_category_id` ON `paid_for_me` (`category_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_paid_for_me_rate_date` ON `paid_for_me` (`rate_date`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_paid_for_me_settle_account_id` ON `paid_for_me` (`settle_account_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_paid_for_me_settled_local_date` ON `paid_for_me` (`settled_local_date`)")
+    }
+}
