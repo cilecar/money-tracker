@@ -187,13 +187,19 @@ fun AccountChips(accounts: List<Account>, selectedId: Long?, onSelect: (Account)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DateTimeRow(dateTime: LocalDateTime, onDate: (LocalDate) -> Unit, onTime: (LocalTime) -> Unit) {
+fun DateTimeRow(
+    dateTime: LocalDateTime,
+    onDate: (LocalDate) -> Unit,
+    onTime: (LocalTime) -> Unit,
+    /** Чипы после времени — того же вида (например, «Разделить» у расхода). */
+    extra: @Composable () -> Unit = {},
+) {
     val locale = currentLocale()
     val context = LocalContext.current
     var dateOpen by rememberSaveable { mutableStateOf(false) }
     var timeOpen by rememberSaveable { mutableStateOf(false) }
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         AssistChip(
             onClick = { dateOpen = true },
             label = { Text(formatDate(dateTime.toLocalDate(), locale)) },
@@ -204,6 +210,7 @@ fun DateTimeRow(dateTime: LocalDateTime, onDate: (LocalDate) -> Unit, onTime: (L
             label = { Text(dateTime.toLocalTime().format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale))) },
             leadingIcon = { Icon(Icons.Default.Schedule, contentDescription = null, Modifier.size(18.dp)) },
         )
+        extra()
     }
 
     if (dateOpen) {

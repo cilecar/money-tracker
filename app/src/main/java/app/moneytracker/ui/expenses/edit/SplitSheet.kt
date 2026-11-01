@@ -1,6 +1,5 @@
 package app.moneytracker.ui.expenses.edit
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -23,7 +22,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -44,25 +42,29 @@ import androidx.compose.ui.unit.dp
 import app.moneytracker.R
 import app.moneytracker.domain.model.ShareError
 import app.moneytracker.ui.format.currentLocale
+import app.moneytracker.ui.format.formatAmount
 import app.moneytracker.ui.format.formatMoney
 
-/** Строка под счётом: «Разделить» или «Петя, Вася · моя доля 1000». */
+/**
+ * Чип рядом с датой и временем: функция нужна не каждый день, поэтому не отдельной строкой.
+ * «Разделить» или «Доля 1 000 RSD», если покупка уже разделена.
+ */
 @Composable
-fun SplitRow(s: ExpenseEditUiState, onClick: () -> Unit) {
+fun SplitChip(s: ExpenseEditUiState, onClick: () -> Unit) {
     val locale = currentLocale()
-    val names = s.persons.associate { it.id to it.name }
-    val summary = if (s.form.shares.isEmpty()) {
-        stringResource(R.string.split_action)
-    } else {
-        val who = s.form.shares.joinToString(", ") { names[it.personId] ?: "—" }
-        s.myShare?.let { stringResource(R.string.split_summary, who, formatMoney(it, locale)) } ?: who
-    }
-    ListItem(
-        modifier = Modifier.clickable(onClick = onClick),
-        leadingContent = { Icon(Icons.AutoMirrored.Filled.CallSplit, contentDescription = null) },
-        headlineContent = { Text(summary) },
-        supportingContent = s.shareError?.let { { Text(stringResource(it.messageRes()), color = MaterialTheme.colorScheme.error) } },
+    val label = s.myShare?.takeIf { s.form.shares.isNotEmpty() }?.let { stringResource(R.string.split_chip_share, formatAmount(it, locale)) }
+        ?: stringResource(R.string.split_action)
+    AssistChip(
+        onClick = onClick,
+        label = { Text(label) },
+        leadingIcon = { Icon(Icons.AutoMirrored.Filled.CallSplit, contentDescription = null, Modifier.size(18.dp)) },
     )
+}
+
+/** Ошибка в долях (сумму расхода уменьшили ниже долей) — мелкой строкой под датой. */
+@Composable
+fun SplitError(s: ExpenseEditUiState) {
+    s.shareError?.let { Text(stringResource(it.messageRes()), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
 }
 
 /** Кто скидывается и по сколько; моя доля — остаток. */
