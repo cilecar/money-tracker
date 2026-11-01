@@ -42,6 +42,10 @@ class SavePaidForMeUseCase @Inject constructor(
             )
         }
         val old = requireNotNull(debts.getPaidForMe(input.id)) { "PaidForMe ${input.id} not found" }
+        // Погашено: деньги уже ушли этому человеку именно столько — менять кому и сколько нельзя.
+        if (old.settlement != null) {
+            check(input.personId == old.personId && input.amount == old.amount) { "Settled PaidForMe ${old.id} keeps person and amount" }
+        }
         var updated = old
         if (input.occurredAt != old.occurredAt) updated = updated.withOccurredAt(input.occurredAt, clock.zone, now)
         if (input.amount != old.amount) updated = updated.withAmount(input.amount, now)
@@ -80,5 +84,25 @@ class SavePersonUseCase @Inject constructor(private val persons: PersonRepositor
         if (id == 0L) return persons.upsert(Person(name = clean, sortOrder = persons.nextSortOrder()))
         val old = requireNotNull(persons.get(id)) { "Person $id not found" }
         return persons.upsert(old.copy(name = clean))
+    }
+}
+
+sealed interface DeletePaidForMeResult {
+    data class Deleted(val paidForMe: PaidForMe) : DeletePaidForMeResult
+    /** Погашена: удаление молча вернуло бы деньги на счёт — сначала отменить погашение. */
+    data object Settled : DeletePaidForMeResult
+    data object NotFound : DeletePaidForMeResult
+}
+
+class DeletePaidForMeUseCase @Inject constructor(
+    private val debts: DebtRepository,
+    private val checkBudgets: CheckBudgetsUseCase,
+) {
+    suspend operator fun invoke(id: Long): DeletePaidForMeResult {
+        val p = debts.getPaidForMe(id) ?: return DeletePaidForMeResult.NotFound
+        if (p.settlement != null) return DeletePaidForMeResult.Settled
+        debts.deletePaidForMe(id)
+        checkBudgets()
+        return DeletePaidForMeResult.Deleted(p)
     }
 }

@@ -1,5 +1,7 @@
 package app.moneytracker.ui.analytics
 
+import androidx.compose.material.icons.filled.Handshake
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +24,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import app.moneytracker.R
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -277,8 +281,10 @@ fun PaymentBars(slices: List<PaymentSlice>, onClick: (PaymentSlice) -> Unit) {
             Column(Modifier.clip(RoundedCornerShape(8.dp)).clickable { onClick(s) }.padding(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     s.method?.let { Icon(CategoryIcons.forPaymentType(it.type), null, Modifier.size(18.dp)) }
+                    if (s.paidByOthers) Icon(androidx.compose.material.icons.Icons.Default.Handshake, null, Modifier.size(18.dp))
                     Text(
-                        s.method?.displayName() ?: "—",
+                        // «За меня заплатили»: счёта нет, срез подписан отдельно.
+                        if (s.paidByOthers) stringResource(R.string.analytics_paid_by_others) else s.method?.displayName() ?: "—",
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

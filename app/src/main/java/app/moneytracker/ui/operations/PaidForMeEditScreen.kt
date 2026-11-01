@@ -56,6 +56,7 @@ fun PaidForMeEditScreen(
     ) {
         if (s.isNew && onSwitchKind != null) OperationKindTabs(NewOperationKind.DEBT, onSwitchKind)
         AmountHeader(s.form.amount, s.form.currency, s.conversions, s.ratesDate, viewModel::onCurrency)
+        if (s.locked) Text(stringResource(R.string.paid_for_me_locked), color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             s.selectedCategory?.let { c ->
                 FilterChip(selected = true, onClick = { pickerOpen = true }, label = { Text(c.displayName()) }, leadingIcon = { CategoryAvatar(c, size = 20.dp) })
@@ -69,9 +70,9 @@ fun PaidForMeEditScreen(
         Text(stringResource(R.string.paid_for_me_who))
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             s.persons.forEach { p ->
-                FilterChip(selected = p.id == s.form.personId, onClick = { viewModel.onPerson(p.id) }, label = { Text(p.name) })
+                FilterChip(selected = p.id == s.form.personId, enabled = !s.locked, onClick = { viewModel.onPerson(p.id) }, label = { Text(p.name) })
             }
-            AssistChip(
+            if (!s.locked) AssistChip(
                 onClick = { newPersonOpen = true },
                 label = { Text(stringResource(R.string.split_new_person)) },
                 leadingIcon = { Icon(Icons.Default.Add, contentDescription = null, Modifier.size(18.dp)) },

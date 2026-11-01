@@ -143,4 +143,32 @@ class DebtUseCasesTest {
         settle(DebtRef(DebtDirection.I_OWE, id), 1, rsd(40000), now)
         assertTrue(ObserveDebtsUseCase(debts, persons, rates)(CurrencyCode.RSD).first().people.isEmpty())
     }
+
+    @Test
+    fun `settled paid for me cannot be deleted until unsettled`() = runTest {
+        val id = cinema()
+        val delete = DeletePaidForMeUseCase(debts, checkBudgets)
+        settle(DebtRef(DebtDirection.I_OWE, id), 1, rsd(40000), now)
+        assertEquals(DeletePaidForMeResult.Settled, delete(id))
+        assertTrue(debts.getPaidForMe(id) != null)
+
+        unsettle(DebtRef(DebtDirection.I_OWE, id))
+        val deleted = delete(id) as DeletePaidForMeResult.Deleted
+        assertEquals(id, deleted.paidForMe.id)
+        assertNull(debts.getPaidForMe(id))
+        assertEquals(DeletePaidForMeResult.NotFound, delete(id))
+    }
+
+    @Test
+    fun `settled paid for me keeps person and amount`() = runTest {
+        val id = cinema()
+        settle(DebtRef(DebtDirection.I_OWE, id), 1, rsd(40000), now)
+        val input = PaidForMeInput(id = id, amount = rsd(40000), personId = 1, categoryId = 5, occurredAt = now)
+        assertThrows(IllegalStateException::class.java) { runBlocking { savePaidForMe(input.copy(amount = rsd(50000))) } }
+        assertThrows(IllegalStateException::class.java) { runBlocking { savePaidForMe(input.copy(personId = 2)) } }
+        // Комментарий, категорию и дату менять можно.
+        savePaidForMe(input.copy(comment = "кино и попкорн", categoryId = 6))
+        assertEquals("кино и попкорн", debts.getPaidForMe(id)!!.comment)
+        assertTrue(debts.getPaidForMe(id)!!.settlement != null)
+    }
 }

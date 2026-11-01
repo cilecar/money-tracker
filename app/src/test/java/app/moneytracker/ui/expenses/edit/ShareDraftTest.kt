@@ -34,4 +34,39 @@ class ShareDraftTest {
         assertEquals("333.33", rsd(33333).toDraftText())
         assertEquals("0.5", rsd(50).toDraftText())
     }
+
+    @Test
+    fun `equal split leaves settled shares and divides the rest`() {
+        // 3000, А уже вернул 2500: остаток 500 — на меня и Б.
+        val drafts = listOf(ShareDraft(1, "2500", settled = true), ShareDraft(2, ""))
+        assertEquals(listOf(ShareDraft(1, "2500", settled = true), ShareDraft(2, "250")), drafts.splitEqually(rsd(300000)))
+        // Без погашенных — как раньше: 1000 на троих.
+        assertEquals(listOf("333.33", "333.33"), listOf(ShareDraft(1, ""), ShareDraft(2, "")).splitEqually(rsd(100000)).map { it.amountText })
+    }
+
+    private fun form(currency: CurrencyCode, shares: List<ShareDraft>) =
+        ExpenseForm(currency = currency, dateTime = java.time.LocalDateTime.of(2026, 10, 12, 19, 0), shares = shares)
+
+    @Test
+    fun `currency change stashes shares and returning restores them`() {
+        val split = listOf(ShareDraft(1, "1000"), ShareDraft(2, "1000"))
+        val eur = form(CurrencyCode.RSD, split).withCurrency(CurrencyCode.EUR)
+        assertEquals(emptyList<ShareDraft>(), eur.shares)
+        assertEquals(true, eur.sharesChanged)
+
+        // Вернули RSD (кнопкой «вернуть валюту» или выбором другого счёта) — доли на месте.
+        val back = eur.withCurrency(CurrencyCode.RSD)
+        assertEquals(split, back.shares)
+        assertEquals(CurrencyCode.RSD, back.currency)
+    }
+
+    @Test
+    fun `shares entered in the new currency replace the stash`() {
+        val eur = form(CurrencyCode.RSD, listOf(ShareDraft(1, "1000"))).withCurrency(CurrencyCode.EUR)
+            .copy(shares = listOf(ShareDraft(3, "5")))
+        val rsd = eur.withCurrency(CurrencyCode.RSD)
+        // Долей в RSD больше нет: сохранены последние введённые — в EUR.
+        assertEquals(emptyList<ShareDraft>(), rsd.shares)
+        assertEquals(listOf(ShareDraft(3, "5")), rsd.withCurrency(CurrencyCode.EUR).shares)
+    }
 }

@@ -232,8 +232,13 @@ fun ExpenseListScreen(
                         is TransferItem -> SwipeToDelete(onDelete = { viewModel.deleteTransfer(item.transfer.id) }) {
                             TransferRow(item, onClick = { onEditTransfer(item.transfer.id) })
                         }
-                        is PaidForMeItem -> SwipeToDelete(onDelete = { viewModel.deletePaidForMe(item.paidForMe.id) }) {
+                        // Погашенную не смахнуть: удаление вернуло бы деньги на счёт. Сначала отменить погашение.
+                        is PaidForMeItem -> if (item.paidForMe.settlement != null) {
                             PaidForMeRow(item, state.displayCurrency, onClick = { onEditPaidForMe(item.paidForMe.id) })
+                        } else {
+                            SwipeToDelete(onDelete = { viewModel.deletePaidForMe(item.paidForMe.id) }) {
+                                PaidForMeRow(item, state.displayCurrency, onClick = { onEditPaidForMe(item.paidForMe.id) })
+                            }
                         }
                         // Погашение отменяется на карточке человека — свайпом его не удалить.
                         is SettlementItem -> SettlementRow(item, onClick = { onOpenPerson(item.debt.personId) })

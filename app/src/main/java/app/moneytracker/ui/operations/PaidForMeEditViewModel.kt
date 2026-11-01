@@ -58,6 +58,8 @@ data class PaidForMeEditUiState(
     val persons: List<Person>,
 ) {
     val isNew: Boolean get() = form.original == null
+    /** Погашено — сумма, валюта и человек зафиксированы. */
+    val locked: Boolean get() = form.original?.settlement != null
     val selectedCategory: Category? get() = categories.firstOrNull { it.id == form.categoryId }
     val canSave: Boolean get() = form.loaded && !form.saving && form.amount.toMoney(form.currency).minor > 0 &&
         form.categoryId != null && form.personId != null
@@ -125,13 +127,15 @@ class PaidForMeEditViewModel @Inject constructor(
         )
     }
 
-    fun onKey(key: KeypadKey) = form.update { it.copy(amount = it.amount.press(key, it.currency.fractionDigits)) }
+    private val PaidForMeForm.locked get() = original?.settlement != null
 
-    fun onCurrency(currency: CurrencyCode) = form.update { it.copy(currency = currency, amount = it.amount.fitTo(currency)) }
+    fun onKey(key: KeypadKey) = form.update { if (it.locked) it else it.copy(amount = it.amount.press(key, it.currency.fractionDigits)) }
+
+    fun onCurrency(currency: CurrencyCode) = form.update { if (it.locked) it else it.copy(currency = currency, amount = it.amount.fitTo(currency)) }
 
     fun onCategory(id: Long) = form.update { it.copy(categoryId = id) }
 
-    fun onPerson(id: Long) = form.update { it.copy(personId = id) }
+    fun onPerson(id: Long) = form.update { if (it.locked) it else it.copy(personId = id) }
 
     fun addPerson(name: String) {
         if (name.isBlank()) return

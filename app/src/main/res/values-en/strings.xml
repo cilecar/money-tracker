@@ -378,6 +378,8 @@
     <string name="paid_for_me_edit">Edit “paid for me”</string>
     <string name="paid_for_me_who">Who paid</string>
     <string name="debts_title">Debts</string>
+    <string name="paid_for_me_locked">Debt is settled — amount and person are locked until the settlement is undone</string>
+    <string name="analytics_paid_by_others">Paid by others</string>
     <string name="debts_owed_to_me">Owed to me</string>
     <string name="debts_i_owe">I owe</string>
     <string name="debts_missing_rates">Some debts are in another currency without a rate and are not in the total</string>

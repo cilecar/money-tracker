@@ -422,6 +422,8 @@
     <string name="paid_for_me_edit">Изменить «в долг»</string>
     <string name="paid_for_me_who">Кто заплатил</string>
     <string name="debts_title">Долги</string>
+    <string name="paid_for_me_locked">Долг погашен — сумму и человека не изменить, пока не отменить погашение</string>
+    <string name="analytics_paid_by_others">Оплатили другие</string>
     <string name="debts_owed_to_me">Мне должны</string>
     <string name="debts_i_owe">Я должен</string>
     <string name="debts_missing_rates">Часть долгов в другой валюте без курса — в итог не вошла</string>

@@ -109,6 +109,7 @@ class ExpenseListViewModel @Inject constructor(
     captures: CaptureRepository,
     private val debts: DebtRepository,
     personRepository: PersonRepository,
+    private val deletePaidForMe: app.moneytracker.domain.usecase.DeletePaidForMeUseCase,
 ) : ViewModel() {
 
     /**
@@ -299,12 +300,11 @@ class ExpenseListViewModel @Inject constructor(
         }
     }
 
+    /** Погашенную запись не удаляем — экран и не даёт её смахнуть; здесь страховка. */
     fun deletePaidForMe(id: Long) {
         viewModelScope.launch {
-            val paidForMe = debts.getPaidForMe(id) ?: return@launch
-            debts.deletePaidForMe(id)
-            checkBudgets()
-            _events.send(ExpenseListEvent.PaidForMeDeleted(paidForMe))
+            val result = deletePaidForMe.invoke(id) as? app.moneytracker.domain.usecase.DeletePaidForMeResult.Deleted ?: return@launch
+            _events.send(ExpenseListEvent.PaidForMeDeleted(result.paidForMe))
         }
     }
 
