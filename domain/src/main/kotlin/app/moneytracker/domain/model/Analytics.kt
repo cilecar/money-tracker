@@ -19,7 +19,8 @@ data class CategorySlice(
     val share: Float,
 )
 
-data class PaymentSlice(val method: Account?, val amount: Money, val share: Float)
+/** [paidByOthers] — траты «за меня заплатили»: счёта у них нет, [method] null. */
+data class PaymentSlice(val method: Account?, val amount: Money, val share: Float, val paidByOthers: Boolean = false)
 
 data class IncomeSlice(val category: IncomeCategory?, val amount: Money, val share: Float)
 
@@ -76,9 +77,11 @@ object Analytics {
         refunds: List<Refund> = emptyList(),
         incomes: List<Income> = emptyList(),
         incomeCategories: Map<Long, IncomeCategory> = emptyMap(),
+        shares: List<ExpenseShare> = emptyList(),
+        paidForMe: List<PaidForMe> = emptyList(),
     ): AnalyticsReport {
         val previousPeriod = period.previous()
-        val spending = expenses + refunds.map(Refund::asNegativeExpense)
+        val spending = Spending.items(expenses, refunds, shares, paidForMe)
         val current = spending.filter { it.localDate in period }
         val previous = spending.filter { it.localDate in previousPeriod }
         val currentIncome = incomes.filter { it.localDate in period }
@@ -171,7 +174,10 @@ object Analytics {
         methods: Map<Long, Account>,
     ): List<PaymentSlice> {
         val slices = current.groupBy { it.accountId }
-            .map { (id, list) -> PaymentSlice(methods[id], sum(list, currency), 0f) }
+            .map { (id, list) ->
+                val others = id == PaidForMe.NO_ACCOUNT
+                PaymentSlice(if (others) null else methods[id], sum(list, currency), 0f, paidByOthers = others)
+            }
             .filter { it.amount.minor > 0 }
         val shown = shownTotal(slices.map { it.amount }, currency)
         return slices.map { it.copy(share = share(it.amount, shown)) }.sortedByDescending { it.amount.minor }

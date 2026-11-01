@@ -55,10 +55,16 @@ data class BudgetProgress(
             categories: Map<Long, Category>,
             /** Возвраты месяца уменьшают потраченное в своей категории. */
             refunds: List<Refund> = emptyList(),
-        ): List<BudgetProgress> = budgets.map { budget ->
-            val ids = setOf(budget.categoryId) + categories.values.filter { it.parentId == budget.categoryId }.map { it.id }
-            val total = Total.spending(expenses.filter { it.categoryId in ids }, refunds.filter { it.categoryId in ids }, budget.limit.currency)
-            BudgetProgress(budget, categories[budget.categoryId], total.total, total.withoutRates)
+            /** Доли «мне должны» уменьшают траты категории расхода, «за меня заплатили» — добавляют. */
+            shares: List<ExpenseShare> = emptyList(),
+            paidForMe: List<PaidForMe> = emptyList(),
+        ): List<BudgetProgress> {
+            val spending = Spending.items(expenses, refunds, shares, paidForMe)
+            return budgets.map { budget ->
+                val ids = setOf(budget.categoryId) + categories.values.filter { it.parentId == budget.categoryId }.map { it.id }
+                val total = Total.of(spending.filter { it.categoryId in ids }, budget.limit.currency)
+                BudgetProgress(budget, categories[budget.categoryId], total.total, total.withoutRates)
+            }
         }
     }
 }

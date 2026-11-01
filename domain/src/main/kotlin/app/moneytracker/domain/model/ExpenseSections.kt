@@ -28,9 +28,14 @@ data class Total(val total: Money, val withoutRates: Int) {
             return Total(sum, missing)
         }
 
-        /** Траты за вычетом возвратов. */
-        fun spending(expenses: Iterable<Expense>, refunds: Iterable<Refund>, currency: CurrencyCode): Total =
-            of(expenses, currency) - of(refunds, currency)
+        /** Траты за вычетом возвратов и долей «мне должны», плюс «за меня заплатили» — см. [Spending]. */
+        fun spending(
+            expenses: List<Expense>,
+            refunds: List<Refund>,
+            currency: CurrencyCode,
+            shares: List<ExpenseShare> = emptyList(),
+            paidForMe: List<PaidForMe> = emptyList(),
+        ): Total = of(Spending.items(expenses, refunds, shares, paidForMe), currency)
     }
 }
 

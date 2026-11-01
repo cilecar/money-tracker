@@ -34,10 +34,12 @@ data class MonthSummary(
             expenses: List<Expense>,
             refunds: List<Refund>,
             incomes: List<Income>,
+            shares: List<ExpenseShare> = emptyList(),
+            paidForMe: List<PaidForMe> = emptyList(),
         ): MonthSummary {
             fun inMonth(date: LocalDate) = YearMonth.from(date) == month
             val income = Total.of(incomes.filter { inMonth(it.localDate) }, currency)
-            val spent = Total.spending(expenses.filter { inMonth(it.localDate) }, refunds.filter { inMonth(it.localDate) }, currency)
+            val spent = Total.of(Spending.items(expenses, refunds, shares, paidForMe).filter { inMonth(it.localDate) }, currency)
             val remaining = income.total - spent.total
             val daysLeft = when {
                 YearMonth.from(today) == month -> ChronoUnit.DAYS.between(today, month.atEndOfMonth()) + 1

@@ -211,3 +211,24 @@ data class Debt(
         )
     }
 }
+
+/**
+ * Всё, что считается тратами, — одним списком расходов со знаком: расходы, возвраты (минус, в день возврата),
+ * доли «мне должны» (минус, в день покупки), «за меня заплатили» (плюс). Аналитика, бюджеты и итоги
+ * считают по нему теми же формулами, поэтому везде видна только моя доля.
+ */
+object Spending {
+    /** Доля, чей расход не в [expenses] (другой период или фильтр), пропускается: она относится к дню покупки. */
+    fun items(
+        expenses: List<Expense>,
+        refunds: List<Refund> = emptyList(),
+        shares: List<ExpenseShare> = emptyList(),
+        paidForMe: List<PaidForMe> = emptyList(),
+    ): List<Expense> {
+        val byId = if (shares.isEmpty()) emptyMap() else expenses.associateBy { it.id }
+        return expenses +
+            refunds.map(Refund::asNegativeExpense) +
+            shares.mapNotNull { share -> byId[share.expenseId]?.let(share::asNegativeExpense) } +
+            paidForMe.map(PaidForMe::asExpense)
+    }
+}
