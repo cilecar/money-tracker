@@ -59,13 +59,18 @@ fun debtsUiState(summary: DebtSummary, people: List<Person>): DebtsUiState {
 class DebtsViewModel @Inject constructor(
     observeDebts: ObserveDebtsUseCase,
     persons: PersonRepository,
-    settings: SettingsRepository,
+    private val settings: SettingsRepository,
 ) : ViewModel() {
     val state: StateFlow<DebtsUiState> = combine(
         settings.settings.map { it.displayCurrency }.distinctUntilChanged().flatMapLatest { observeDebts(it) },
         persons.observeAll(includeArchived = true),
         ::debtsUiState,
     ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DebtsUiState())
+
+    /** Валюта отображения — общая настройка, как на «Расходах» и в «Аналитике». */
+    fun setCurrency(currency: app.moneytracker.domain.model.CurrencyCode) {
+        viewModelScope.launch { settings.setDisplayCurrency(currency) }
+    }
 }
 
 /** Долг со справочниками — для строки на карточке человека. */

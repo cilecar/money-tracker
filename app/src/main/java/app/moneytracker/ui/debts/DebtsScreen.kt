@@ -30,6 +30,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.moneytracker.R
 import app.moneytracker.domain.model.PersonBalance
+import app.moneytracker.ui.common.CurrencyMenu
 import app.moneytracker.ui.format.currentLocale
 import app.moneytracker.ui.format.formatMoney
 import app.moneytracker.ui.operations.IncomeColor
@@ -49,6 +50,7 @@ fun DebtsScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.debts_title)) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.action_close)) } },
+                actions = { CurrencyMenu(state.summary?.owedToMe?.currency, viewModel::setCurrency) },
             )
         },
         floatingActionButton = {
