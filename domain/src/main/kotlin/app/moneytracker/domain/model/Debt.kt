@@ -232,3 +232,49 @@ object Spending {
             paidForMe.map(PaidForMe::asExpense)
     }
 }
+
+/** Сальдо по человеку: [net] > 0 — он должен мне, < 0 — я ему. Только информационно: закрываются долги по одному. */
+data class PersonBalance(
+    val person: Person,
+    val net: Money,
+    val openCount: Int,
+    /** Часть долгов в другой валюте без курса — в [net] не вошла. */
+    val missingRates: Boolean,
+)
+
+/** Экран «Долги»: итоги по открытым долгам в валюте отображения по текущим курсам. */
+data class DebtSummary(
+    val owedToMe: Money,
+    val iOwe: Money,
+    /** Люди с открытыми долгами, по убыванию |сальдо|. */
+    val people: List<PersonBalance>,
+    val missingRates: Boolean,
+) {
+    companion object {
+        fun of(debts: List<Debt>, persons: Map<Long, Person>, currency: CurrencyCode, rates: RateSnapshot?): DebtSummary {
+            val open = debts.filter { !it.isSettled }
+            fun convert(m: Money): Money? = if (m.currency == currency) m else rates?.convertOrNull(m, currency)
+            fun signed(d: Debt): Money? = convert(d.amount)?.let { if (d.ref.direction == DebtDirection.OWED_TO_ME) it else -it }
+            fun total(direction: DebtDirection) = open.filter { it.ref.direction == direction }
+                .mapNotNull { convert(it.amount) }.fold(Money.zero(currency)) { acc, m -> acc + m }
+
+            val people = open.groupBy { it.personId }.mapNotNull { (id, list) ->
+                val person = persons[id] ?: return@mapNotNull null
+                val amounts = list.map(::signed)
+                PersonBalance(
+                    person = person,
+                    net = amounts.filterNotNull().fold(Money.zero(currency)) { acc, m -> acc + m },
+                    openCount = list.size,
+                    missingRates = amounts.any { it == null },
+                )
+            }.sortedWith(compareByDescending<PersonBalance> { kotlin.math.abs(it.net.minor) }.thenBy { it.person.name })
+
+            return DebtSummary(
+                owedToMe = total(DebtDirection.OWED_TO_ME),
+                iOwe = total(DebtDirection.I_OWE),
+                people = people,
+                missingRates = open.any { convert(it.amount) == null },
+            )
+        }
+    }
+}

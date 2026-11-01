@@ -131,4 +131,16 @@ class DebtUseCasesTest {
         assertEquals(rsd(140000), report.total.total)
         assertTrue(report.accounts.any { it.paidByOthers })
     }
+
+    @Test
+    fun `observe debts summarizes open debts`() = runTest {
+        val petya = savePerson(0, "Петя")
+        val id = savePaidForMe(PaidForMeInput(amount = rsd(40000), personId = petya, categoryId = 5, occurredAt = now))
+        val summary = ObserveDebtsUseCase(debts, persons, rates)(CurrencyCode.RSD).first()
+        assertEquals(rsd(40000), summary.iOwe)
+        assertEquals(rsd(-40000), summary.people.single().net)
+
+        settle(DebtRef(DebtDirection.I_OWE, id), 1, rsd(40000), now)
+        assertTrue(ObserveDebtsUseCase(debts, persons, rates)(CurrencyCode.RSD).first().people.isEmpty())
+    }
 }

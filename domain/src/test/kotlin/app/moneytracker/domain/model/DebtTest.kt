@@ -115,4 +115,52 @@ class DebtTest {
         assertNull(mine.expenseAccountId)
         assertEquals("кино", mine.comment)
     }
+
+    private val petya = Person(id = 1, name = "Петя")
+    private val vasya = Person(id = 2, name = "Вася")
+    private val persons = listOf(petya, vasya).associateBy { it.id }
+
+    private fun debt(id: Long, direction: DebtDirection, amount: Money, person: Long = 1, settled: Boolean = false) = Debt(
+        ref = DebtRef(direction, id), personId = person, amount = amount, categoryId = 5, localDate = LocalDate.of(2026, 10, 12),
+        comment = null, expenseAccountId = null, settlement = if (settled) Settlement.create(1, rsd(100), at, ZoneOffset.UTC) else null,
+    )
+
+    @Test
+    fun `summary nets per person and totals both directions`() {
+        val summary = DebtSummary.of(
+            listOf(
+                debt(1, DebtDirection.OWED_TO_ME, rsd(100000)),
+                debt(2, DebtDirection.OWED_TO_ME, rsd(50000)),
+                debt(3, DebtDirection.I_OWE, rsd(40000)),
+                debt(4, DebtDirection.I_OWE, rsd(20000), person = 2),
+                // Погашенные не учитываются.
+                debt(5, DebtDirection.OWED_TO_ME, rsd(999900), settled = true),
+            ),
+            persons, CurrencyCode.RSD, rates,
+        )
+        assertEquals(rsd(150000), summary.owedToMe)
+        assertEquals(rsd(60000), summary.iOwe)
+        assertEquals(listOf(petya to rsd(110000), vasya to rsd(-20000)), summary.people.map { it.person to it.net })
+        assertEquals(listOf(3, 1), summary.people.map { it.openCount })
+        assertTrue(!summary.missingRates)
+    }
+
+    @Test
+    fun `summary converts by current rates and flags missing ones`() {
+        val eurDebt = debt(1, DebtDirection.OWED_TO_ME, Money(1000, CurrencyCode.EUR))
+        assertEquals(rsd(100000), DebtSummary.of(listOf(eurDebt), persons, CurrencyCode.RSD, rates).owedToMe)
+
+        val noRates = DebtSummary.of(listOf(eurDebt, debt(2, DebtDirection.I_OWE, rsd(500))), persons, CurrencyCode.RSD, null)
+        assertTrue(noRates.missingRates)
+        assertEquals(rsd(0), noRates.owedToMe)
+        assertEquals(rsd(500), noRates.iOwe)
+        assertTrue(noRates.people.single().missingRates)
+    }
+
+    @Test
+    fun `people without open debts are hidden`() {
+        val summary = DebtSummary.of(listOf(debt(1, DebtDirection.OWED_TO_ME, rsd(100), settled = true)), persons, CurrencyCode.RSD, rates)
+        assertEquals(emptyList<PersonBalance>(), summary.people)
+        assertEquals(rsd(0), summary.owedToMe)
+    }
 }
