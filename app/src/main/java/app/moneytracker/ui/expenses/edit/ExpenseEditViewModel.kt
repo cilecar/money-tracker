@@ -18,6 +18,13 @@ import app.moneytracker.domain.model.RateSnapshot
 import app.moneytracker.domain.repository.CategoryRepository
 import app.moneytracker.domain.repository.ExchangeRateRepository
 import app.moneytracker.domain.repository.ExpenseRepository
+import app.moneytracker.domain.repository.DebtRepository
+import app.moneytracker.domain.repository.PersonRepository
+import app.moneytracker.domain.model.Person
+import app.moneytracker.domain.model.ShareError
+import app.moneytracker.domain.model.splitEqually
+import app.moneytracker.domain.model.validateShares
+import app.moneytracker.domain.usecase.SavePersonUseCase
 import app.moneytracker.domain.repository.AccountRepository
 import app.moneytracker.domain.repository.SettingsRepository
 import app.moneytracker.domain.usecase.ExpenseInput
@@ -55,6 +62,10 @@ data class ExpenseForm(
     val currencySwitchedFrom: CurrencyCode? = null,
     /** Исходный расход при редактировании. */
     val original: Expense? = null,
+    /** Доли «мне должны»; погашенные — только для чтения. */
+    val shares: List<ShareDraft> = emptyList(),
+    /** Доли трогали — сохраняем их; иначе use case проверит сохранённые против новой суммы. */
+    val sharesChanged: Boolean = false,
     val saving: Boolean = false,
 )
 
@@ -71,9 +82,18 @@ data class ExpenseEditUiState(
     val selectedCategory: Category?,
     val accounts: List<Account>,
     val tagSuggestions: List<String>,
+    /** Люди для разделения: активные и уже участвующие в расходе. */
+    val persons: List<Person> = emptyList(),
+    /** Моя доля, если расход разделён и доли корректны. */
+    val myShare: Money? = null,
+    /** Ошибка в долях; [ShareError.NOT_POSITIVE] — в том числе пустая или неразборчивая сумма. */
+    val shareError: ShareError? = null,
 ) {
     val canSave: Boolean get() = form.loaded && !form.saving && !form.amount.isEmpty &&
-        form.amount.toMoney(form.currency).minor > 0 && form.categoryId != null && form.accountId != null
+        form.amount.toMoney(form.currency).minor > 0 && form.categoryId != null && form.accountId != null && shareError == null
+
+    /** Погашенная доля держит валюту расхода: деньги за неё уже пришли. */
+    val currencyLocked: Boolean get() = form.shares.any { it.settled }
 }
 
 sealed interface ExpenseEditEvent {
@@ -93,6 +113,9 @@ class ExpenseEditViewModel @Inject constructor(
     private val captures: CaptureRepository,
     private val suggestCapture: SuggestCaptureUseCase,
     private val confirmCapture: ConfirmCaptureUseCase,
+    private val debts: DebtRepository,
+    personRepository: PersonRepository,
+    private val savePerson: SavePersonUseCase,
 ) : ViewModel() {
 
     private val expenseId = savedStateHandle.toRoute<ExpenseEditRoute>().id
@@ -108,7 +131,8 @@ class ExpenseEditViewModel @Inject constructor(
         accountRepository.observeAll(includeArchived = true),
         expenses.observeRecentCategoryIds(QUICK_CATEGORIES),
         expenses.observeTags(),
-    ) { categories, methods, recent, tags -> References(categories, methods, recent, tags) }
+        personRepository.observeAll(includeArchived = true),
+    ) { categories, methods, recent, tags, people -> References(categories, methods, recent, tags, people) }
 
     val state: StateFlow<ExpenseEditUiState?> =
         combine(form, references, ratesRepository.observeCurrent()) { form, refs, current ->
@@ -175,6 +199,7 @@ class ExpenseEditViewModel @Inject constructor(
             comment = e.comment.orEmpty(),
             tags = e.tags,
             original = e,
+            shares = debts.getSharesForExpense(e.id).map { ShareDraft(it.personId, it.amount.toDraftText(), it.isSettled) },
         )
     }
 
@@ -190,6 +215,13 @@ class ExpenseEditViewModel @Inject constructor(
             .let { if (it.size < QUICK_CATEGORIES) (it + activeCategories.filter { c -> c.parentId == null }).distinctBy { c -> c.id } else it }
             .take(QUICK_CATEGORIES)
         val draft = form.tagDraft.trim().lowercase()
+        val shareInputs = form.shares.toInputs(form.currency)
+        val shareError = when {
+            form.shares.isEmpty() -> null
+            shareInputs == null -> ShareError.NOT_POSITIVE
+            else -> validateShares(money, shareInputs)
+        }
+        val inShares = form.shares.map { it.personId }.toSet()
         return ExpenseEditUiState(
             form = form,
             isNew = form.original == null,
@@ -205,6 +237,9 @@ class ExpenseEditViewModel @Inject constructor(
                 .filter { t -> form.tags.none { it.equals(t, ignoreCase = true) } }
                 .filter { draft.isEmpty() || it.lowercase().startsWith(draft) }
                 .take(8),
+            persons = refs.persons.filter { !it.archived || it.id in inShares },
+            myShare = shareInputs?.takeIf { it.isNotEmpty() && shareError == null }?.fold(money) { acc, s -> acc - s.amount },
+            shareError = shareError,
         )
     }
 
@@ -213,20 +248,54 @@ class ExpenseEditViewModel @Inject constructor(
     }
 
     fun onCurrency(currency: CurrencyCode) = form.update {
-        it.copy(currency = currency, amount = it.amount.fitTo(currency), currencySwitchedFrom = null)
+        if (it.shares.any { s -> s.settled }) return@update it
+        it.copy(currency = currency, amount = it.amount.fitTo(currency), currencySwitchedFrom = null).withSharesFor(currency, it.currency)
     }
 
     fun onCategory(id: Long) = form.update { it.copy(categoryId = id) }
 
     /** Выбор счёта переключает валюту ввода на валюту счёта (её можно сменить вручную). */
     fun onAccount(method: Account) = form.update {
+        // Погашенная доля держит валюту — меняем только счёт.
+        if (it.shares.any { s -> s.settled }) return@update it.copy(accountId = method.id)
         val currency = method.currency
         it.copy(
             accountId = method.id,
             currency = currency,
             amount = it.amount.fitTo(currency),
             currencySwitchedFrom = it.amount.currencySwitchedFrom(it.currency, currency, it.currencySwitchedFrom),
-        )
+        ).withSharesFor(currency, it.currency)
+    }
+
+    /** Доли — в валюте расхода: при смене валюты неуплаченные сбрасываем, иначе «1000 RSD» молча стали бы «1000 EUR». */
+    private fun ExpenseForm.withSharesFor(currency: CurrencyCode, old: CurrencyCode) =
+        if (currency == old || shares.isEmpty()) this else copy(shares = emptyList(), sharesChanged = true)
+
+    /** Выбор человека в разделении; погашенную долю убрать нельзя. */
+    fun onSplitToggle(personId: Long) = form.update { f ->
+        val existing = f.shares.firstOrNull { it.personId == personId }
+        when {
+            existing == null -> f.copy(shares = f.shares + ShareDraft(personId, ""), sharesChanged = true)
+            existing.settled -> f
+            else -> f.copy(shares = f.shares - existing, sharesChanged = true)
+        }
+    }
+
+    fun onShareAmount(personId: Long, text: String) = form.update { f ->
+        f.copy(shares = f.shares.map { if (it.personId == personId && !it.settled) it.copy(amountText = text) else it }, sharesChanged = true)
+    }
+
+    /** «Поровну» на меня и выбранных; погашенные доли не трогаем, остаток от деления — мне. */
+    fun onSplitEqually() = form.update { f ->
+        val total = f.amount.toMoney(f.currency)
+        val each = splitEqually(total, f.shares.size).firstOrNull() ?: return@update f
+        f.copy(shares = f.shares.map { if (it.settled) it else it.copy(amountText = each.toDraftText()) }, sharesChanged = true)
+    }
+
+    /** Новый человек сразу попадает в разделение. */
+    fun addPerson(name: String) {
+        if (name.isBlank()) return
+        viewModelScope.launch { onSplitToggle(savePerson(0, name)) }
     }
 
     fun onDate(date: LocalDate) = form.update { it.copy(dateTime = LocalDateTime.of(date, it.dateTime.toLocalTime())) }
@@ -280,6 +349,7 @@ class ExpenseEditViewModel @Inject constructor(
                 comment = f.comment,
                 // Недописанный тег в поле тоже сохраняем — иначе он молча потеряется.
                 tags = f.tags + listOfNotNull(f.tagDraft.trim().takeIf { it.isNotEmpty() }),
+                shares = if (f.sharesChanged) f.shares.toInputs(f.currency) else null,
             )
             // Покупка — через ConfirmCapture: под его замком, чтобы не задвоить с кнопкой «Добавить».
             if (captureId != 0L) confirmCapture.saveEdited(captureId, input) else saveExpense(input)
@@ -292,6 +362,7 @@ class ExpenseEditViewModel @Inject constructor(
         val accounts: List<Account>,
         val recentCategoryIds: List<Long>,
         val tags: List<String>,
+        val persons: List<Person>,
     )
 
     private companion object {

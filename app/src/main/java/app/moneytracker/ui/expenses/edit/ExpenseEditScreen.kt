@@ -103,6 +103,7 @@ fun ExpenseEditScreen(
         viewModel.events.collect { if (it == ExpenseEditEvent.Close) onClose() }
     }
 
+    var splitOpen by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -138,6 +139,7 @@ fun ExpenseEditScreen(
                 )
                 CategoryRow(s, onSelect = viewModel::onCategory)
                 AccountChips(s.accounts, s.form.accountId, onSelect = viewModel::onAccount)
+                SplitRow(s, onClick = { splitOpen = true })
                 DateTimeRow(s.form.dateTime, onDate = viewModel::onDate, onTime = viewModel::onTime)
                 OutlinedTextField(
                     value = s.form.comment,
@@ -167,6 +169,7 @@ fun ExpenseEditScreen(
                 }
             }
         }
+        if (splitOpen) SplitSheet(s, viewModel, onDismiss = { splitOpen = false })
     }
 }
 
