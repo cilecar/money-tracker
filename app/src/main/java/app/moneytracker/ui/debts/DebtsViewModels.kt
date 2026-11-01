@@ -43,7 +43,16 @@ data class DebtsUiState(
     val summary: DebtSummary? = null,
     /** Люди без открытых долгов — чтобы открыть историю или переименовать. */
     val others: List<Person> = emptyList(),
+    /** Архивные без открытых долгов — иначе их не открыть и не вернуть из архива. */
+    val archived: List<Person> = emptyList(),
 )
+
+/** Архивный человек с открытым долгом остаётся в основном списке (он в [DebtSummary.people]). */
+fun debtsUiState(summary: DebtSummary, people: List<Person>): DebtsUiState {
+    val withDebts = summary.people.map { it.person.id }.toSet()
+    val rest = people.filter { it.id !in withDebts }
+    return DebtsUiState(summary, rest.filter { !it.archived }, rest.filter { it.archived })
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -54,11 +63,9 @@ class DebtsViewModel @Inject constructor(
 ) : ViewModel() {
     val state: StateFlow<DebtsUiState> = combine(
         settings.settings.map { it.displayCurrency }.distinctUntilChanged().flatMapLatest { observeDebts(it) },
-        persons.observeAll(includeArchived = false),
-    ) { summary, people ->
-        val withDebts = summary.people.map { it.person.id }.toSet()
-        DebtsUiState(summary, people.filter { it.id !in withDebts })
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DebtsUiState())
+        persons.observeAll(includeArchived = true),
+        ::debtsUiState,
+    ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DebtsUiState())
 }
 
 /** Долг со справочниками — для строки на карточке человека. */

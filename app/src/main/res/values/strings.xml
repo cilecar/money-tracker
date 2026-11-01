@@ -429,6 +429,7 @@
     <string name="debts_missing_rates_short">без курса</string>
     <string name="debts_empty">Открытых долгов нет</string>
     <string name="debts_others">Без долгов</string>
+    <string name="debts_archived">Архив</string>
     <string name="debts_owes_you">должен тебе</string>
     <string name="debts_you_owe">ты должен</string>
     <string name="debts_even">в расчёте</string>

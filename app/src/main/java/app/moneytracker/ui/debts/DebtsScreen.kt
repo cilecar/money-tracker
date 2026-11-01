@@ -110,6 +110,14 @@ fun DebtsScreen(
                     ListItem(modifier = Modifier.clickable { onPerson(p.id) }, headlineContent = { Text(p.name) })
                 }
             }
+            if (state.archived.isNotEmpty()) {
+                item(key = "archived") {
+                    Text(stringResource(R.string.debts_archived), Modifier.padding(16.dp), style = MaterialTheme.typography.titleSmall)
+                }
+                items(state.archived, key = { "a-${it.id}" }) { p ->
+                    ListItem(modifier = Modifier.clickable { onPerson(p.id) }, headlineContent = { Text(p.name) })
+                }
+            }
         }
     }
 }

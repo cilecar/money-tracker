@@ -385,6 +385,7 @@
     <string name="debts_missing_rates_short">no rate</string>
     <string name="debts_empty">No open debts</string>
     <string name="debts_others">No debts</string>
+    <string name="debts_archived">Archive</string>
     <string name="debts_owes_you">owes you</string>
     <string name="debts_you_owe">you owe</string>
     <string name="debts_even">settled up</string>
