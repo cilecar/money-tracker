@@ -47,7 +47,7 @@ class CaptureUseCasesTest {
     private val suggest = SuggestCaptureUseCase(captures, categories, accounts)
     private val capture = CapturePurchaseUseCase(setOf(GoogleWalletParser()), captures, rates, suggest, clock)
     private val confirm = ConfirmCaptureUseCase(
-        captures, suggest, SaveExpenseUseCase(expenses, rates, FakeSettingsRepository(), checkBudgets(clock, expenses, categories), clock),
+        captures, suggest, SaveExpenseUseCase(expenses, app.moneytracker.domain.fake.FakeDebtRepository(expenses), rates, FakeSettingsRepository(), checkBudgets(clock, expenses, categories), clock),
     )
 
     private fun wallet(text: String = "RSD1,600 with Bybit Mastercard ••1234", key: String = "k1", title: String = "BAKERY", at: Instant = now) =
