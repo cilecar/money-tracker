@@ -646,7 +646,8 @@ class DataTransferImpl @Inject constructor(
             MerchantRuleEntity(it.merchantKey, it.categoryId, Instant.parse(it.updatedAt))
         }
 
-        val persons = dto.persons.map { PersonEntity(it.id, it.name, it.archived, it.sortOrder) }
+        // Пустое имя приложение не даёт ввести — в файле это порча.
+        val persons = dto.persons.map { PersonEntity(it.id, it.name.trim().ifEmpty { inconsistent() }, it.archived, it.sortOrder) }
         val personIds = unique(persons.map { it.id })
         // Погашение — в валюте своего счёта: на этом держится баланс.
         fun settlement(s: SettlementDto?) = s?.let {

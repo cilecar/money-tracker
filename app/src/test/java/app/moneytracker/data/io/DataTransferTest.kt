@@ -738,6 +738,7 @@ class DataTransferTest {
         source.assertImportRejected(source.exportJsonWith { d -> d.copy(expenseShares = d.expenseShares.map { it.copy(personId = 999) }) }, reason, "share of missing person")
         source.assertImportRejected(source.exportJsonWith { d -> d.copy(paidForMe = d.paidForMe.map { it.copy(categoryId = 999) }) }, reason, "paid for me in missing category")
         source.assertImportRejected(source.exportJsonWith { d -> d.copy(persons = d.persons + d.persons.first()) }, reason, "duplicate person")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(persons = d.persons.map { it.copy(name = "  ") }) }, reason, "blank person name")
         source.assertImportRejected(
             source.exportJsonWith { d -> d.copy(expenseShares = d.expenseShares.map { it.copy(amountMinor = 400000) }) }, reason, "shares exceed expense",
         )
