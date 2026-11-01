@@ -36,12 +36,13 @@ class SavePaidForMeUseCase @Inject constructor(
     private suspend fun save(input: PaidForMeInput): Long {
         require(input.amount.minor > 0) { "Amount must be positive" }
         val now = clock.instant()
-        if (input.id == 0L) {
+        // Запись могли удалить, пока был открыт редактор: сохраняем как новую — правки не теряем (как у расхода).
+        val old = if (input.id != 0L) debts.getPaidForMe(input.id) else null
+        if (old == null) {
             return debts.insertPaidForMe(
                 PaidForMe.create(input.amount, input.personId, input.categoryId, input.occurredAt, clock.zone, rates.current()?.snapshot, now, input.comment),
             )
         }
-        val old = requireNotNull(debts.getPaidForMe(input.id)) { "PaidForMe ${input.id} not found" }
         // Погашено: деньги уже ушли этому человеку именно столько — менять кому и сколько нельзя.
         if (old.settlement != null) {
             check(input.personId == old.personId && input.amount == old.amount) { "Settled PaidForMe ${old.id} keeps person and amount" }

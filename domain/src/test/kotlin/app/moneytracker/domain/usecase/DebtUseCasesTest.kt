@@ -171,4 +171,12 @@ class DebtUseCasesTest {
         assertEquals("кино и попкорн", debts.getPaidForMe(id)!!.comment)
         assertTrue(debts.getPaidForMe(id)!!.settlement != null)
     }
+
+    @Test
+    fun `paid for me deleted while editing is saved as new`() = runTest {
+        val id = cinema()
+        debts.deletePaidForMe(id)
+        val newId = savePaidForMe(PaidForMeInput(id = id, amount = rsd(45000), personId = 1, categoryId = 5, occurredAt = now))
+        assertEquals(rsd(45000), debts.getPaidForMe(newId)!!.amount)
+    }
 }
