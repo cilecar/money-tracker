@@ -81,6 +81,43 @@ class ExpenseSectionsTest {
         assertEquals(Money(5000, CurrencyCode.RSD), pending.amountIn(CurrencyCode.RSD))
         assertNull(pending.amountIn(CurrencyCode.EUR))
     }
+
+    private val petya = Person(id = 1, name = "Петя")
+
+    private fun share(expense: Expense, minor: Long, settled: Boolean = false) = ExpenseShare(
+        id = 1, expenseId = expense.id, personId = 1, amount = Money(minor, expense.amount.currency),
+        settlement = if (settled) Settlement.create(1, Money(minor, CurrencyCode.RSD), Instant.parse("2026-10-16T09:00:00Z"), ZoneOffset.UTC) else null,
+        createdAt = expense.createdAt, updatedAt = expense.updatedAt,
+    )
+
+    @Test
+    fun `day total counts my share and paid for me, expense shows my share`() {
+        val dinner = expense(14, 18, Money(300000, CurrencyCode.RSD)).copy(id = 7)
+        val s = share(dinner, 200000, settled = true)
+        val paid = PaidForMe.create(Money(40000, CurrencyCode.RSD), 1, 1, Instant.parse("2026-10-14T20:00:00Z"), ZoneOffset.UTC, rates, dinner.createdAt).copy(id = 3)
+        val result = ExpenseSections.byDay(
+            Operations(expenses = listOf(dinner), shares = listOf(s), paidForMe = listOf(paid), settlements = listOf(Debt.of(s, dinner))),
+            mapOf(1L to food), mapOf(1L to cash), emptyMap(), CurrencyCode.RSD, persons = mapOf(1L to petya),
+        )
+        val day = result.single { it.date == LocalDate.of(2026, 10, 14) }
+        assertEquals(Money(140000, CurrencyCode.RSD), day.total.total)
+        val item = day.items.filterIsInstance<ExpenseItem>().single()
+        assertEquals(Money(100000, CurrencyCode.RSD), item.details.myShare)
+        assertEquals(petya, day.items.filterIsInstance<PaidForMeItem>().single().person)
+
+        // Погашение — строкой в день погашения, на итог дня не влияет.
+        val settledDay = result.single { it.date == LocalDate.of(2026, 10, 16) }
+        val settlement = settledDay.items.single() as SettlementItem
+        assertEquals(cash, settlement.account)
+        assertEquals(petya, settlement.person)
+        assertEquals(Money(0, CurrencyCode.RSD), settledDay.total.total)
+    }
+
+    @Test
+    fun `expense without shares has no my share`() {
+        val item = sections(listOf(expense(14, 9, Money(500, CurrencyCode.EUR))), CurrencyCode.EUR)[0].items.single() as ExpenseItem
+        assertNull(item.details.myShare)
+    }
 }
 
 private val OPENING: LocalDate = LocalDate.of(2020, 1, 1)

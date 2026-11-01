@@ -84,6 +84,7 @@ fun OperationKind.labelRes(): Int = when (this) {
     OperationKind.INCOME -> R.string.operation_income
     OperationKind.REFUND -> R.string.operation_refund
     OperationKind.TRANSFER -> R.string.operation_transfer
+    OperationKind.DEBT -> R.string.operation_debts
 }
 
 @Composable

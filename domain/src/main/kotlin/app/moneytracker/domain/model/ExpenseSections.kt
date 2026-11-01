@@ -11,7 +11,12 @@ data class ExpenseDetails(
     /** Родитель, если [category] — подкатегория. */
     val parentCategory: Category?,
     val account: Account?,
-)
+    /** Доли «мне должны» в этом расходе. */
+    val shares: List<ExpenseShare> = emptyList(),
+) {
+    /** Моя доля, если расход разделён; null — не разделён. */
+    val myShare: Money? get() = if (shares.isEmpty()) null else shares.fold(expense.amount) { acc, s -> acc - s.amount }
+}
 
 /** Итог с учётом операций без курса: они не входят в [total], а считаются отдельно. */
 data class Total(val total: Money, val withoutRates: Int) {
@@ -70,9 +75,29 @@ data class RefundItem(
     override val localDate: LocalDate get() = refund.localDate
 }
 
+/** «За меня заплатили» в ленте. */
+data class PaidForMeItem(
+    val paidForMe: PaidForMe,
+    val person: Person?,
+    val category: Category?,
+    val parentCategory: Category?,
+) : OperationItem {
+    override val key get() = "p-${paidForMe.id}"
+    override val occurredAt: Instant get() = paidForMe.occurredAt
+    override val localDate: LocalDate get() = paidForMe.localDate
+}
+
+/** Погашение долга — строкой в день погашения: оно двигает баланс счёта, и при сверке его должно быть видно. */
+data class SettlementItem(val debt: Debt, val person: Person?, val account: Account?) : OperationItem {
+    val settlement: Settlement = requireNotNull(debt.settlement) { "Debt ${debt.ref} is not settled" }
+    override val key get() = "st-${debt.ref.direction}-${debt.ref.id}"
+    override val occurredAt: Instant get() = settlement.occurredAt
+    override val localDate: LocalDate get() = settlement.localDate
+}
+
 data class DaySection(
     val date: LocalDate,
-    /** Траты дня за вычетом возвратов; доходы сюда не входят. */
+    /** Траты дня (только моя доля) за вычетом возвратов; доходы и погашения сюда не входят. */
     val total: Total,
     val items: List<OperationItem>,
 )
@@ -83,8 +108,13 @@ data class Operations(
     val incomes: List<Income> = emptyList(),
     val refunds: List<Refund> = emptyList(),
     val transfers: List<Transfer> = emptyList(),
+    /** Доли расходов из [expenses] — для «моей доли» и итогов дня. */
+    val shares: List<ExpenseShare> = emptyList(),
+    val paidForMe: List<PaidForMe> = emptyList(),
+    /** Погашенные долги с датой погашения в периоде. */
+    val settlements: List<Debt> = emptyList(),
 ) {
-    val size: Int get() = expenses.size + incomes.size + refunds.size + transfers.size
+    val size: Int get() = expenses.size + incomes.size + refunds.size + transfers.size + paidForMe.size + settlements.size
 }
 
 object ExpenseSections {
@@ -106,15 +136,22 @@ object ExpenseSections {
         accounts: Map<Long, Account>,
         incomeCategories: Map<Long, IncomeCategory>,
         currency: CurrencyCode,
+        persons: Map<Long, Person> = emptyMap(),
     ): List<DaySection> {
+        val sharesByExpense = operations.shares.groupBy { it.expenseId }
         val items: List<OperationItem> = operations.expenses.map { e ->
             val category = categories[e.categoryId]
-            ExpenseItem(ExpenseDetails(e, category, category?.parentId?.let(categories::get), accounts[e.accountId]))
+            ExpenseItem(ExpenseDetails(e, category, category?.parentId?.let(categories::get), accounts[e.accountId], sharesByExpense[e.id].orEmpty()))
         } + operations.incomes.map { IncomeItem(it, incomeCategories[it.categoryId], accounts[it.accountId]) } +
             operations.refunds.map { r ->
                 val category = categories[r.categoryId]
                 RefundItem(r, category, category?.parentId?.let(categories::get), accounts[r.accountId])
-            } + operations.transfers.map { TransferItem(it, accounts[it.fromAccountId], accounts[it.toAccountId]) }
+            } + operations.transfers.map { TransferItem(it, accounts[it.fromAccountId], accounts[it.toAccountId]) } +
+            operations.paidForMe.map { p ->
+                val category = categories[p.categoryId]
+                PaidForMeItem(p, persons[p.personId], category, category?.parentId?.let(categories::get))
+            } +
+            operations.settlements.filter { it.isSettled }.map { d -> SettlementItem(d, persons[d.personId], accounts[d.settlement!!.accountId]) }
         return items
             .groupBy { it.localDate }
             .toSortedMap(reverseOrder())
@@ -125,6 +162,8 @@ object ExpenseSections {
                         day.filterIsInstance<ExpenseItem>().map { it.details.expense },
                         day.filterIsInstance<RefundItem>().map { it.refund },
                         currency,
+                        shares = day.filterIsInstance<ExpenseItem>().flatMap { it.details.shares },
+                        paidForMe = day.filterIsInstance<PaidForMeItem>().map { it.paidForMe },
                     ),
                     // sortedByDescending стабильна: расходы одного времени остаются в порядке из репозитория.
                     items = day.sortedByDescending { it.occurredAt },

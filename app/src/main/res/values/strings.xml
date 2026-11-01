@@ -397,6 +397,7 @@
     <string name="income_category_delete_title">Удалить «%1$s»?</string>
     <string name="income_category_delete_move">Доходов в категории: %1$d. Перенести их в:</string>
     <string name="operation_transfer">Перевод</string>
+    <string name="operation_debts">Долги</string>
     <string name="transfer_new">Новый перевод</string>
     <string name="transfer_edit">Перевод</string>
     <string name="transfer_deleted">Перевод удалён</string>

@@ -353,6 +353,7 @@
     <string name="income_category_delete_title">Delete “%1$s”?</string>
     <string name="income_category_delete_move">Income entries in this category: %1$d. Move them to:</string>
     <string name="operation_transfer">Transfer</string>
+    <string name="operation_debts">Debts</string>
     <string name="transfer_new">New transfer</string>
     <string name="transfer_edit">Transfer</string>
     <string name="transfer_deleted">Transfer deleted</string>

@@ -63,6 +63,25 @@ data class ExpenseFilter(
         return query.isBlank() || transfer.comment?.contains(query.trim(), ignoreCase = true) == true
     }
 
+    /** «За меня заплатили»: счёта нет — при фильтре по счёту скрыто; тегов нет. */
+    fun matches(paidForMe: PaidForMe): Boolean = includes(OperationKind.DEBT) &&
+        (categoryIds.isEmpty() || paidForMe.categoryId in categoryIds) && tags.isEmpty() &&
+        matchesCommon(PaidForMe.NO_ACCOUNT, paidForMe.localDate, paidForMe.comment, paidForMe)
+
+    /**
+     * Погашение под фильтром: счёт — счёт погашения, дата — дата погашения, поиск — по комментарию покупки.
+     * Категорий, тегов и сумм «в валюте фильтра» у погашения нет — при таких условиях оно скрыто.
+     */
+    fun matches(settlement: Debt): Boolean {
+        val s = settlement.settlement ?: return false
+        if (!includes(OperationKind.DEBT)) return false
+        if (categoryIds.isNotEmpty() || tags.isNotEmpty() || minAmount != null || maxAmount != null) return false
+        if (accountIds.isNotEmpty() && s.accountId !in accountIds) return false
+        if (from != null && s.localDate < from) return false
+        if (to != null && s.localDate > to) return false
+        return query.isBlank() || settlement.comment?.contains(query.trim(), ignoreCase = true) == true
+    }
+
     private fun matchesCommon(accountId: Long, date: LocalDate, comment: String?, amount: RatedAmount): Boolean {
         if (accountIds.isNotEmpty() && accountId !in accountIds) return false
         if (from != null && date < from) return false
