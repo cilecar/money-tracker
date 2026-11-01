@@ -366,6 +366,7 @@
     <string name="transfer_error_same">Choose two different accounts</string>
     <string name="transfer_error_currency">Amounts must be in the accounts\' currencies</string>
     <string name="account_error_has_transfers">The account has transfers — it can only be archived</string>
+    <string name="account_error_has_settlements">The account has debt settlements — it can only be archived</string>
     <!-- Capture from notifications -->
     <string name="capture_title">Expense capture</string>
     <string name="capture_service_label">Money Tracker expense capture</string>

@@ -296,6 +296,7 @@ private fun AccountError.messageRes(): Int = when (this) {
     AccountError.NEEDS_TARGET, AccountError.INVALID_TARGET -> R.string.delete_choose_target
     AccountError.CURRENCY_LOCKED -> R.string.account_error_currency_locked
     AccountError.HAS_TRANSFERS -> R.string.account_error_has_transfers
+    AccountError.HAS_SETTLEMENTS -> R.string.account_error_has_settlements
 }
 
 @Composable

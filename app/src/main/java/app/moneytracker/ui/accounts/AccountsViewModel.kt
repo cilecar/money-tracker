@@ -170,6 +170,8 @@ class AccountsViewModel @Inject constructor(
             val usage = delete.usage(method.id)
             val dialog = if (usage.transfers > 0) {
                 PaymentDeleteDialog.Blocked(method, AccountError.HAS_TRANSFERS)
+            } else if (usage.settlements > 0) {
+                PaymentDeleteDialog.Blocked(method, AccountError.HAS_SETTLEMENTS)
             } else if (usage.needsTarget) {
                 PaymentDeleteDialog.Move(method, usage, repository.getAll(includeArchived = false).filter { it.id != method.id })
             } else {

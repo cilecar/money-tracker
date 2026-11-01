@@ -60,6 +60,7 @@ abstract class AccountDao {
      *
      * У USDT-счёта готовой колонки usdt_minor нет: такие операции CASE тоже пропускает, но в unconverted
      * не считает — их пересчитывает по снапшоту [observeUsdtConversions].
+     * Долги меняют остаток только погашениями: сумма погашения уже в валюте счёта, CASE не нужен.
      * Операции раньше opening_date не учитываются: они уже вошли в начальный остаток.
      */
     @Query(
@@ -96,6 +97,10 @@ abstract class AccountDao {
                 WHERE t.to_account_id = a.id AND t.local_date >= a.opening_date), 0)
             - COALESCE((SELECT SUM(t.from_amount_minor) FROM transfer t
                 WHERE t.from_account_id = a.id AND t.local_date >= a.opening_date), 0)
+            + COALESCE((SELECT SUM(s.settle_amount_minor) FROM expense_share s
+                WHERE s.settle_account_id = a.id AND s.settled_local_date >= a.opening_date), 0)
+            - COALESCE((SELECT SUM(p.settle_amount_minor) FROM paid_for_me p
+                WHERE p.settle_account_id = a.id AND p.settled_local_date >= a.opening_date), 0)
             AS balance_minor,
             (SELECT COUNT(*) FROM expense e
                 WHERE e.account_id = a.id AND e.local_date >= a.opening_date
@@ -165,6 +170,12 @@ abstract class AccountDao {
     @Query("SELECT COUNT(*) FROM transfer WHERE from_account_id = :id OR to_account_id = :id")
     abstract suspend fun countTransfers(id: Long): Int
 
+    @Query(
+        "SELECT (SELECT COUNT(*) FROM expense_share WHERE settle_account_id = :id) + " +
+            "(SELECT COUNT(*) FROM paid_for_me WHERE settle_account_id = :id)",
+    )
+    abstract suspend fun countSettlements(id: Long): Int
+
     @Query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM account")
     abstract suspend fun nextSortOrder(): Int
 
@@ -172,7 +183,8 @@ abstract class AccountDao {
     @Query(
         "SELECT EXISTS(SELECT 1 FROM expense WHERE account_id = :id) OR EXISTS(SELECT 1 FROM balance_adjustment WHERE account_id = :id) " +
             "OR EXISTS(SELECT 1 FROM income WHERE account_id = :id) OR EXISTS(SELECT 1 FROM refund WHERE account_id = :id) " +
-            "OR EXISTS(SELECT 1 FROM transfer WHERE from_account_id = :id OR to_account_id = :id)",
+            "OR EXISTS(SELECT 1 FROM transfer WHERE from_account_id = :id OR to_account_id = :id) " +
+            "OR EXISTS(SELECT 1 FROM expense_share WHERE settle_account_id = :id) OR EXISTS(SELECT 1 FROM paid_for_me WHERE settle_account_id = :id)",
     )
     abstract suspend fun hasOperations(id: Long): Boolean
 

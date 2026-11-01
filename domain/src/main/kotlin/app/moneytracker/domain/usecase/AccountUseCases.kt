@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.first
 import java.time.Clock
 import javax.inject.Inject
 
-enum class AccountError { EMPTY_NAME, DUPLICATE_NAME, LAST_ACTIVE, NEEDS_TARGET, INVALID_TARGET, CURRENCY_LOCKED, HAS_TRANSFERS }
+enum class AccountError { EMPTY_NAME, DUPLICATE_NAME, LAST_ACTIVE, NEEDS_TARGET, INVALID_TARGET, CURRENCY_LOCKED, HAS_TRANSFERS, HAS_SETTLEMENTS }
 
 sealed interface AccountResult {
     data class Success(val id: Long) : AccountResult
@@ -51,6 +51,7 @@ class DeleteAccountUseCase @Inject constructor(
         val usage = repository.usage(id)
         // Перенос переводов на другой счёт мог бы дать перевод самому себе — такой счёт только в архив.
         if (usage.transfers > 0) return AccountResult.Error(AccountError.HAS_TRANSFERS)
+        if (usage.settlements > 0) return AccountResult.Error(AccountError.HAS_SETTLEMENTS)
         if (usage.needsTarget) {
             if (moveTo == null) return AccountResult.Error(AccountError.NEEDS_TARGET)
             if (all.none { it.id == moveTo && it.id != id && !it.archived }) {

@@ -346,4 +346,71 @@ class AccountBalanceTest {
         assertEquals(BigDecimal("1.17"), stored.apiRates!!.usdtPerEur)
         assertEquals(0, BigDecimal("98").compareTo(stored.exchangeRate))
     }
+
+    // --- Долги: баланс меняют только погашения ---
+
+    private val debts by lazy { app.moneytracker.data.repository.DebtRepositoryImpl(db, db.debtDao(), clock) }
+    private suspend fun person() = app.moneytracker.data.repository.PersonRepositoryImpl(db.personDao())
+        .upsert(app.moneytracker.domain.model.Person(name = "Петя"))
+
+    /** Ужин 30 € с карты, Петя должен 10 €. @return ссылка на долю. */
+    private suspend fun dinnerWithShare(account: Long, petya: Long): app.moneytracker.domain.model.DebtRef {
+        val now = clock.instant()
+        val e = expenses.save(
+            Expense.create(Money(30_00, CurrencyCode.EUR), 1, account, Instant.parse("2026-10-02T18:00:00Z"), zone, rates, now),
+            listOf(app.moneytracker.domain.model.ExpenseShare(expenseId = 0, personId = petya, amount = Money(10_00, CurrencyCode.EUR), createdAt = now, updatedAt = now)),
+        )
+        return app.moneytracker.domain.model.DebtRef(app.moneytracker.domain.model.DebtDirection.OWED_TO_ME, debts.getSharesForExpense(e).single().id)
+    }
+
+    private fun settlement(account: Long, minor: Long, at: String = "2026-10-05T10:00:00Z") =
+        app.moneytracker.domain.model.Settlement.create(account, Money(minor, CurrencyCode.EUR), Instant.parse(at), zone)
+
+    @Test
+    fun unsettledDebtsDoNotChangeBalance() = runTest {
+        val id = card(opening = 100_00)
+        val petya = person()
+        dinnerWithShare(id, petya)
+        debts.insertPaidForMe(app.moneytracker.domain.model.PaidForMe.create(Money(4_00, CurrencyCode.EUR), petya, 1, clock.instant(), zone, rates, clock.instant()))
+        // С карты ушли все 30 €, «за меня заплатили» с моих счетов не списано.
+        assertEquals(Money(70_00, CurrencyCode.EUR), balance(id).balance)
+    }
+
+    @Test
+    fun settledShareAddsToSettleAccount() = runTest {
+        val id = card(opening = 100_00)
+        val ref = dinnerWithShare(id, person())
+        debts.settle(ref, settlement(id, 10_00))
+        val b = balance(id)
+        assertEquals(Money(80_00, CurrencyCode.EUR), b.balance)
+        assertTrue(b.isExact)
+    }
+
+    @Test
+    fun settledPaidForMeSubtracts() = runTest {
+        val id = card(opening = 100_00)
+        val p = debts.insertPaidForMe(app.moneytracker.domain.model.PaidForMe.create(Money(4_00, CurrencyCode.EUR), person(), 1, clock.instant(), zone, rates, clock.instant()))
+        debts.settle(app.moneytracker.domain.model.DebtRef(app.moneytracker.domain.model.DebtDirection.I_OWE, p), settlement(id, 4_00))
+        assertEquals(Money(96_00, CurrencyCode.EUR), balance(id).balance)
+    }
+
+    @Test
+    fun settlementBeforeOpeningDateIsIgnored() = runTest {
+        val id = card(opening = 100_00, openingDate = LocalDate.of(2026, 10, 10))
+        val p = debts.insertPaidForMe(app.moneytracker.domain.model.PaidForMe.create(Money(4_00, CurrencyCode.EUR), person(), 1, clock.instant(), zone, rates, clock.instant()))
+        debts.settle(app.moneytracker.domain.model.DebtRef(app.moneytracker.domain.model.DebtDirection.I_OWE, p), settlement(id, 4_00, at = "2026-10-05T10:00:00Z"))
+        assertEquals(Money(100_00, CurrencyCode.EUR), balance(id).balance)
+    }
+
+    @Test
+    fun accountWithSettlementsHasOperationsAndCannotBeDeleted() = runTest {
+        val id = card()
+        val other = card()
+        // Доля на другом счёте, погашение пришло на этот.
+        val ref = dinnerWithShare(other, person())
+        assertFalse(accounts.hasOperations(id))
+        debts.settle(ref, settlement(id, 10_00))
+        assertTrue(accounts.hasOperations(id))
+        assertEquals(1, accounts.usage(id).settlements)
+    }
 }

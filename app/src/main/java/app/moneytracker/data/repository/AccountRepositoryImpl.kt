@@ -72,6 +72,7 @@ class AccountRepositoryImpl @Inject constructor(
         recurring = dao.countRecurring(id),
         adjustments = dao.countAdjustments(id),
         transfers = dao.countTransfers(id),
+        settlements = dao.countSettlements(id),
     )
 
     override suspend fun hasOperations(id: Long): Boolean = dao.hasOperations(id)

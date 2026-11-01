@@ -179,6 +179,16 @@ class TransferUseCasesTest {
     }
 
     @Test
+    fun `account with debt settlements can only be archived`() = runTest {
+        accounts.upsert(rsdCash.copy(id = 3, name = "Ещё"))
+        val repo = object : app.moneytracker.domain.repository.AccountRepository by accounts {
+            override suspend fun usage(id: Long) = app.moneytracker.domain.model.AccountUsage(expenses = 1, settlements = 1)
+        }
+        val result = DeleteAccountUseCase(repo, app.moneytracker.domain.fake.FakeSettingsRepository())(1, moveTo = 3)
+        assertEquals(AccountError.HAS_SETTLEMENTS, (result as AccountResult.Error).error)
+    }
+
+    @Test
     fun `feed filter - transfer matches either account and hides under category filters`() {
         val t = Transfer.create(1, 2, eur(100), rsd(11700), now, zone, null, now, "обмен")
         assertTrue(ExpenseFilter().matches(t))

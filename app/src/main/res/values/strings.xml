@@ -410,6 +410,7 @@
     <string name="transfer_error_same">Выберите два разных счёта</string>
     <string name="transfer_error_currency">Суммы должны быть в валютах счетов</string>
     <string name="account_error_has_transfers">По счёту есть переводы — его можно только отправить в архив</string>
+    <string name="account_error_has_settlements">По счёту есть погашения долгов — его можно только отправить в архив</string>
     <!-- Автозахват из уведомлений -->
     <string name="capture_title">Автозахват расходов</string>
     <string name="capture_service_label">Автозахват расходов Money Tracker</string>
