@@ -103,4 +103,6 @@ data class DeletedExpense(
     /** Переводы, у которых этот расход был комиссией. */
     val feeOfTransferIds: List<Long> = emptyList(),
     val captureIds: List<Long> = emptyList(),
+    /** Доли «мне должны» удаляются вместе с расходом (CASCADE) — «Отменить» возвращает их с теми же id. */
+    val shares: List<ExpenseShare> = emptyList(),
 )

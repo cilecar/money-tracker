@@ -7,6 +7,7 @@ import app.moneytracker.domain.model.AppSettings
 import app.moneytracker.domain.model.DeletedExpense
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
+import app.moneytracker.domain.model.ExpenseShare
 import app.moneytracker.domain.model.ThemeMode
 import app.moneytracker.domain.model.FetchedRates
 import app.moneytracker.domain.model.RateSource
@@ -52,9 +53,38 @@ class FakeExpenseRepository : ExpenseRepository {
         items.value += expense.id to stored.copy(rates = expense.rates, converted = expense.converted, updatedAt = expense.updatedAt)
         return true
     }
-    override suspend fun delete(id: Long) { items.value -= id }
-    override suspend fun deleteForUndo(id: Long): DeletedExpense? = items.value[id]?.let { DeletedExpense(it) }.also { delete(id) }
-    override suspend fun restore(deleted: DeletedExpense) { insert(deleted.expense) }
+    /** Доли «мне должны» по id — живут здесь, потому что сохраняются и удаляются вместе с расходом. */
+    val shares = MutableStateFlow<Map<Long, ExpenseShare>>(emptyMap())
+    private var nextShareId = 1L
+
+    override suspend fun save(expense: Expense, shares: List<ExpenseShare>?): Long {
+        val id = if (expense.id != 0L && items.value.containsKey(expense.id)) {
+            update(expense)
+            expense.id
+        } else {
+            insert(expense)
+        }
+        if (shares != null) {
+            val kept = this.shares.value.filterValues { it.expenseId != id || it.isSettled }
+            this.shares.value = kept + shares.associate { s ->
+                val shareId = nextShareId++
+                shareId to s.copy(id = shareId, expenseId = id)
+            }
+        }
+        return id
+    }
+
+    override suspend fun delete(id: Long) {
+        items.value -= id
+        shares.value = shares.value.filterValues { it.expenseId != id }
+    }
+    override suspend fun deleteForUndo(id: Long): DeletedExpense? = items.value[id]
+        ?.let { DeletedExpense(it, shares = shares.value.values.filter { s -> s.expenseId == id }) }
+        .also { delete(id) }
+    override suspend fun restore(deleted: DeletedExpense) {
+        insert(deleted.expense)
+        shares.value += deleted.shares.associateBy { it.id }
+    }
 }
 
 class FakeExchangeRateRepository(private val clock: Clock) : ExchangeRateRepository {

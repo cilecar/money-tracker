@@ -3,6 +3,7 @@ package app.moneytracker.domain.repository
 import app.moneytracker.domain.model.DeletedExpense
 import app.moneytracker.domain.model.Expense
 import app.moneytracker.domain.model.ExpenseFilter
+import app.moneytracker.domain.model.ExpenseShare
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
@@ -30,6 +31,13 @@ interface ExpenseRepository {
     suspend fun insert(expense: Expense): Long
 
     suspend fun update(expense: Expense)
+
+    /**
+     * Расход вместе с долями «мне должны» — одной транзакцией: вставка (id 0 или строки уже нет) либо правка.
+     * [shares] null — доли не трогаем; иначе неуплаченные доли заменяются этим списком. Погашенные доли
+     * не меняются и в список не передаются. @return id расхода.
+     */
+    suspend fun save(expense: Expense, shares: List<ExpenseShare>?): Long
 
     /**
      * Записывает курсы и пересчитанные суммы из [expense] (остальные поля не трогает), только если
