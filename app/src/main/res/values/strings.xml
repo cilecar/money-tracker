@@ -404,7 +404,7 @@
     <string name="debt_settled_in">Вернули долг</string>
     <string name="debt_settled_out">Отдан долг</string>
     <string name="split_action">Разделить</string>
-    <string name="split_chip_share">Доля %1$s</string>
+    <string name="split_done_chip">Разделено</string>
     <string name="split_title">Кто скидывается</string>
     <string name="split_new_person">Новый</string>
     <string name="split_settled">погашено</string>

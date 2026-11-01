@@ -360,7 +360,7 @@
     <string name="debt_settled_in">Debt repaid to you</string>
     <string name="debt_settled_out">Debt repaid</string>
     <string name="split_action">Split</string>
-    <string name="split_chip_share">Share %1$s</string>
+    <string name="split_done_chip">Split</string>
     <string name="split_title">Who chips in</string>
     <string name="split_new_person">New</string>
     <string name="split_settled">settled</string>

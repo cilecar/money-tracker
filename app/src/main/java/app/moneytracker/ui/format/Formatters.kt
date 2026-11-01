@@ -54,13 +54,10 @@ val CurrencyCode.symbol: String
  * «1 250 RSD», «12,50 €». Копейки показываем, только если они не нулевые:
  * в динарах и рублях дробная часть почти всегда 0 и только шумит.
  */
-fun formatMoney(money: Money, locale: Locale, approx: Boolean = false): String =
-    (if (approx) "≈ " else "") + formatAmount(money, locale) + " " + money.currency.symbol
-
-/** Только число, без валюты — где валюта и так видна рядом (чип «Доля 1 000» под суммой расхода). */
-fun formatAmount(money: Money, locale: Locale): String {
+fun formatMoney(money: Money, locale: Locale, approx: Boolean = false): String {
     var factor = 1L
     repeat(money.currency.fractionDigits) { factor *= 10 }
     val pattern = if (money.minor % factor != 0L) "#,##0.00" else "#,##0"
-    return DecimalFormat(pattern, DecimalFormatSymbols.getInstance(locale)).format(money.amount)
+    val number = DecimalFormat(pattern, DecimalFormatSymbols.getInstance(locale)).format(money.amount)
+    return (if (approx) "≈ " else "") + number + " " + money.currency.symbol
 }

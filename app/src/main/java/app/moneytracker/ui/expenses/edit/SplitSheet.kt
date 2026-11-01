@@ -42,18 +42,15 @@ import androidx.compose.ui.unit.dp
 import app.moneytracker.R
 import app.moneytracker.domain.model.ShareError
 import app.moneytracker.ui.format.currentLocale
-import app.moneytracker.ui.format.formatAmount
 import app.moneytracker.ui.format.formatMoney
 
 /**
  * Чип рядом с датой и временем: функция нужна не каждый день, поэтому не отдельной строкой.
- * «Разделить» или «Доля 1 000 RSD», если покупка уже разделена.
+ * «Разделить» или «Разделено» — только признак; кто и сколько — в панели (сумма с долей не влезла бы в чип).
  */
 @Composable
 fun SplitChip(s: ExpenseEditUiState, onClick: () -> Unit) {
-    val locale = currentLocale()
-    val label = s.myShare?.takeIf { s.form.shares.isNotEmpty() }?.let { stringResource(R.string.split_chip_share, formatAmount(it, locale)) }
-        ?: stringResource(R.string.split_action)
+    val label = stringResource(if (s.form.shares.isEmpty()) R.string.split_action else R.string.split_done_chip)
     AssistChip(
         onClick = onClick,
         label = { Text(label) },
