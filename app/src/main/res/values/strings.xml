@@ -398,6 +398,12 @@
     <string name="income_category_delete_move">Доходов в категории: %1$d. Перенести их в:</string>
     <string name="operation_transfer">Перевод</string>
     <string name="operation_debts">Долги</string>
+    <string name="expense_my_share">моя доля %1$s</string>
+    <string name="expense_deleted_with_settled">Расход удалён — вместе с погашенными долями</string>
+    <string name="paid_for_me_by">В долг: %1$s</string>
+    <string name="paid_for_me_deleted">Запись «в долг» удалена</string>
+    <string name="debt_settled_in">Вернули долг</string>
+    <string name="debt_settled_out">Отдан долг</string>
     <string name="transfer_new">Новый перевод</string>
     <string name="transfer_edit">Перевод</string>
     <string name="transfer_deleted">Перевод удалён</string>

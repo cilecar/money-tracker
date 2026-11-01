@@ -31,7 +31,11 @@ import app.moneytracker.domain.usecase.ObserveMonthSummaryUseCase
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import app.moneytracker.domain.repository.CategoryRepository
+import app.moneytracker.domain.repository.DebtRepository
 import app.moneytracker.domain.repository.ExpenseRepository
+import app.moneytracker.domain.repository.PersonRepository
+import app.moneytracker.domain.model.PaidForMe
+import app.moneytracker.domain.model.Person
 import app.moneytracker.domain.repository.AccountRepository
 import app.moneytracker.domain.repository.SettingsRepository
 import app.moneytracker.domain.usecase.CheckBudgetsUseCase
@@ -82,6 +86,7 @@ sealed interface ExpenseListEvent {
     data class IncomeDeleted(val income: Income) : ExpenseListEvent
     data class RefundDeleted(val refund: Refund) : ExpenseListEvent
     data class TransferDeleted(val transfer: Transfer, val fee: Expense?) : ExpenseListEvent
+    data class PaidForMeDeleted(val paidForMe: PaidForMe) : ExpenseListEvent
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -102,6 +107,8 @@ class ExpenseListViewModel @Inject constructor(
     private val transfers: TransferRepository,
     private val deleteTransfer: DeleteTransferUseCase,
     captures: CaptureRepository,
+    private val debts: DebtRepository,
+    personRepository: PersonRepository,
 ) : ViewModel() {
 
     /**
@@ -140,14 +147,23 @@ class ExpenseListViewModel @Inject constructor(
         categories,
     ) { f, q, cats -> f.copy(query = q).withSubcategories(cats) }.distinctUntilChanged()
 
-    /** Расходы — SQL-фильтром, доходы и возвраты — тем же фильтром в Kotlin (их немного). */
+    /**
+     * Расходы — SQL-фильтром, остальное — тем же фильтром в Kotlin (этого немного). Доли берём за весь
+     * диапазон: [ExpenseSections] и [Total.spending] сами оставят только доли расходов из выборки.
+     */
     private val filtered = effectiveFilter.flatMapLatest { f ->
+        val debtOps = combine(
+            debts.observeSharesBetween(f.from, f.to),
+            debts.observePaidForMeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
+            debts.observeSettledBetween(f.from, f.to).map { list -> list.filter(f::matches) },
+        ) { s, p, st -> Triple(s, p, st) }
         combine(
             if (f.includes(OperationKind.EXPENSE)) expenses.observe(f) else flowOf(emptyList()),
             incomes.observeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
             refunds.observeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
             transfers.observeBetween(f.from, f.to).map { list -> list.filter(f::matches) },
-        ) { e, i, r, t -> Operations(e, i, r, t) }
+            debtOps,
+        ) { e, i, r, t, (s, p, st) -> Operations(e, i, r, t, s, p, st) }
     }
 
     private val monthSummary = settingsRepository.settings.map { it.displayCurrency }.distinctUntilChanged()
@@ -158,7 +174,8 @@ class ExpenseListViewModel @Inject constructor(
         accounts,
         expenses.observeTags(),
         incomeCategoryRepository.observeAll(includeArchived = true),
-    ) { c, p, t, ic -> References(c, p, t, ic) }
+        personRepository.observeAll(includeArchived = true),
+    ) { c, p, t, ic, people -> References(c, p, t, ic, people) }
 
     private val pending = captures.observePending().map { it.size }
 
@@ -169,19 +186,22 @@ class ExpenseListViewModel @Inject constructor(
         settingsRepository.settings,
         combine(filter, effectiveFilter) { raw, effective -> raw to effective },
     ) { ops, summary, refs, settings: AppSettings, (rawFilter, effective) ->
-        val (cats, methods, tags, incomeCats) = refs
+        val (cats, methods, tags, incomeCats, people) = refs
         val currency = settings.displayCurrency
         val active = !effective.isEmpty
         ExpenseListUiState(
             loading = false,
-            sections = ExpenseSections.byDay(ops, cats.associateBy { it.id }, methods.associateBy { it.id }, incomeCats.associateBy { it.id }, currency),
+            sections = ExpenseSections.byDay(
+                ops, cats.associateBy { it.id }, methods.associateBy { it.id }, incomeCats.associateBy { it.id }, currency,
+                persons = people.associateBy { it.id },
+            ),
             displayCurrency = currency,
             // Месяц — из сводки: после полуночи 1-го числа он сменится вместе с ней.
             month = summary.month,
             today = summary.today,
             // Сводка — в валюте отображения; пока она не пересчиталась после смены валюты, не показываем старую.
             monthSummary = summary.takeIf { it.remaining.currency == currency },
-            filteredTotal = if (active) Total.spending(ops.expenses, ops.refunds, currency) else null,
+            filteredTotal = if (active) Total.spending(ops.expenses, ops.refunds, currency, ops.shares, ops.paidForMe) else null,
             filteredIncome = if (active) Total.of(ops.incomes, currency) else null,
             filteredCount = ops.size,
             filter = rawFilter,
@@ -279,10 +299,28 @@ class ExpenseListViewModel @Inject constructor(
         }
     }
 
+    fun deletePaidForMe(id: Long) {
+        viewModelScope.launch {
+            val paidForMe = debts.getPaidForMe(id) ?: return@launch
+            debts.deletePaidForMe(id)
+            checkBudgets()
+            _events.send(ExpenseListEvent.PaidForMeDeleted(paidForMe))
+        }
+    }
+
+    /** С тем же id и погашением, если оно было. */
+    fun restore(paidForMe: PaidForMe) {
+        viewModelScope.launch {
+            debts.insertPaidForMe(paidForMe)
+            checkBudgets()
+        }
+    }
+
     private data class References(
         val categories: List<Category>,
         val accounts: List<Account>,
         val tags: List<String>,
         val incomeCategories: List<IncomeCategory>,
+        val persons: List<Person>,
     )
 }

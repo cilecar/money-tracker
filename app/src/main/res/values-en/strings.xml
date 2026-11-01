@@ -354,6 +354,12 @@
     <string name="income_category_delete_move">Income entries in this category: %1$d. Move them to:</string>
     <string name="operation_transfer">Transfer</string>
     <string name="operation_debts">Debts</string>
+    <string name="expense_my_share">my share %1$s</string>
+    <string name="expense_deleted_with_settled">Expense deleted — together with its settled shares</string>
+    <string name="paid_for_me_by">Paid by %1$s</string>
+    <string name="paid_for_me_deleted">Debt record deleted</string>
+    <string name="debt_settled_in">Debt repaid to you</string>
+    <string name="debt_settled_out">Debt repaid</string>
     <string name="transfer_new">New transfer</string>
     <string name="transfer_edit">Transfer</string>
     <string name="transfer_deleted">Transfer deleted</string>

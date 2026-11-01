@@ -3,6 +3,10 @@ package app.moneytracker.ui.expenses.list
 import androidx.compose.material3.AssistChip
 import androidx.compose.material.icons.filled.NotificationsActive
 import app.moneytracker.domain.model.TransferItem
+import app.moneytracker.domain.model.DebtDirection
+import app.moneytracker.domain.model.PaidForMeItem
+import app.moneytracker.domain.model.SettlementItem
+import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
@@ -105,6 +109,8 @@ fun ExpenseListScreen(
     onEditIncome: (Long) -> Unit = {},
     onEditRefund: (Long) -> Unit = {},
     onEditTransfer: (Long) -> Unit = {},
+    onEditPaidForMe: (Long) -> Unit = {},
+    onOpenPerson: (Long) -> Unit = {},
     onPending: () -> Unit = {},
     /** Задан — экран открыт из аналитики: показываем «назад» и заголовок фильтра. */
     onBack: (() -> Unit)? = null,
@@ -122,7 +128,12 @@ fun ExpenseListScreen(
         viewModel.events.collect { event ->
             when (event) {
                 is ExpenseListEvent.Deleted -> scope.launch {
-                    if (undo(snackbar, resources.getString(R.string.expense_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.deleted)
+                    // Погашенные доли ушли вместе с расходом — и их деньги из баланса счёта; «Отменить» вернёт всё.
+                    val message = if (event.deleted.shares.any { it.isSettled }) R.string.expense_deleted_with_settled else R.string.expense_deleted
+                    if (undo(snackbar, resources.getString(message), resources.getString(R.string.action_undo))) viewModel.restore(event.deleted)
+                }
+                is ExpenseListEvent.PaidForMeDeleted -> scope.launch {
+                    if (undo(snackbar, resources.getString(R.string.paid_for_me_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.paidForMe)
                 }
                 is ExpenseListEvent.IncomeDeleted -> scope.launch {
                     if (undo(snackbar, resources.getString(R.string.income_deleted), resources.getString(R.string.action_undo))) viewModel.restore(event.income)
@@ -221,6 +232,11 @@ fun ExpenseListScreen(
                         is TransferItem -> SwipeToDelete(onDelete = { viewModel.deleteTransfer(item.transfer.id) }) {
                             TransferRow(item, onClick = { onEditTransfer(item.transfer.id) })
                         }
+                        is PaidForMeItem -> SwipeToDelete(onDelete = { viewModel.deletePaidForMe(item.paidForMe.id) }) {
+                            PaidForMeRow(item, state.displayCurrency, onClick = { onEditPaidForMe(item.paidForMe.id) })
+                        }
+                        // Погашение отменяется на карточке человека — свайпом его не удалить.
+                        is SettlementItem -> SettlementRow(item, onClick = { onOpenPerson(item.debt.personId) })
                     }
                 }
             }
@@ -369,6 +385,8 @@ private fun ExpenseRow(item: ExpenseDetails, displayCurrency: CurrencyCode, onCl
         trailingContent = {
             Column(horizontalAlignment = Alignment.End) {
                 Text(formatMoney(e.amount, locale), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                // Крупно — сколько списано (как в банке), ниже — моя доля: она и идёт в итоги.
+                item.myShare?.let { Text(stringResource(R.string.expense_my_share, formatMoney(it, locale)), style = MaterialTheme.typography.bodySmall) }
                 if (e.amount.currency != displayCurrency) {
                     Text(
                         e.amountIn(displayCurrency)?.let { formatMoney(it, locale, approx = true) } ?: stringResource(R.string.expense_no_rate_short),
@@ -546,5 +564,44 @@ private fun TransferRow(item: TransferItem, onClick: () -> Unit) {
                 if (t.isExchange) Text("→ " + formatMoney(t.toAmount, locale), style = MaterialTheme.typography.bodySmall)
             }
         },
+    )
+}
+
+/** «За меня заплатили»: как расход, только вместо счёта — кто заплатил. */
+@Composable
+private fun PaidForMeRow(item: PaidForMeItem, displayCurrency: CurrencyCode, onClick: () -> Unit) {
+    val p = item.paidForMe
+    OperationRow(
+        avatar = { CategoryAvatar(item.category) },
+        title = categoryTitle(item.category, item.parentCategory),
+        details = listOfNotNull(stringResource(R.string.paid_for_me_by, item.person?.name ?: "—"), time(p.occurredAt), p.comment),
+        amount = p.amount,
+        converted = p.amountIn(displayCurrency),
+        showConverted = p.amount.currency != displayCurrency,
+        positive = false,
+        onClick = onClick,
+    )
+}
+
+/** Погашение: деньги пришли на счёт («+») или ушли с него. */
+@Composable
+private fun SettlementRow(item: SettlementItem, onClick: () -> Unit) {
+    val incoming = item.debt.ref.direction == DebtDirection.OWED_TO_ME
+    OperationRow(
+        avatar = {
+            Icon(
+                Icons.Default.Handshake,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer).padding(8.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        },
+        title = stringResource(if (incoming) R.string.debt_settled_in else R.string.debt_settled_out),
+        details = listOfNotNull(item.person?.name, time(item.settlement.occurredAt), item.account?.displayName(), item.debt.comment),
+        amount = item.settlement.amount,
+        converted = null,
+        showConverted = false,
+        positive = incoming,
+        onClick = onClick,
     )
 }
