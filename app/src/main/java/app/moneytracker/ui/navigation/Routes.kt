@@ -48,6 +48,8 @@ data class FilteredExpensesRoute(
 
 /** «За меня заплатили»; id 0 — новая запись. */
 @Serializable data class PaidForMeEditRoute(val id: Long = 0)
+@Serializable data object DebtsRoute
+@Serializable data class PersonDebtsRoute(val personId: Long)
 
 @Serializable data object AutoCaptureRoute
 @Serializable data object PendingCapturesRoute

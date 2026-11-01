@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.CurrencyExchange
 import androidx.compose.material.icons.filled.EventRepeat
+import androidx.compose.material.icons.filled.Handshake
 import androidx.compose.material.icons.filled.ImportExport
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Settings
@@ -29,6 +30,7 @@ import app.moneytracker.R
 fun MoreScreen(
     onCategories: () -> Unit,
     onAccounts: () -> Unit,
+    onDebts: () -> Unit,
     onIncomeCategories: () -> Unit,
     onAutoCapture: () -> Unit,
     onRecurring: () -> Unit,
@@ -40,6 +42,7 @@ fun MoreScreen(
         Column(Modifier.padding(padding)) {
             Item(Icons.Default.Category, stringResource(R.string.categories_title), onCategories)
             Item(Icons.Default.CreditCard, stringResource(R.string.accounts_title), onAccounts)
+            Item(Icons.Default.Handshake, stringResource(R.string.debts_title), onDebts)
             Item(Icons.Default.Payments, stringResource(R.string.income_categories_title), onIncomeCategories)
             Item(Icons.Default.NotificationsActive, stringResource(R.string.capture_title), onAutoCapture)
             Item(Icons.Default.EventRepeat, stringResource(R.string.recurring_title), onRecurring)

@@ -8,6 +8,8 @@ import app.moneytracker.ui.incomecategories.IncomeCategoriesScreen
 import app.moneytracker.ui.operations.IncomeEditScreen
 import app.moneytracker.ui.operations.NewOperationKind
 import app.moneytracker.ui.operations.PaidForMeEditScreen
+import app.moneytracker.ui.debts.DebtsScreen
+import app.moneytracker.ui.debts.PersonDebtsScreen
 import app.moneytracker.ui.operations.RefundEditScreen
 import app.moneytracker.ui.operations.TransferEditScreen
 import androidx.annotation.StringRes
@@ -129,6 +131,7 @@ fun AppRoot(
                     onEditRefund = { navController.navigate(RefundEditRoute(it)) },
                     onEditTransfer = { navController.navigate(TransferEditRoute(it)) },
                     onEditPaidForMe = { navController.navigate(PaidForMeEditRoute(it)) },
+                    onOpenPerson = { navController.navigate(PersonDebtsRoute(it)) },
                     onPending = { navController.navigate(PendingCapturesRoute) },
                 )
             }
@@ -160,6 +163,14 @@ fun AppRoot(
             composable<PaidForMeEditRoute> {
                 PaidForMeEditScreen(onClose = { navController.popBackStack() }, onSwitchKind = { navController.switchNewOperation(it) })
             }
+            composable<DebtsRoute> {
+                DebtsScreen(
+                    onBack = { navController.popBackStack() },
+                    onPerson = { navController.navigate(PersonDebtsRoute(it)) },
+                    onAddPaidForMe = { navController.navigate(PaidForMeEditRoute()) },
+                )
+            }
+            composable<PersonDebtsRoute> { PersonDebtsScreen(onBack = { navController.popBackStack() }) }
             composable<IncomeCategoriesRoute> { IncomeCategoriesScreen(onBack = { navController.popBackStack() }) }
             composable<AnalyticsRoute> {
                 AnalyticsScreen(
@@ -179,6 +190,7 @@ fun AppRoot(
                     onEditRefund = { navController.navigate(RefundEditRoute(it)) },
                     onEditTransfer = { navController.navigate(TransferEditRoute(it)) },
                     onEditPaidForMe = { navController.navigate(PaidForMeEditRoute(it)) },
+                    onOpenPerson = { navController.navigate(PersonDebtsRoute(it)) },
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -194,6 +206,7 @@ fun AppRoot(
                 MoreScreen(
                     onCategories = { navController.navigate(CategoriesRoute) },
                     onAccounts = { navController.navigate(AccountsRoute) },
+                    onDebts = { navController.navigate(DebtsRoute) },
                     onIncomeCategories = { navController.navigate(IncomeCategoriesRoute) },
                     onAutoCapture = { navController.navigate(AutoCaptureRoute) },
                     onRecurring = { navController.navigate(RecurringListRoute) },
