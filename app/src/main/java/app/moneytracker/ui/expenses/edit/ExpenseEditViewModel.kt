@@ -67,6 +67,8 @@ data class ExpenseForm(
     val sharesChanged: Boolean = false,
     /** Доли, снятые сменой валюты (в том числе автоматической — выбором счёта). */
     val stashedShares: StashedShares? = null,
+    /** Комиссия перевода — её не делим (сумму ведёт перевод). */
+    val isTransferFee: Boolean = false,
     val saving: Boolean = false,
 )
 
@@ -217,6 +219,7 @@ class ExpenseEditViewModel @Inject constructor(
             tags = e.tags,
             original = e,
             shares = debts.getSharesForExpense(e.id).map { ShareDraft(it.personId, it.amount.toDraftText(), it.isSettled) },
+            isTransferFee = expenses.isTransferFee(e.id),
         )
     }
 

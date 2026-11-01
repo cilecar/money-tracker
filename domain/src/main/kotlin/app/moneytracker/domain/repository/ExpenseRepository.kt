@@ -24,6 +24,9 @@ interface ExpenseRepository {
 
     suspend fun get(id: Long): Expense?
 
+    /** Расход — комиссия перевода: его сумму и удаление ведёт перевод. */
+    suspend fun isTransferFee(id: Long): Boolean
+
     /** Расходы, добавленные, когда курсов ещё не было. */
     suspend fun getWithoutRates(): List<Expense>
 

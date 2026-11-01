@@ -41,6 +41,9 @@ class FakeExpenseRepository : ExpenseRepository {
         items.map { m -> m.values.sortedByDescending { it.createdAt }.map { it.categoryId }.distinct().take(limit) }
     override fun observeTags(): Flow<List<String>> = items.map { m -> m.values.flatMap { it.tags }.distinct() }
     override suspend fun get(id: Long): Expense? = items.value[id]
+    /** id расходов-комиссий переводов. */
+    val transferFees = mutableSetOf<Long>()
+    override suspend fun isTransferFee(id: Long) = id in transferFees
     override suspend fun getWithoutRates(): List<Expense> = items.value.values.filter { !it.hasRates }
     override suspend fun insert(expense: Expense): Long {
         val id = if (expense.id != 0L) expense.id else nextId++

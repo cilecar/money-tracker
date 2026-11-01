@@ -151,4 +151,17 @@ class SaveExpenseUseCaseTest {
         assertTrue(after.getValue(1).isSettled)
         assertEquals(rsd(80000), after.getValue(2).amount)
     }
+
+    @Test
+    fun `transfer fee cannot be split`() = runTest {
+        // Комиссию правит и удаляет перевод — мимо проверки долей, поэтому делить её нельзя.
+        val id = save(dinner())
+        expenses.transferFees += id
+        assertThrows(IllegalArgumentException::class.java) {
+            kotlinx.coroutines.runBlocking { save(dinner(id = id, shares = twoFriends)) }
+        }
+        assertTrue(debts.getSharesForExpense(id).isEmpty())
+        // Без долей комиссия сохраняется как обычно.
+        save(dinner(id = id, shares = emptyList()))
+    }
 }

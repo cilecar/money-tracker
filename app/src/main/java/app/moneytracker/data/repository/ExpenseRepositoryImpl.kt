@@ -41,6 +41,8 @@ class ExpenseRepositoryImpl @Inject constructor(
 
     override suspend fun get(id: Long): Expense? = dao.get(id)?.toDomain()
 
+    override suspend fun isTransferFee(id: Long): Boolean = dao.transferIdsWithFee(id).isNotEmpty()
+
     override suspend fun getWithoutRates(): List<Expense> = dao.getWithoutRates().map { it.toDomain() }
 
     override suspend fun save(expense: Expense, shares: List<ExpenseShare>?): Long = db.withTransaction {

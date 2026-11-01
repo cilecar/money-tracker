@@ -90,6 +90,10 @@ class SaveExpenseUseCase @Inject constructor(
      * Погашенную долю менять нельзя: баланс счёта уже учёл пришедшие за неё деньги.
      */
     private suspend fun sharesToSave(input: ExpenseInput, old: Expense?): List<ShareInput>? {
+        // Комиссию перевода правит и удаляет сам перевод — мимо этих проверок, поэтому её не делим.
+        if (old != null && !input.shares.isNullOrEmpty()) {
+            require(!expenses.isTransferFee(old.id)) { "Transfer fee ${old.id} cannot be split" }
+        }
         val existing = if (old != null) debts.getSharesForExpense(old.id) else emptyList()
         val settled = existing.filter { it.isSettled }
         val all = input.shares ?: existing.map { ShareInput(it.personId, it.amount) }

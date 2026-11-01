@@ -139,7 +139,7 @@ fun ExpenseEditScreen(
                 )
                 CategoryRow(s, onSelect = viewModel::onCategory)
                 AccountChips(s.accounts, s.form.accountId, onSelect = viewModel::onAccount)
-                SplitRow(s, onClick = { splitOpen = true })
+                if (!s.form.isTransferFee) SplitRow(s, onClick = { splitOpen = true })
                 DateTimeRow(s.form.dateTime, onDate = viewModel::onDate, onTime = viewModel::onTime)
                 OutlinedTextField(
                     value = s.form.comment,
