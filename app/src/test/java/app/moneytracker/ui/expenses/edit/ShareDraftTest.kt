@@ -17,8 +17,17 @@ class ShareDraftTest {
         assertEquals(rsd(33333), parseShareAmount("333.33", CurrencyCode.RSD))
         assertNull(parseShareAmount("", CurrencyCode.RSD))
         assertNull(parseShareAmount("abc", CurrencyCode.RSD))
-        // Три знака после запятой — опечатка, а не округление.
-        assertNull(parseShareAmount("1.005", CurrencyCode.RSD))
+        // Как в основном поле суммы: одиночная точка с тремя цифрами — разделитель тысяч.
+        assertEquals(rsd(100500), parseShareAmount("1.005", CurrencyCode.RSD))
+        assertEquals(rsd(100050), parseShareAmount("1.000,50", CurrencyCode.RSD))
+        assertNull(parseShareAmount("1,0055", CurrencyCode.RSD))
+    }
+
+    @Test
+    fun `rejects exponent and overlong numbers instead of crashing`() {
+        assertNull(parseShareAmount("1e30", CurrencyCode.RSD))
+        assertNull(parseShareAmount("99999999999999999999", CurrencyCode.RSD))
+        assertNull(listOf(ShareDraft(1, "1e30")).toInputs(CurrencyCode.RSD))
     }
 
     @Test

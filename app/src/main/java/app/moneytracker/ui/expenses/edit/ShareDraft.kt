@@ -7,13 +7,11 @@ import app.moneytracker.domain.model.ShareInput
 /** Доля на экране разделения: сумма — как набрана; погашенную менять нельзя. */
 data class ShareDraft(val personId: Long, val amountText: String, val settled: Boolean = false)
 
-/** «1 000,5» → 1000.50; пусто, не число или лишние знаки после запятой — null. */
-fun parseShareAmount(text: String, currency: CurrencyCode): Money? {
-    val clean = text.filterNot { it.isWhitespace() }.replace(',', '.')
-    val value = clean.toBigDecimalOrNull() ?: return null
-    if (value.scale() > currency.fractionDigits) return null
-    return Money.of(value, currency)
-}
+/**
+ * Те же правила, что у основного поля суммы ([Money.parse]): разделители тысяч, ограничение длины,
+ * без экспоненты — «1e30» или 20 цифр дали бы переполнение и падение. Ошибка — null.
+ */
+fun parseShareAmount(text: String, currency: CurrencyCode): Money? = Money.parse(text, currency)
 
 /** null — какая-то сумма не разобрана. */
 fun List<ShareDraft>.toInputs(currency: CurrencyCode): List<ShareInput>? =
