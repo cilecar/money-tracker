@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.LocalTime
 import javax.inject.Inject
 import app.moneytracker.R
@@ -53,6 +54,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import app.moneytracker.domain.usecase.AttachReceiptUseCase
 import app.moneytracker.domain.usecase.PrefillExpenseFromReceiptUseCase
+import app.moneytracker.domain.usecase.ReceiptPrefill
 
 /** Редактируемые поля формы. Справочники и курсы в форму не входят — они приходят потоками. */
 data class ExpenseForm(
@@ -86,6 +88,19 @@ data class ExpenseForm(
  * Смена валюты расхода. Доли — в его валюте: «1000 RSD» не должны молча стать «1000 EUR», поэтому они
  * откладываются, а при возврате к той валюте (кнопка «вернуть валюту», другой счёт) возвращаются.
  */
+/**
+ * Новый расход из чека: сумма, валюта и время — из чека; комментарий и категория — только если их ещё не задали.
+ * Счёт не трогаем: способ оплаты в чеке есть, но «наличного счёта» в приложении нет.
+ */
+fun ExpenseForm.withReceipt(receiptId: Long, p: ReceiptPrefill, zone: ZoneId): ExpenseForm =
+    withCurrency(p.amount.currency).copy(
+        amount = AmountInput.from(p.amount),
+        dateTime = LocalDateTime.ofInstant(p.occurredAt, zone),
+        comment = comment.ifBlank { p.comment.orEmpty() },
+        categoryId = categoryId ?: p.categoryId,
+        pendingReceiptId = receiptId,
+    )
+
 fun ExpenseForm.withCurrency(new: CurrencyCode): ExpenseForm {
     if (new == currency) return this
     val stash = if (shares.isNotEmpty()) StashedShares(currency, shares) else stashedShares
@@ -237,15 +252,8 @@ class ExpenseEditViewModel @Inject constructor(
         val s = settings.settings.first()
         val methods = accountRepository.getAll(includeArchived = false)
         val method = methods.firstOrNull { it.id == s.defaultAccountId } ?: methods.firstOrNull()
-        form.value = ExpenseForm(
-            loaded = true,
-            amount = AmountInput.from(p.amount),
-            currency = p.amount.currency,
-            categoryId = p.categoryId,
-            accountId = method?.id,
-            dateTime = LocalDateTime.ofInstant(p.occurredAt, clock.zone),
-            comment = p.comment.orEmpty(),
-        )
+        form.value = ExpenseForm(loaded = true, accountId = method?.id, dateTime = LocalDateTime.now(clock))
+            .withReceipt(id, p, clock.zone)
         return true
     }
 
@@ -405,7 +413,9 @@ class ExpenseEditViewModel @Inject constructor(
                 is IntakeResult.Added -> r.receiptId
             }
             if (savedId == null) {
-                form.update { it.copy(pendingReceiptId = receiptId) }
+                // Новый расход заполняется из чека (покупка из уведомления — только привязка: её сумма уже верная).
+                val prefill = if (captureId == 0L) prefillFromReceipt(receiptId) else null
+                form.update { if (prefill != null) it.withReceipt(receiptId, prefill, clock.zone) else it.copy(pendingReceiptId = receiptId) }
                 _events.send(ExpenseEditEvent.Message(R.string.receipt_attached))
             } else if (attachReceipt(receiptId, savedId)) {
                 _events.send(ExpenseEditEvent.Message(R.string.receipt_attached))
