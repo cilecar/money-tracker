@@ -98,6 +98,16 @@ interface ReceiptDao {
     @Query("DELETE FROM product WHERE id NOT IN (SELECT product_id FROM article)")
     suspend fun deleteOrphanProducts()
 
+    // --- Бэкап ---
+
+    @Query("SELECT * FROM chain ORDER BY id") suspend fun allChains(): List<ChainEntity>
+    @Query("SELECT * FROM store ORDER BY id") suspend fun allStores(): List<StoreEntity>
+    @Query("SELECT * FROM receipt ORDER BY id") suspend fun allReceipts(): List<ReceiptEntity>
+    @Query("SELECT * FROM receipt_item ORDER BY id") suspend fun allItems(): List<ReceiptItemEntity>
+    @Query("SELECT * FROM article ORDER BY id") suspend fun allArticles(): List<ArticleEntity>
+    @Query("SELECT * FROM product ORDER BY id") suspend fun allProducts(): List<ProductEntity>
+    @Insert suspend fun insertReceipt(receipt: ReceiptEntity): Long
+
     // --- История цен ---
 
     @Query(

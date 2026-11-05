@@ -47,10 +47,17 @@ data class BackupDto(
     val persons: List<PersonDto> = emptyList(),
     val expenseShares: List<ExpenseShareDto> = emptyList(),
     val paidForMe: List<PaidForMeDto> = emptyList(),
+    // v4: чеки и цены.
+    val chains: List<ChainDto> = emptyList(),
+    val stores: List<StoreDto> = emptyList(),
+    val receipts: List<ReceiptDto> = emptyList(),
+    val receiptItems: List<ReceiptItemDto> = emptyList(),
+    val articles: List<ArticleDto> = emptyList(),
+    val products: List<ProductDto> = emptyList(),
 ) {
     companion object {
         const val FORMAT = "money-tracker-backup"
-        const val VERSION = 3
+        const val VERSION = 4
     }
 }
 
@@ -61,6 +68,7 @@ data class SettingsDto(
     @JsonNames("defaultPaymentMethodId") val defaultAccountId: Long? = null,
     val themeMode: String,
     val dynamicColor: Boolean,
+    val receiptsEnabled: Boolean = false,
 )
 
 @Serializable
@@ -270,3 +278,43 @@ data class PaidForMeDto(
     val createdAt: String,
     val updatedAt: String,
 )
+
+@Serializable
+data class ChainDto(val id: Long, val taxId: String, val officialName: String, val shortName: String? = null, val defaultCategoryId: Long? = null)
+
+@Serializable
+data class StoreDto(val id: Long, val chainId: Long, val locationCode: String, val locationName: String, val address: String, val city: String)
+
+@Serializable
+data class ReceiptDto(
+    val id: Long,
+    val invoiceNumber: String,
+    val url: String,
+    val totalMinor: Long,
+    val issuedAt: String,
+    val storeId: Long? = null,
+    val expenseId: Long? = null,
+    val status: String,
+    val error: String? = null,
+    val journal: String? = null,
+    val createdAt: String,
+)
+
+@Serializable
+data class ReceiptItemDto(
+    val id: Long,
+    val receiptId: Long,
+    val position: Int,
+    val rawName: String,
+    val quantityMilli: Long,
+    val unitPriceMinor: Long,
+    val totalMinor: Long,
+    val vatRate: Int? = null,
+    val articleId: Long? = null,
+)
+
+@Serializable
+data class ArticleDto(val id: Long, val chainId: Long, val code: String, val name: String, val unit: String, val productId: Long)
+
+@Serializable
+data class ProductDto(val id: Long, val name: String, val unit: String)

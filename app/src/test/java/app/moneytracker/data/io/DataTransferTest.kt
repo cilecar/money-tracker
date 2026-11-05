@@ -1,5 +1,11 @@
 package app.moneytracker.data.io
 
+import app.moneytracker.domain.receipt.ItemToSave
+import app.moneytracker.domain.receipt.ItemNameParser
+import app.moneytracker.domain.receipt.FiscalLink
+import app.moneytracker.domain.receipt.FetchedReceipt
+import app.moneytracker.domain.receipt.FetchedItem
+import app.moneytracker.data.repository.ReceiptRepositoryImpl
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -613,8 +619,7 @@ class DataTransferTest {
         val source = Env()
         source.add(Money(1000, CurrencyCode.EUR), 1, "2026-10-02T10:00:00Z")
         val tree = Json.parseToJsonElement(String(source.exportJson())) as JsonObject
-        assertEquals(BackupDto.VERSION, 3)
-        val v2 = tree.toString().replace("\"version\":3", "\"version\":2")
+        val v2 = tree.toString().replace("\"version\":${BackupDto.VERSION}", "\"version\":2")
         assertTrue("в файле нет курса USDT", "usdtPerEur" !in v2)
 
         val target = Env()
@@ -750,5 +755,85 @@ class DataTransferTest {
             source.exportJsonWith { d -> d.copy(expenseShares = d.expenseShares.map { s -> s.copy(settlement = s.settlement?.copy(currency = "USDT")) }) },
             reason, "settlement not in account currency",
         )
+    }
+
+    /** Загруженный чек Lidl, прикреплённый к первому расходу; сеть с коротким именем и категорией, продукт переименован. */
+    private suspend fun Env.addReceipt(): ReceiptRepositoryImpl {
+        val receipts = ReceiptRepositoryImpl(db, db.receiptDao(), clock)
+        val issuedAt = Instant.parse("2026-10-05T14:28:04.875Z")
+        val id = receipts.insertPending(FiscalLink("https://suf.purs.gov.rs/v/?vl=x", "WYBQ8YRF-WYBQ8YRF-360050", 119796, issuedAt), clock.instant())!!
+        val items = listOf(
+            FetchedItem("Pileći file/KG/0238588", 534, 77999, 41651, 10),
+            FetchedItem("Bolonjeze sos/KOM/0200689", 1000, 19999, 19999, 20),
+            FetchedItem("Popust", 1000, -2000, -2000, 20),
+        )
+        receipts.saveLoaded(
+            id,
+            FetchedReceipt("106884584", "LIDL SRBIJA KD", "1056845", "1056845-Prodavnica br. 0123", "ОБРЕНОВАЧКИ ДРУМ 1", "БЕОГРАД", 119796, issuedAt, "journal", items),
+            items.map { ItemToSave(it, if (it.totalMinor < 0) null else ItemNameParser.parse(it.rawName)) },
+        )
+        receipts.attach(id, db.expenseDao().getAll().first().expense.id)
+        val chain = receipts.chainOfReceipt(id)!!
+        receipts.setChainShortName(chain.id, "Lidl")
+        receipts.setChainDefaultCategory(chain.id, 1)
+        receipts.renameProduct(receipts.observeProducts().first().first().id, "Курица")
+        settings.setReceiptsEnabled(true)
+        return receipts
+    }
+
+    @Test
+    fun jsonRoundTripKeepsReceiptsAndPrices() = runTest {
+        val source = filledEnv()
+        val src = source.addReceipt()
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(source.exportJson()))
+        val dst = ReceiptRepositoryImpl(target.db, target.db.receiptDao(), clock)
+
+        assertEquals(src.observeRows().first(), dst.observeRows().first())
+        assertEquals(src.observeChains().first(), dst.observeChains().first())
+        assertEquals(src.observeProducts().first(), dst.observeProducts().first())
+        assertEquals(src.observeAllArticles().first(), dst.observeAllArticles().first())
+        assertEquals(src.observePricePoints().first(), dst.observePricePoints().first())
+        val id = src.observeRows().first().single().receipt.id
+        assertEquals(src.observeDetails(id).first(), dst.observeDetails(id).first())
+        assertTrue(target.settings.settings.first().receiptsEnabled)
+    }
+
+    @Test
+    fun oldBackupWithoutReceiptFieldsImports() = runTest {
+        val source = filledEnv()
+        source.addReceipt()
+        val obj = backupJson.parseToJsonElement(String(source.exportJson())).jsonObject
+        val old = JsonObject(obj - setOf("chains", "stores", "receipts", "receiptItems", "articles", "products"))
+        val target = Env()
+        target.transfer.importJson(ByteArrayInputStream(old.toString().toByteArray()))
+        assertEquals(source.db.expenseDao().getAll().size, target.db.expenseDao().getAll().size)
+        assertTrue(ReceiptRepositoryImpl(target.db, target.db.receiptDao(), clock).observeRows().first().isEmpty())
+    }
+
+    @Test
+    fun importReplacesExistingReceipts() = runTest {
+        val target = filledEnv()
+        target.addReceipt()
+        target.transfer.importJson(ByteArrayInputStream(filledEnv().exportJson()))
+        val receipts = ReceiptRepositoryImpl(target.db, target.db.receiptDao(), clock)
+        assertTrue(receipts.observeRows().first().isEmpty())
+        assertTrue(receipts.observeProducts().first().isEmpty())
+        assertTrue(receipts.observeChains().first().isEmpty())
+    }
+
+    @Test
+    fun inconsistentReceiptsAreRejected() = runTest {
+        val source = filledEnv()
+        source.addReceipt()
+        val reason = BackupFormatException.Reason.INCONSISTENT
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(receiptItems = d.receiptItems.map { it.copy(articleId = it.articleId?.let { 999 }) }) }, reason, "item with missing article")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(receiptItems = d.receiptItems.map { it.copy(receiptId = 999) }) }, reason, "item of missing receipt")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(receipts = d.receipts.map { it.copy(storeId = 999) }) }, reason, "receipt in missing store")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(receipts = d.receipts.map { it.copy(expenseId = 999) }) }, reason, "receipt of missing expense")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(articles = d.articles.map { it.copy(productId = 999) }) }, reason, "article of missing product")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(stores = d.stores.map { it.copy(chainId = 999) }) }, reason, "store of missing chain")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(receipts = d.receipts + d.receipts.first()) }, reason, "duplicate receipt")
+        source.assertImportRejected(source.exportJsonWith { d -> d.copy(articles = d.articles.map { it.copy(unit = "BOX") }) }, reason, "unknown unit")
     }
 }
