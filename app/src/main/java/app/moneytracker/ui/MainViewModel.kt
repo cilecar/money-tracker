@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import javax.inject.Inject
+import app.moneytracker.domain.repository.ReceiptRepository
+import kotlinx.coroutines.flow.first
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
@@ -29,6 +31,7 @@ class MainViewModel @Inject constructor(
     private val setManualRate: SetManualRateUseCase,
     private val ratesSyncScheduler: RatesSyncScheduler,
     private val runRecurring: RunRecurringUseCase,
+    private val receipts: ReceiptRepository,
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings
@@ -49,6 +52,12 @@ class MainViewModel @Inject constructor(
     init {
         // Регулярные платежи на сегодня появятся сразу при открытии, не дожидаясь фоновой задачи.
         viewModelScope.launch { runRecurring() }
+        // Чеки, не догруженные в прошлый раз (воркер мог исчерпать попытки), — снова, когда будет сеть.
+        viewModelScope.launch {
+            if (settingsRepository.settings.first().receiptsEnabled && receipts.getPendingIds().isNotEmpty()) {
+                ratesSyncScheduler.syncReceiptsWhenOnline()
+            }
+        }
         // Сразу при запуске: если курсов нет или они старше 12 ч — грузим, не дожидаясь WorkManager.
         viewModelScope.launch {
             val result = refreshRates.ifStale()

@@ -197,6 +197,8 @@
     <string name="theme_dark">Тёмная</string>
     <string name="settings_dynamic_color">Цвета обоев</string>
     <string name="settings_dynamic_color_hint">Material You: палитра подстраивается под обои</string>
+    <string name="settings_receipts">Чеки и цены</string>
+    <string name="settings_receipts_hint">Скан QR с чека и история цен товаров</string>
     <string name="settings_language">Язык</string>
     <string name="settings_language_hint">Русский или английский — в системных настройках приложения</string>
 

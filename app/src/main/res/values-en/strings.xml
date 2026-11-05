@@ -178,6 +178,8 @@
     <string name="theme_dark">Dark</string>
     <string name="settings_dynamic_color">Wallpaper colors</string>
     <string name="settings_dynamic_color_hint">Material You: palette follows your wallpaper</string>
+    <string name="settings_receipts">Receipts and prices</string>
+    <string name="settings_receipts_hint">Scan receipt QR codes and track product prices</string>
     <string name="settings_language">Language</string>
     <string name="settings_language_hint">Russian or English — in the system app settings</string>
 

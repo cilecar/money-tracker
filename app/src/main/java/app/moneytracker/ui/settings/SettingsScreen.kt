@@ -107,6 +107,13 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = hiltViewMo
                 )
             }
 
+            ListItem(
+                modifier = Modifier.clickable { viewModel.setReceiptsEnabled(!s.settings.receiptsEnabled) },
+                headlineContent = { Text(stringResource(R.string.settings_receipts)) },
+                supportingContent = { Text(stringResource(R.string.settings_receipts_hint)) },
+                trailingContent = { Switch(checked = s.settings.receiptsEnabled, onCheckedChange = null) },
+            )
+
             // Язык приложения: с Android 13 система сама хранит выбор для каждого приложения,
             // список языков берётся из сгенерированного locales_config.xml.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

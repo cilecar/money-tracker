@@ -142,4 +142,5 @@ class FakeSettingsRepository : SettingsRepository {
     override suspend fun setDynamicColor(enabled: Boolean) { settings.value = settings.value.copy(dynamicColor = enabled) }
     override suspend fun setAutoCapture(enabled: Boolean) { settings.value = settings.value.copy(autoCapture = enabled) }
     override suspend fun setCaptureDebug(enabled: Boolean) { settings.value = settings.value.copy(captureDebug = enabled) }
+    override suspend fun setReceiptsEnabled(enabled: Boolean) { settings.value = settings.value.copy(receiptsEnabled = enabled) }
 }
