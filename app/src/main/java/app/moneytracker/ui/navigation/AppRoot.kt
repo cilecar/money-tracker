@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import app.moneytracker.ui.receipts.ReceiptIntakeScreen
+import app.moneytracker.ui.receipts.ReceiptScreen
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.getValue
@@ -175,6 +176,15 @@ fun AppRoot(
                     },
                 )
             }
+            composable<ReceiptRoute> {
+                ReceiptScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenExpense = { navController.navigate(ExpenseEditRoute(id = it)) },
+                    onLink = { navController.navigate(ReceiptIntakeRoute(receiptId = it)) },
+                    // Карточка продукта появится вместе с вкладкой «Цены».
+                    onOpenProduct = {},
+                )
+            }
             composable<AutoCaptureRoute> {
                 AutoCaptureScreen(
                     onBack = { navController.popBackStack() },
@@ -191,6 +201,7 @@ fun AppRoot(
                     onClose = { navController.popBackStack() },
                     onSwitchKind = { navController.switchNewOperation(it) },
                     onRefund = { navController.navigate(RefundEditRoute(expenseId = it)) { popUpTo<ExpenseEditRoute> { inclusive = true } } },
+                    onOpenReceipt = { navController.navigate(ReceiptRoute(it)) },
                 )
             }
             composable<IncomeEditRoute> {

@@ -1,5 +1,8 @@
 package app.moneytracker.ui.expenses.edit
 
+import app.moneytracker.ui.receipts.rememberQrScanner
+import androidx.compose.material.icons.filled.QrCodeScanner
+import android.widget.Toast
 import android.text.format.DateFormat
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -95,13 +98,25 @@ fun ExpenseEditScreen(
     onSwitchKind: ((NewOperationKind) -> Unit)? = null,
     /** Сохранённый расход: оформить возврат по нему. */
     onRefund: ((Long) -> Unit)? = null,
+    onOpenReceipt: (Long) -> Unit = {},
     viewModel: ExpenseEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(viewModel) {
-        viewModel.events.collect { if (it == ExpenseEditEvent.Close) onClose() }
+        viewModel.events.collect { e ->
+            when (e) {
+                ExpenseEditEvent.Close -> onClose()
+                is ExpenseEditEvent.Message -> Toast.makeText(context, e.text, Toast.LENGTH_SHORT).show()
+                is ExpenseEditEvent.OpenReceipt -> onOpenReceipt(e.receiptId)
+            }
+        }
     }
+    val scanReceipt = rememberQrScanner(
+        onResult = viewModel::onReceiptScanned,
+        onError = { Toast.makeText(context, R.string.receipt_scan_failed, Toast.LENGTH_SHORT).show() },
+    )
 
     var splitOpen by rememberSaveable { mutableStateOf(false) }
     Scaffold(
@@ -142,6 +157,7 @@ fun ExpenseEditScreen(
                 DateTimeRow(s.form.dateTime, onDate = viewModel::onDate, onTime = viewModel::onTime) {
                     // Комиссию перевода не делим.
                     if (!s.form.isTransferFee) SplitChip(s, onClick = { splitOpen = true })
+                    if (s.receiptsEnabled) ReceiptChip(attached = s.receiptId != null, onClick = { if (s.receiptId != null) viewModel.onReceiptClick() else scanReceipt() })
                 }
                 SplitError(s)
                 OutlinedTextField(
@@ -244,4 +260,14 @@ private fun TagsField(s: ExpenseEditUiState, viewModel: ExpenseEditViewModel) {
             }
         }
     }
+}
+
+/** «Чек» — отсканировать и прикрепить; «Чек ✓» — открыть прикреплённый. */
+@Composable
+private fun ReceiptChip(attached: Boolean, onClick: () -> Unit) {
+    AssistChip(
+        onClick = onClick,
+        label = { Text(stringResource(if (attached) R.string.receipt_chip_attached else R.string.receipt_chip)) },
+        leadingIcon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null, Modifier.size(18.dp)) },
+    )
 }

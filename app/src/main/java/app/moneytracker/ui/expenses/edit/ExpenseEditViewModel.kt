@@ -45,6 +45,12 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import javax.inject.Inject
+import app.moneytracker.R
+import app.moneytracker.domain.repository.ReceiptRepository
+import app.moneytracker.domain.usecase.IntakeReceiptUseCase
+import app.moneytracker.domain.usecase.IntakeResult
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import app.moneytracker.domain.usecase.AttachReceiptUseCase
 import app.moneytracker.domain.usecase.PrefillExpenseFromReceiptUseCase
 
@@ -111,6 +117,10 @@ data class ExpenseEditUiState(
     val myShare: Money? = null,
     /** Ошибка в долях; [ShareError.NOT_POSITIVE] — в том числе пустая или неразборчивая сумма. */
     val shareError: ShareError? = null,
+    /** Чип «Чек» — только при включённых «Чеках и ценах». */
+    val receiptsEnabled: Boolean = false,
+    /** Прикреплённый (или прикрепляемый при сохранении) чек. */
+    val receiptId: Long? = null,
 ) {
     val canSave: Boolean get() = form.loaded && !form.saving && !form.amount.isEmpty &&
         form.amount.toMoney(form.currency).minor > 0 && form.categoryId != null && form.accountId != null && shareError == null
@@ -121,6 +131,8 @@ data class ExpenseEditUiState(
 
 sealed interface ExpenseEditEvent {
     data object Close : ExpenseEditEvent
+    data class Message(@androidx.annotation.StringRes val text: Int) : ExpenseEditEvent
+    data class OpenReceipt(val receiptId: Long) : ExpenseEditEvent
 }
 
 @HiltViewModel
@@ -141,6 +153,8 @@ class ExpenseEditViewModel @Inject constructor(
     private val savePerson: SavePersonUseCase,
     private val prefillFromReceipt: PrefillExpenseFromReceiptUseCase,
     private val attachReceipt: AttachReceiptUseCase,
+    private val intakeReceipt: IntakeReceiptUseCase,
+    receipts: ReceiptRepository,
 ) : ViewModel() {
 
     private val expenseId = savedStateHandle.toRoute<ExpenseEditRoute>().id
@@ -160,9 +174,12 @@ class ExpenseEditViewModel @Inject constructor(
         personRepository.observeAll(includeArchived = true),
     ) { categories, methods, recent, tags, people -> References(categories, methods, recent, tags, people) }
 
+    /** Чек сохранённого расхода — из базы: его могли открепить на экране чека. */
+    private val savedReceipt = if (expenseId != 0L) receipts.observeByExpense(expenseId).map { it?.id } else flowOf(null)
+
     val state: StateFlow<ExpenseEditUiState?> =
-        combine(form, references, ratesRepository.observeCurrent()) { form, refs, current ->
-            buildState(form, refs, current)
+        combine(form, references, ratesRepository.observeCurrent(), settings.settings, savedReceipt) { form, refs, current, s, saved ->
+            buildState(form, refs, current).copy(receiptsEnabled = s.receiptsEnabled, receiptId = form.pendingReceiptId ?: saved)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
@@ -367,6 +384,36 @@ class ExpenseEditViewModel @Inject constructor(
     }
 
     fun removeTag(tag: String) = form.update { it.copy(tags = it.tags - tag) }
+
+    fun onReceiptClick() {
+        state.value?.receiptId?.let { viewModelScope.launch { _events.send(ExpenseEditEvent.OpenReceipt(it)) } }
+    }
+
+    /** Скан из чипа: чек прикрепляется к этому расходу без поиска кандидатов (у нового — при сохранении). */
+    fun onReceiptScanned(text: String) {
+        viewModelScope.launch {
+            val savedId = form.value.original?.id
+            val receiptId = when (val r = intakeReceipt(text)) {
+                IntakeResult.NotFiscal -> return@launch _events.send(ExpenseEditEvent.Message(R.string.receipt_not_fiscal))
+                IntakeResult.Unsupported -> return@launch _events.send(ExpenseEditEvent.Message(R.string.receipt_unsupported))
+                is IntakeResult.Duplicate -> {
+                    if (r.expenseId != null && r.expenseId != savedId) {
+                        return@launch _events.send(ExpenseEditEvent.Message(R.string.receipt_attached_elsewhere))
+                    }
+                    r.receiptId
+                }
+                is IntakeResult.Added -> r.receiptId
+            }
+            if (savedId == null) {
+                form.update { it.copy(pendingReceiptId = receiptId) }
+                _events.send(ExpenseEditEvent.Message(R.string.receipt_attached))
+            } else if (attachReceipt(receiptId, savedId)) {
+                _events.send(ExpenseEditEvent.Message(R.string.receipt_attached))
+            } else {
+                _events.send(ExpenseEditEvent.Message(R.string.receipt_attached_elsewhere))
+            }
+        }
+    }
 
     fun save() {
         val current = state.value ?: return
