@@ -18,6 +18,8 @@ data class PricePoint(
     val quantityMilli: Long,
     val unitPriceMinor: Long,
     val totalMinor: Long,
+    /** Позиция чека: один товар дважды в чеке — две точки с разными itemId. */
+    val itemId: Long = 0,
 )
 
 data class StorePrices(val storeId: Long, val lastMinor: Long, val minMinor: Long, val maxMinor: Long, val lastDate: LocalDate)

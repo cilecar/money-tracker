@@ -99,7 +99,7 @@ fun ProductScreen(
                 }
             }
             item { Section(stringResource(R.string.product_history)) }
-            items(s.history, key = { "h" + it.receiptId + "-" + it.articleId + "-" + it.occurredAt + it.totalMinor }) { p ->
+            items(s.history, key = { "h" + it.itemId }) { p ->
                 HistoryRow(p, s, perUnit, onClick = { p.expenseId?.let(onOpenExpense) ?: onOpenReceipt(p.receiptId) })
             }
             item { Section(stringResource(R.string.product_articles)) }

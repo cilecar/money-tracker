@@ -102,7 +102,7 @@ interface ReceiptDao {
 
     @Query(
         "SELECT a.product_id, i.article_id, a.chain_id, r.store_id, r.id AS receipt_id, r.expense_id, r.issued_at, " +
-            "i.quantity_milli, i.unit_price_minor, i.total_minor " +
+            "i.quantity_milli, i.unit_price_minor, i.total_minor, i.id AS item_id " +
             "FROM receipt_item i JOIN article a ON a.id = i.article_id JOIN receipt r ON r.id = i.receipt_id " +
             "WHERE r.status = 'LOADED' AND r.store_id IS NOT NULL ORDER BY r.issued_at",
     )
@@ -110,7 +110,7 @@ interface ReceiptDao {
 
     @Query(
         "SELECT a.product_id, i.article_id, a.chain_id, r.store_id, r.id AS receipt_id, r.expense_id, r.issued_at, " +
-            "i.quantity_milli, i.unit_price_minor, i.total_minor " +
+            "i.quantity_milli, i.unit_price_minor, i.total_minor, i.id AS item_id " +
             "FROM receipt_item i JOIN article a ON a.id = i.article_id JOIN receipt r ON r.id = i.receipt_id " +
             "WHERE r.status = 'LOADED' AND r.store_id IS NOT NULL AND a.product_id = :productId ORDER BY r.issued_at",
     )

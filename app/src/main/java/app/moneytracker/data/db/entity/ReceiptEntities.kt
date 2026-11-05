@@ -123,4 +123,5 @@ data class PricePointRow(
     @ColumnInfo(name = "quantity_milli") val quantityMilli: Long,
     @ColumnInfo(name = "unit_price_minor") val unitPriceMinor: Long,
     @ColumnInfo(name = "total_minor") val totalMinor: Long,
+    @ColumnInfo(name = "item_id") val itemId: Long,
 )

@@ -1,5 +1,7 @@
 package app.moneytracker.ui.navigation
 
+import app.moneytracker.ui.prices.StoresScreen
+import app.moneytracker.ui.prices.ReceiptsScreen
 import app.moneytracker.ui.prices.ProductScreen
 import app.moneytracker.ui.prices.PricesScreen
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -203,6 +205,14 @@ fun AppRoot(
                     onBack = { navController.popBackStack() },
                     onOpenExpense = { navController.navigate(ExpenseEditRoute(id = it)) },
                     onOpenReceipt = { navController.navigate(ReceiptRoute(it)) },
+                )
+            }
+            composable<StoresRoute> { StoresScreen(onBack = { navController.popBackStack() }) }
+            composable<ReceiptsRoute> {
+                ReceiptsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpen = { navController.navigate(ReceiptRoute(it)) },
+                    onLink = { navController.navigate(ReceiptIntakeRoute(receiptId = it)) },
                 )
             }
             composable<AutoCaptureRoute> {

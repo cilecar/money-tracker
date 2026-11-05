@@ -202,6 +202,6 @@ class ReceiptRepositoryImpl @Inject constructor(
     private fun PricePointRow.toDomain() = PricePoint(
         productId = productId, articleId = articleId, chainId = chainId, storeId = storeId, receiptId = receiptId,
         expenseId = expenseId, occurredAt = issuedAt, date = issuedAt.atZone(clock.zone).toLocalDate(),
-        quantityMilli = quantityMilli, unitPriceMinor = unitPriceMinor, totalMinor = totalMinor,
+        quantityMilli = quantityMilli, unitPriceMinor = unitPriceMinor, totalMinor = totalMinor, itemId = itemId,
     )
 }

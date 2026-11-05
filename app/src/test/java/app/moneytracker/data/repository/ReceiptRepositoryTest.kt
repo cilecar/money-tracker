@@ -142,6 +142,8 @@ class ReceiptRepositoryTest {
         assertEquals(4, points.size)
         assertTrue(points.all { it.unitPriceMinor == 19999L })
         assertEquals(LocalDate.of(2026, 11, 5), points.minOf { it.date })
+        // Две одинаковые позиции в одном чеке — разные точки (ключи списка истории на экране товара).
+        assertEquals(4, points.map { it.itemId }.toSet().size)
     }
 
     @Test
