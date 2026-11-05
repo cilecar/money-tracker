@@ -30,6 +30,8 @@ import app.moneytracker.domain.repository.TransferRepository
 import app.moneytracker.domain.repository.RecurringRepository
 import app.moneytracker.domain.repository.DebtRepository
 import app.moneytracker.domain.repository.ReceiptRepository
+import app.moneytracker.domain.receipt.ReceiptSource
+import app.moneytracker.data.receipt.SufClient
 import app.moneytracker.data.repository.ReceiptRepositoryImpl
 import app.moneytracker.domain.repository.PersonRepository
 import app.moneytracker.data.repository.DebtRepositoryImpl
@@ -64,4 +66,5 @@ interface RepositoryModule {
     @Binds @Singleton fun persons(impl: PersonRepositoryImpl): PersonRepository
     @Binds @Singleton fun debts(impl: DebtRepositoryImpl): DebtRepository
     @Binds @Singleton fun receipts(impl: ReceiptRepositoryImpl): ReceiptRepository
+    @Binds fun receiptSource(impl: SufClient): ReceiptSource
 }
