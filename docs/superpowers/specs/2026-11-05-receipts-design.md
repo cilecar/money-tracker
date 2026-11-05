@@ -43,8 +43,8 @@ QR содержит ссылку `https://suf.purs.gov.rs/v/?vl=<base64>`.
 | 0 | версия | `3` |
 | 1–8 | `requestedBy` (ASCII) | `WYBQ8YRF` |
 | 9–16 | `signedBy` (ASCII) | `WYBQ8YRF` |
-| 17–20 | `transactionTypeCounter`, uint32 LE | `344079` |
-| 21–24 | `totalCounter`, uint32 LE | `360050` |
+| 17–20 | `totalCounter`, uint32 LE | `360050` |
+| 21–24 | `transactionTypeCounter`, uint32 LE | `344079` |
 | 25–32 | сумма, uint64 LE, в 1/10000 динара | `11979600` → 1197.96 |
 | 33–40 | время ПФР, uint64 **BE**, мс эпохи UTC | `2026-11-05T14:28:04.875Z` |
 | 41 | `invoiceType` (0 — промет) | `0` |
