@@ -1,5 +1,6 @@
 package app.moneytracker.ui.navigation
 
+import app.moneytracker.ui.prices.ProductScreen
 import app.moneytracker.ui.prices.PricesScreen
 import androidx.compose.material.icons.filled.QrCodeScanner
 import app.moneytracker.ui.capture.AutoCaptureScreen
@@ -186,8 +187,7 @@ fun AppRoot(
                     onBack = { navController.popBackStack() },
                     onOpenExpense = { navController.navigate(ExpenseEditRoute(id = it)) },
                     onLink = { navController.navigate(ReceiptIntakeRoute(receiptId = it)) },
-                    // Карточка продукта появится вместе с вкладкой «Цены».
-                    onOpenProduct = {},
+                    onOpenProduct = { navController.navigate(ProductRoute(it)) },
                 )
             }
             composable<PricesRoute> {
@@ -196,6 +196,13 @@ fun AppRoot(
                     onOpenProduct = { navController.navigate(ProductRoute(it)) },
                     onStores = { navController.navigate(StoresRoute) },
                     onReceipts = { navController.navigate(ReceiptsRoute(it)) },
+                )
+            }
+            composable<ProductRoute> {
+                ProductScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenExpense = { navController.navigate(ExpenseEditRoute(id = it)) },
+                    onOpenReceipt = { navController.navigate(ReceiptRoute(it)) },
                 )
             }
             composable<AutoCaptureRoute> {
