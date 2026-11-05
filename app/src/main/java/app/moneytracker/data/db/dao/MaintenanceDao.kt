@@ -36,8 +36,21 @@ abstract class MaintenanceDao {
     @Query("DELETE FROM category") abstract suspend fun deleteCategories()
     @Query("DELETE FROM account") abstract suspend fun deleteAccounts()
     @Query("DELETE FROM exchange_rate") abstract suspend fun deleteRates()
+    @Query("DELETE FROM receipt_item") abstract suspend fun deleteReceiptItems()
+    @Query("DELETE FROM receipt") abstract suspend fun deleteReceipts()
+    @Query("DELETE FROM article") abstract suspend fun deleteArticles()
+    @Query("DELETE FROM product") abstract suspend fun deleteProducts()
+    @Query("DELETE FROM store") abstract suspend fun deleteStores()
+    @Query("DELETE FROM chain") abstract suspend fun deleteChains()
 
     open suspend fun deleteAll() {
+        // Чеки ссылаются на расходы, точки и категории — уходят первыми.
+        deleteReceiptItems()
+        deleteReceipts()
+        deleteArticles()
+        deleteProducts()
+        deleteStores()
+        deleteChains()
         deleteExpenseShares()
         deletePaidForMe()
         deletePersons()

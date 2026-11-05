@@ -18,6 +18,13 @@ import app.moneytracker.data.db.dao.TransferDao
 import app.moneytracker.data.db.dao.MaintenanceDao
 import app.moneytracker.data.db.dao.AccountDao
 import app.moneytracker.data.db.dao.RecurringDao
+import app.moneytracker.data.db.dao.ReceiptDao
+import app.moneytracker.data.db.entity.ArticleEntity
+import app.moneytracker.data.db.entity.ChainEntity
+import app.moneytracker.data.db.entity.ProductEntity
+import app.moneytracker.data.db.entity.ReceiptEntity
+import app.moneytracker.data.db.entity.ReceiptItemEntity
+import app.moneytracker.data.db.entity.StoreEntity
 import app.moneytracker.data.db.entity.BalanceAdjustmentEntity
 import app.moneytracker.data.db.entity.BudgetAlertEntity
 import app.moneytracker.data.db.entity.BudgetEntity
@@ -59,6 +66,12 @@ import app.moneytracker.data.db.entity.TagEntity
         PersonEntity::class,
         ExpenseShareEntity::class,
         PaidForMeEntity::class,
+        ChainEntity::class,
+        StoreEntity::class,
+        ReceiptEntity::class,
+        ProductEntity::class,
+        ArticleEntity::class,
+        ReceiptItemEntity::class,
     ],
     version = AppDatabase.VERSION,
     exportSchema = true,
@@ -79,16 +92,17 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun maintenanceDao(): MaintenanceDao
     abstract fun personDao(): PersonDao
     abstract fun debtDao(): DebtDao
+    abstract fun receiptDao(): ReceiptDao
 
     companion object {
         const val NAME = "money_tracker.db"
-        const val VERSION = 5
+        const val VERSION = 6
 
         /**
          * Миграции схемы, регистрируются в DataModule. Новая версия базы = миграция сюда
          * (MigrationTest прогонит её по экспортированным схемам из app/schemas).
          */
-        val MIGRATIONS: Array<Migration> = arrayOf(Migration1To2, Migration2To3, Migration3To4, Migration4To5)
+        val MIGRATIONS: Array<Migration> = arrayOf(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6)
 
         /** Есть ли цепочка миграций from → to. Нужна, чтобы не принять резервную копию, которую Room не откроет. */
         fun hasMigrationPath(from: Int, to: Int): Boolean {

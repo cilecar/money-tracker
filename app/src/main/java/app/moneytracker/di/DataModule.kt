@@ -22,6 +22,7 @@ import app.moneytracker.data.db.dao.IncomeDao
 import app.moneytracker.data.db.dao.RefundDao
 import app.moneytracker.data.db.dao.AccountDao
 import app.moneytracker.data.db.dao.RecurringDao
+import app.moneytracker.data.db.dao.ReceiptDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -54,6 +55,7 @@ object DataModule {
     @Provides fun recurringDao(db: AppDatabase): RecurringDao = db.recurringDao()
     @Provides fun personDao(db: AppDatabase): PersonDao = db.personDao()
     @Provides fun debtDao(db: AppDatabase): DebtDao = db.debtDao()
+    @Provides fun receiptDao(db: AppDatabase): ReceiptDao = db.receiptDao()
 
     @Provides
     @Singleton
