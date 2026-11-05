@@ -1,5 +1,6 @@
 package app.moneytracker.ui.receipts
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.clickable
@@ -143,7 +144,14 @@ private fun Actions(d: ReceiptDetails, viewModel: ReceiptViewModel, onOpenExpens
     val context = LocalContext.current
     FlowRow(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (d.receipt.status == ReceiptStatus.FAILED) OutlinedButton(onClick = { viewModel.retry() }) { Text(stringResource(R.string.receipt_retry)) }
-        OutlinedButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(d.receipt.url))) }) {
+        OutlinedButton(onClick = {
+            // Браузера может не быть (или его выключили) — тогда просто ничего не открываем.
+            try {
+                context.startActivity(browserIntent(d.receipt.url))
+            } catch (_: ActivityNotFoundException) {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(d.receipt.url))) }
+            }
+        }) {
             Text(stringResource(R.string.receipt_open_site))
         }
         val expenseId = d.receipt.expenseId

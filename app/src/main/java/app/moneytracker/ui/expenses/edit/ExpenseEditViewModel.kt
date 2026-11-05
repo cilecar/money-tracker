@@ -81,6 +81,8 @@ data class ExpenseForm(
     val isTransferFee: Boolean = false,
     /** Чек, который прикрепится при сохранении (новый расход из чека или скан в ещё не сохранённом расходе). */
     val pendingReceiptId: Long? = null,
+    /** Отсканированный чек ещё загружается: сохранение подождёт, иначе расход сохранится без чека. */
+    val scanningReceipt: Boolean = false,
     val saving: Boolean = false,
 )
 
@@ -137,7 +139,7 @@ data class ExpenseEditUiState(
     /** Прикреплённый (или прикрепляемый при сохранении) чек. */
     val receiptId: Long? = null,
 ) {
-    val canSave: Boolean get() = form.loaded && !form.saving && !form.amount.isEmpty &&
+    val canSave: Boolean get() = form.loaded && !form.saving && !form.scanningReceipt && !form.amount.isEmpty &&
         form.amount.toMoney(form.currency).minor > 0 && form.categoryId != null && form.accountId != null && shareError == null
 
     /** Погашенная доля держит валюту расхода: деньги за неё уже пришли. */
@@ -399,14 +401,26 @@ class ExpenseEditViewModel @Inject constructor(
 
     /** Скан из чипа: чек прикрепляется к этому расходу без поиска кандидатов (у нового — при сохранении). */
     fun onReceiptScanned(text: String) {
+        if (form.value.scanningReceipt) return
+        form.update { it.copy(scanningReceipt = true) }
         viewModelScope.launch {
+            try {
+                handleScannedReceipt(text)
+            } finally {
+                form.update { it.copy(scanningReceipt = false) }
+            }
+        }
+    }
+
+    private suspend fun handleScannedReceipt(text: String) {
+        run {
             val savedId = form.value.original?.id
             val receiptId = when (val r = intakeReceipt(text)) {
-                IntakeResult.NotFiscal -> return@launch _events.send(ExpenseEditEvent.Message(R.string.receipt_not_fiscal))
-                IntakeResult.Unsupported -> return@launch _events.send(ExpenseEditEvent.Message(R.string.receipt_unsupported))
+                IntakeResult.NotFiscal -> return@run _events.send(ExpenseEditEvent.Message(R.string.receipt_not_fiscal))
+                IntakeResult.Unsupported -> return@run _events.send(ExpenseEditEvent.Message(R.string.receipt_unsupported))
                 is IntakeResult.Duplicate -> {
                     if (r.expenseId != null && r.expenseId != savedId) {
-                        return@launch _events.send(ExpenseEditEvent.Message(R.string.receipt_attached_elsewhere))
+                        return@run _events.send(ExpenseEditEvent.Message(R.string.receipt_attached_elsewhere))
                     }
                     r.receiptId
                 }

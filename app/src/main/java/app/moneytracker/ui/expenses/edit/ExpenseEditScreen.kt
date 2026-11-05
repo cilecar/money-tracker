@@ -1,5 +1,6 @@
 package app.moneytracker.ui.expenses.edit
 
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import app.moneytracker.ui.receipts.rememberQrScanner
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -137,7 +138,11 @@ fun ExpenseEditScreen(
                         TextButton(onClick = { onRefund(original.id) }) { Text(stringResource(R.string.refund_action)) }
                     }
                     state?.takeIf { it.receiptsEnabled && it.form.loaded }?.let { s ->
-                        ReceiptAction(attached = s.receiptId != null, onClick = { if (s.receiptId != null) viewModel.onReceiptClick() else scanReceipt() })
+                        if (s.form.scanningReceipt) {
+                            CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp), strokeWidth = 2.dp)
+                        } else {
+                            ReceiptAction(attached = s.receiptId != null, onClick = { if (s.receiptId != null) viewModel.onReceiptClick() else scanReceipt() })
+                        }
                     }
                 },
             )

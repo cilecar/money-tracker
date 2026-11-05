@@ -77,8 +77,13 @@ class IntakeReceiptUseCase @Inject constructor(
         receipts.findByInvoice(link.invoiceNumber)?.let { return IntakeResult.Duplicate(it.id, it.expenseId) }
         val id = receipts.insertPending(link, clock.instant())
             ?: receipts.findByInvoice(link.invoiceNumber)!!.let { return IntakeResult.Duplicate(it.id, it.expenseId) }
-        val outcome = withTimeoutOrNull(fetchTimeout.toMillis()) { load(id) }
-        if (outcome == null || outcome == LoadOutcome.UNAVAILABLE) sync.syncReceiptsWhenOnline()
+        var outcome: LoadOutcome? = null
+        try {
+            outcome = withTimeoutOrNull(fetchTimeout.toMillis()) { load(id) }
+        } finally {
+            // Не загрузили (нет сети, таймаут или приём отменили «назад») — чек уже сохранён, догрузит фон.
+            if (outcome == null || outcome == LoadOutcome.UNAVAILABLE) sync.syncReceiptsWhenOnline()
+        }
         return IntakeResult.Added(id, outcome == LoadOutcome.LOADED)
     }
 }

@@ -33,3 +33,12 @@ fun perUnitLabel(unit: ItemUnit, names: UnitNames): String = "/" + names.of(unit
 
 /** Цены из чеков всегда в динарах. */
 fun rsd(minor: Long) = Money(minor, CurrencyCode.RSD)
+
+/**
+ * Ссылка с чека — в браузер. Без селектора её перехватило бы само приложение
+ * (оно обрабатывает ссылки suf.purs.gov.rs) и вместо сайта снова открылся бы чек.
+ */
+fun browserIntent(url: String): android.content.Intent =
+    android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).apply {
+        selector = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_APP_BROWSER)
+    }

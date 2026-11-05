@@ -20,6 +20,8 @@ import app.moneytracker.domain.usecase.PrefillExpenseFromReceiptUseCase
 import app.moneytracker.domain.usecase.ReceiptCandidate
 import app.moneytracker.domain.usecase.ReceiptPrefill
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -102,6 +104,18 @@ class ReceiptUseCasesTest {
         val r = intake(LIDL_URL, Duration.ofMillis(100)) as IntakeResult.Added
         assertEquals(false, r.loaded)
         assertEquals(ReceiptStatus.PENDING, receipts.get(r.receiptId)!!.status)
+        assertEquals(1, sync.calls)
+    }
+
+    /** Ревью: «назад» во время загрузки — чек уже сохранён и не должен остаться без фоновой догрузки. */
+    @Test
+    fun `cancelled intake still schedules sync`() = runTest {
+        source.result = { delay(10_000); FetchResult.Ok(fetched) }
+        val job = launch { intake(LIDL_URL) }
+        advanceTimeBy(1_000)
+        job.cancel()
+        job.join()
+        assertEquals(ReceiptStatus.PENDING, receipts.receipts.value.values.single().status)
         assertEquals(1, sync.calls)
     }
 

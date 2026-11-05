@@ -135,6 +135,19 @@ class SufClientTest {
         assertEquals(FetchResult.Invalid("Не удалось разобрать позиции"), client().fetch(url))
     }
 
+    /** Ревью: зависший сервер не должен держать приём дольше таймаута — запрос отменяется вместе с корутиной. */
+    @Test
+    fun `stalled server does not outlive the caller timeout`() = kotlinx.coroutines.runBlocking {
+        val release = java.util.concurrent.CountDownLatch(1)
+        server.header = { release.await(10, java.util.concurrent.TimeUnit.SECONDS); ok(header) }
+        val started = System.nanoTime()
+        val result = kotlinx.coroutines.withTimeoutOrNull(300) { client().fetch(url) }
+        val elapsedMs = (System.nanoTime() - started) / 1_000_000
+        release.countDown()
+        assertEquals(null, result)
+        assertTrue("waited $elapsedMs ms", elapsedMs < 3_000)
+    }
+
     @Test
     fun `each fetch has its own session`() = runTest {
         val c = client()
