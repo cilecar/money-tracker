@@ -1,5 +1,7 @@
 package app.moneytracker.ui.navigation
 
+import app.moneytracker.ui.prices.PricesScreen
+import androidx.compose.material.icons.filled.QrCodeScanner
 import app.moneytracker.ui.capture.AutoCaptureScreen
 import app.moneytracker.ui.capture.CaptureDebugScreen
 import app.moneytracker.ui.capture.PendingCapturesScreen
@@ -65,6 +67,7 @@ private val topLevel = listOf(
     TopLevel(ExpensesRoute, ExpensesRoute::class, R.string.nav_expenses, Icons.AutoMirrored.Filled.ReceiptLong),
     TopLevel(AnalyticsRoute, AnalyticsRoute::class, R.string.nav_analytics, Icons.Filled.PieChart),
     TopLevel(BudgetsRoute, BudgetsRoute::class, R.string.nav_budgets, Icons.Filled.Savings),
+    TopLevel(PricesRoute, PricesRoute::class, R.string.nav_prices, Icons.Filled.QrCodeScanner),
     TopLevel(MoreRoute, MoreRoute::class, R.string.nav_more, Icons.Filled.MoreHoriz),
 )
 
@@ -116,13 +119,15 @@ fun AppRoot(
     }
     val backStack by navController.currentBackStackEntryAsState()
     val destination = backStack?.destination
-    val showBottomBar = topLevel.any { t -> destination?.hierarchy?.any { it.hasRoute(t.routeClass) } == true }
+    // «Цены» — только при включённых «Чеках и ценах».
+    val tabs = topLevel.filter { it.route != PricesRoute || receiptsEnabled == true }
+    val showBottomBar = tabs.any { t -> destination?.hierarchy?.any { it.hasRoute(t.routeClass) } == true }
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
-                    topLevel.forEach { item ->
+                    tabs.forEach { item ->
                         val selected = destination?.hierarchy?.any { it.hasRoute(item.routeClass) } == true
                         NavigationBarItem(
                             selected = selected,
@@ -183,6 +188,14 @@ fun AppRoot(
                     onLink = { navController.navigate(ReceiptIntakeRoute(receiptId = it)) },
                     // Карточка продукта появится вместе с вкладкой «Цены».
                     onOpenProduct = {},
+                )
+            }
+            composable<PricesRoute> {
+                PricesScreen(
+                    onScanned = { navController.navigate(ReceiptIntakeRoute(text = it)) },
+                    onOpenProduct = { navController.navigate(ProductRoute(it)) },
+                    onStores = { navController.navigate(StoresRoute) },
+                    onReceipts = { navController.navigate(ReceiptsRoute(it)) },
                 )
             }
             composable<AutoCaptureRoute> {

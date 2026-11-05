@@ -57,6 +57,12 @@ data class FilteredExpensesRoute(
 /** Приём чека: text — отсканированная или присланная ссылка; receiptId != 0 — сразу к выбору расхода. */
 @Serializable data class ReceiptIntakeRoute(val text: String = "", val receiptId: Long = 0)
 @Serializable data class ReceiptRoute(val id: Long)
+@Serializable data object PricesRoute
+@Serializable data class ProductRoute(val id: Long)
+@Serializable data object StoresRoute
+
+/** filter — имя ReceiptFilter (ALL, PENDING, FAILED, UNATTACHED). */
+@Serializable data class ReceiptsRoute(val filter: String = "ALL")
 
 @Serializable data object AutoCaptureRoute
 @Serializable data object PendingCapturesRoute
