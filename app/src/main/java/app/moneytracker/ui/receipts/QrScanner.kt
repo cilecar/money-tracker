@@ -20,7 +20,11 @@ fun rememberQrScanner(onResult: (String) -> Unit, onError: () -> Unit): () -> Un
     val error by rememberUpdatedState(onError)
     return remember(context) {
         {
-            val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+            val options = GmsBarcodeScannerOptions.Builder()
+                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+                // QR фискального чека плотный (ссылка ~900 символов) и мелкий: сканер сам приближает.
+                .enableAutoZoom()
+                .build()
             GmsBarcodeScanning.getClient(context, options).startScan()
                 .addOnSuccessListener { barcode -> barcode.rawValue?.let(result) ?: error() }
                 .addOnFailureListener { error() }

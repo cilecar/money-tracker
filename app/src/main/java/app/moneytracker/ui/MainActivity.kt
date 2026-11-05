@@ -79,6 +79,9 @@ class MainActivity : ComponentActivity() {
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
                 ?.let(FiscalLinkParser::findUrl)
                 ?.let { openReceiptRequest.value = it }
+            Intent.ACTION_VIEW -> intent.dataString
+                ?.let(FiscalLinkParser::findUrl)
+                ?.let { openReceiptRequest.value = it }
         }
     }
 
