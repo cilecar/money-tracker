@@ -105,4 +105,6 @@ data class DeletedExpense(
     val captureIds: List<Long> = emptyList(),
     /** Доли «мне должны» удаляются вместе с расходом (CASCADE) — «Отменить» возвращает их с теми же id. */
     val shares: List<ExpenseShare> = emptyList(),
+    /** Чек расхода: при удалении открепляется (SET NULL), «Отменить» прикрепляет его обратно. */
+    val receiptId: Long? = null,
 )

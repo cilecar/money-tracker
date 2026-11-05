@@ -131,3 +131,13 @@ interface ReceiptSource {
 interface ReceiptSyncScheduler {
     fun syncReceiptsWhenOnline()
 }
+
+/** Чек со всем, что нужно экрану чека. */
+data class ReceiptDetails(val receipt: Receipt, val store: Store?, val chain: Chain?, val items: List<ReceiptItem>, val articles: Map<Long, Article>)
+
+/** Строка списка «Чеки». */
+data class ReceiptRow(val receipt: Receipt, val chain: Chain?, val store: Store?)
+
+data class ChainWithStores(val chain: Chain, val stores: List<Store>, val receiptCount: Int, val receiptCountByStore: Map<Long, Int>)
+
+data class ArticleWithChain(val article: Article, val chain: Chain)
