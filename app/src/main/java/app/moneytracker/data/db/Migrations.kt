@@ -271,3 +271,26 @@ object Migration4To5 : Migration(4, 5) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_paid_for_me_settled_local_date` ON `paid_for_me` (`settled_local_date`)")
     }
 }
+
+/** Чеки и цены: сети, точки, чеки, продукты, артикулы, позиции. Существующие таблицы не меняются. SQL — из schemas/6.json. */
+object Migration5To6 : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `chain` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tax_id` TEXT NOT NULL, `official_name` TEXT NOT NULL, `short_name` TEXT, `default_category_id` INTEGER, FOREIGN KEY(`default_category_id`) REFERENCES `category`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_chain_tax_id` ON `chain` (`tax_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_chain_default_category_id` ON `chain` (`default_category_id`)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `store` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chain_id` INTEGER NOT NULL, `location_code` TEXT NOT NULL, `location_name` TEXT NOT NULL, `address` TEXT NOT NULL, `city` TEXT NOT NULL, FOREIGN KEY(`chain_id`) REFERENCES `chain`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_store_chain_id_location_code` ON `store` (`chain_id`, `location_code`)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `receipt` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `invoice_number` TEXT NOT NULL, `url` TEXT NOT NULL, `total_minor` INTEGER NOT NULL, `issued_at` INTEGER NOT NULL, `store_id` INTEGER, `expense_id` INTEGER, `status` TEXT NOT NULL, `error` TEXT, `journal` TEXT, `created_at` INTEGER NOT NULL, FOREIGN KEY(`store_id`) REFERENCES `store`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`expense_id`) REFERENCES `expense`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_receipt_invoice_number` ON `receipt` (`invoice_number`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_receipt_expense_id` ON `receipt` (`expense_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_receipt_store_id` ON `receipt` (`store_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_receipt_status` ON `receipt` (`status`)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `product` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `unit` TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `article` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chain_id` INTEGER NOT NULL, `code` TEXT NOT NULL, `name` TEXT NOT NULL, `unit` TEXT NOT NULL, `product_id` INTEGER NOT NULL, FOREIGN KEY(`chain_id`) REFERENCES `chain`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`product_id`) REFERENCES `product`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_article_chain_id_code` ON `article` (`chain_id`, `code`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_article_product_id` ON `article` (`product_id`)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `receipt_item` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `receipt_id` INTEGER NOT NULL, `position` INTEGER NOT NULL, `raw_name` TEXT NOT NULL, `quantity_milli` INTEGER NOT NULL, `unit_price_minor` INTEGER NOT NULL, `total_minor` INTEGER NOT NULL, `vat_rate` INTEGER, `article_id` INTEGER, FOREIGN KEY(`receipt_id`) REFERENCES `receipt`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`article_id`) REFERENCES `article`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_receipt_item_receipt_id` ON `receipt_item` (`receipt_id`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_receipt_item_article_id` ON `receipt_item` (`article_id`)")
+    }
+}

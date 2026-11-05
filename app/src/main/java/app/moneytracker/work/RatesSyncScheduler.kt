@@ -12,12 +12,13 @@ import androidx.work.WorkManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import app.moneytracker.domain.receipt.ReceiptSyncScheduler
 import javax.inject.Singleton
 
 @Singleton
 class RatesSyncScheduler @Inject constructor(
     @ApplicationContext private val context: Context,
-) {
+) : ReceiptSyncScheduler {
     private val workManager get() = WorkManager.getInstance(context)
 
     private val networkConstraint = Constraints.Builder()
@@ -59,7 +60,17 @@ class RatesSyncScheduler @Inject constructor(
         workManager.enqueueUniquePeriodicWork(RECURRING_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 
+    /** Чеки, не загруженные при скане: как только появится сеть. KEEP — уже ждущая задача заберёт и новые. */
+    override fun syncReceiptsWhenOnline() {
+        val request = OneTimeWorkRequestBuilder<ReceiptSyncWorker>()
+            .setConstraints(networkConstraint)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 1, TimeUnit.MINUTES)
+            .build()
+        workManager.enqueueUniqueWork(RECEIPTS_WORK, ExistingWorkPolicy.KEEP, request)
+    }
+
     private companion object {
+        const val RECEIPTS_WORK = "receipts-sync"
         const val RECURRING_WORK = "recurring-periodic"
         const val PERIODIC_WORK = "rates-sync-periodic"
         const val ONE_TIME_WORK = "rates-sync-once"

@@ -21,4 +21,20 @@ class SettingsRepositoryImplTest {
         }
         assertEquals(AppSettings(), SettingsRepositoryImpl(broken).settings.first())
     }
+
+    /** DataStore в памяти: updateData применяет преобразование к текущим настройкам. */
+    private class MemoryDataStore : DataStore<Preferences> {
+        private val state = kotlinx.coroutines.flow.MutableStateFlow(androidx.datastore.preferences.core.emptyPreferences())
+        override val data: Flow<Preferences> = state
+        override suspend fun updateData(transform: suspend (t: Preferences) -> Preferences): Preferences =
+            transform(state.value).also { state.value = it }
+    }
+
+    @Test
+    fun `receipts flag defaults to false and persists`() = runTest {
+        val repo = SettingsRepositoryImpl(MemoryDataStore())
+        assertEquals(false, repo.settings.first().receiptsEnabled)
+        repo.setReceiptsEnabled(true)
+        assertEquals(true, repo.settings.first().receiptsEnabled)
+    }
 }

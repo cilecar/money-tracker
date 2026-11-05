@@ -88,6 +88,8 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons.extended)
     implementation(libs.vico.compose.m3)
+    // Сканер QR из Google Play Services: без разрешения на камеру и своего экрана камеры.
+    implementation(libs.play.services.code.scanner)
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
 

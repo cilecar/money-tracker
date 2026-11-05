@@ -1,5 +1,10 @@
 package app.moneytracker.ui.navigation
 
+import app.moneytracker.ui.prices.StoresScreen
+import app.moneytracker.ui.prices.ReceiptsScreen
+import app.moneytracker.ui.prices.ProductScreen
+import app.moneytracker.ui.prices.PricesScreen
+import androidx.compose.material.icons.filled.QrCodeScanner
 import app.moneytracker.ui.capture.AutoCaptureScreen
 import app.moneytracker.ui.capture.CaptureDebugScreen
 import app.moneytracker.ui.capture.PendingCapturesScreen
@@ -28,6 +33,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import app.moneytracker.ui.receipts.ReceiptIntakeScreen
+import app.moneytracker.ui.receipts.ReceiptScreen
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -61,6 +70,7 @@ private val topLevel = listOf(
     TopLevel(ExpensesRoute, ExpensesRoute::class, R.string.nav_expenses, Icons.AutoMirrored.Filled.ReceiptLong),
     TopLevel(AnalyticsRoute, AnalyticsRoute::class, R.string.nav_analytics, Icons.Filled.PieChart),
     TopLevel(BudgetsRoute, BudgetsRoute::class, R.string.nav_budgets, Icons.Filled.Savings),
+    TopLevel(PricesRoute, PricesRoute::class, R.string.nav_prices, Icons.Filled.QrCodeScanner),
     TopLevel(MoreRoute, MoreRoute::class, R.string.nav_more, Icons.Filled.MoreHoriz),
 )
 
@@ -70,8 +80,34 @@ fun AppRoot(
     onOpenAddHandled: () -> Unit = {},
     openCapture: Long = 0,
     onOpenCaptureHandled: () -> Unit = {},
+    openReceipt: String? = null,
+    receiptsEnabled: Boolean? = null,
+    onEnableReceipts: () -> Unit = {},
+    onOpenReceiptHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    // Ссылка из «Поделиться»: при выключенной функции сначала спрашиваем, включить ли.
+    if (openReceipt != null && receiptsEnabled == false) {
+        AlertDialog(
+            onDismissRequest = onOpenReceiptHandled,
+            title = { Text(stringResource(R.string.receipts_disabled_title)) },
+            text = { Text(stringResource(R.string.receipts_disabled_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onEnableReceipts()
+                    navController.navigate(ReceiptIntakeRoute(text = openReceipt))
+                    onOpenReceiptHandled()
+                }) { Text(stringResource(R.string.action_enable)) }
+            },
+            dismissButton = { TextButton(onClick = onOpenReceiptHandled) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
+    LaunchedEffect(openReceipt, receiptsEnabled) {
+        if (openReceipt != null && receiptsEnabled == true) {
+            navController.navigate(ReceiptIntakeRoute(text = openReceipt))
+            onOpenReceiptHandled()
+        }
+    }
     LaunchedEffect(openCapture) {
         if (openCapture != 0L) {
             navController.navigate(ExpenseEditRoute(captureId = openCapture))
@@ -86,13 +122,15 @@ fun AppRoot(
     }
     val backStack by navController.currentBackStackEntryAsState()
     val destination = backStack?.destination
-    val showBottomBar = topLevel.any { t -> destination?.hierarchy?.any { it.hasRoute(t.routeClass) } == true }
+    // «Цены» — только при включённых «Чеках и ценах».
+    val tabs = topLevel.filter { it.route != PricesRoute || receiptsEnabled == true }
+    val showBottomBar = tabs.any { t -> destination?.hierarchy?.any { it.hasRoute(t.routeClass) } == true }
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
-                    topLevel.forEach { item ->
+                    tabs.forEach { item ->
                         val selected = destination?.hierarchy?.any { it.hasRoute(item.routeClass) } == true
                         NavigationBarItem(
                             selected = selected,
@@ -135,6 +173,48 @@ fun AppRoot(
                     onPending = { navController.navigate(PendingCapturesRoute) },
                 )
             }
+            composable<ReceiptIntakeRoute> {
+                ReceiptIntakeScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenReceipt = { id ->
+                        navController.navigate(ReceiptRoute(id)) { popUpTo<ReceiptIntakeRoute> { inclusive = true } }
+                    },
+                    onOpenEditor = { route ->
+                        navController.navigate(route) { popUpTo<ReceiptIntakeRoute> { inclusive = true } }
+                    },
+                )
+            }
+            composable<ReceiptRoute> {
+                ReceiptScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenExpense = { navController.navigate(ExpenseEditRoute(id = it)) },
+                    onLink = { navController.navigate(ReceiptIntakeRoute(receiptId = it)) },
+                    onOpenProduct = { navController.navigate(ProductRoute(it)) },
+                )
+            }
+            composable<PricesRoute> {
+                PricesScreen(
+                    onScanned = { navController.navigate(ReceiptIntakeRoute(text = it)) },
+                    onOpenProduct = { navController.navigate(ProductRoute(it)) },
+                    onStores = { navController.navigate(StoresRoute) },
+                    onReceipts = { navController.navigate(ReceiptsRoute(it)) },
+                )
+            }
+            composable<ProductRoute> {
+                ProductScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenExpense = { navController.navigate(ExpenseEditRoute(id = it)) },
+                    onOpenReceipt = { navController.navigate(ReceiptRoute(it)) },
+                )
+            }
+            composable<StoresRoute> { StoresScreen(onBack = { navController.popBackStack() }) }
+            composable<ReceiptsRoute> {
+                ReceiptsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpen = { navController.navigate(ReceiptRoute(it)) },
+                    onLink = { navController.navigate(ReceiptIntakeRoute(receiptId = it)) },
+                )
+            }
             composable<AutoCaptureRoute> {
                 AutoCaptureScreen(
                     onBack = { navController.popBackStack() },
@@ -151,6 +231,7 @@ fun AppRoot(
                     onClose = { navController.popBackStack() },
                     onSwitchKind = { navController.switchNewOperation(it) },
                     onRefund = { navController.navigate(RefundEditRoute(expenseId = it)) { popUpTo<ExpenseEditRoute> { inclusive = true } } },
+                    onOpenReceipt = { navController.navigate(ReceiptRoute(it)) },
                 )
             }
             composable<IncomeEditRoute> {

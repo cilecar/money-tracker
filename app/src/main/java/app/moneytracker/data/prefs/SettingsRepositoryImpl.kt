@@ -38,6 +38,7 @@ class SettingsRepositoryImpl @Inject constructor(
                 dynamicColor = prefs[DYNAMIC_COLOR] ?: defaults.dynamicColor,
                 autoCapture = prefs[AUTO_CAPTURE] ?: defaults.autoCapture,
                 captureDebug = prefs[CAPTURE_DEBUG] ?: defaults.captureDebug,
+                receiptsEnabled = prefs[RECEIPTS_ENABLED] ?: defaults.receiptsEnabled,
             )
         }
         .distinctUntilChanged()
@@ -48,6 +49,7 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setDynamicColor(enabled: Boolean) = set(DYNAMIC_COLOR, enabled)
     override suspend fun setAutoCapture(enabled: Boolean) = set(AUTO_CAPTURE, enabled)
     override suspend fun setCaptureDebug(enabled: Boolean) = set(CAPTURE_DEBUG, enabled)
+    override suspend fun setReceiptsEnabled(enabled: Boolean) = set(RECEIPTS_ENABLED, enabled)
 
     override suspend fun setDefaultAccount(id: Long?) {
         dataStore.edit { if (id == null) it.remove(DEFAULT_ACCOUNT) else it[DEFAULT_ACCOUNT] = id }
@@ -69,5 +71,6 @@ class SettingsRepositoryImpl @Inject constructor(
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val AUTO_CAPTURE = booleanPreferencesKey("auto_capture")
         val CAPTURE_DEBUG = booleanPreferencesKey("capture_debug")
+        val RECEIPTS_ENABLED = booleanPreferencesKey("receipts_enabled")
     }
 }

@@ -1,5 +1,13 @@
 package app.moneytracker.data.io
 
+import app.moneytracker.domain.receipt.ReceiptStatus
+import app.moneytracker.domain.receipt.ItemUnit
+import app.moneytracker.data.db.entity.ReceiptItemEntity
+import app.moneytracker.data.db.entity.ReceiptEntity
+import app.moneytracker.data.db.entity.ArticleEntity
+import app.moneytracker.data.db.entity.ProductEntity
+import app.moneytracker.data.db.entity.StoreEntity
+import app.moneytracker.data.db.entity.ChainEntity
 import android.content.Context
 import android.database.sqlite.SQLiteConstraintException
 import android.database.sqlite.SQLiteDatabase
@@ -317,7 +325,7 @@ class DataTransferImpl @Inject constructor(
                 format = BackupDto.FORMAT,
                 version = BackupDto.VERSION,
                 exportedAt = clock.instant().toString(),
-                settings = SettingsDto(s.inputCurrency.name, s.displayCurrency.name, s.defaultAccountId, s.themeMode.name, s.dynamicColor),
+                settings = SettingsDto(s.inputCurrency.name, s.displayCurrency.name, s.defaultAccountId, s.themeMode.name, s.dynamicColor, s.receiptsEnabled),
                 categories = db.categoryDao().getAll(true).map {
                     CategoryDto(it.id, it.name, it.defaultKey, it.iconKey, it.color, it.parentId, it.sortOrder, it.archived)
                 },
@@ -399,6 +407,19 @@ class DataTransferImpl @Inject constructor(
                         p.comment, p.rates?.toDto(), p.settlement?.toDto(), p.createdAt.toString(), p.updatedAt.toString(),
                     )
                 },
+                chains = db.receiptDao().allChains().map { ChainDto(it.id, it.taxId, it.officialName, it.shortName, it.defaultCategoryId) },
+                stores = db.receiptDao().allStores().map { StoreDto(it.id, it.chainId, it.locationCode, it.locationName, it.address, it.city) },
+                receipts = db.receiptDao().allReceipts().map {
+                    ReceiptDto(
+                        it.id, it.invoiceNumber, it.url, it.totalMinor, it.issuedAt.toString(), it.storeId, it.expenseId, it.status.name,
+                        it.error, it.journal, it.createdAt.toString(),
+                    )
+                },
+                receiptItems = db.receiptDao().allItems().map {
+                    ReceiptItemDto(it.id, it.receiptId, it.position, it.rawName, it.quantityMilli, it.unitPriceMinor, it.totalMinor, it.vatRate, it.articleId)
+                },
+                articles = db.receiptDao().allArticles().map { ArticleDto(it.id, it.chainId, it.code, it.name, it.unit.name, it.productId) },
+                products = db.receiptDao().allProducts().map { ProductDto(it.id, it.name, it.unit.name) },
             )
         }
         out.write(json.encodeToString(BackupDto.serializer(), dto).toByteArray(Charsets.UTF_8))
@@ -446,6 +467,13 @@ class DataTransferImpl @Inject constructor(
                     db.debtDao().insertShares(parsed.shares.map { it.toEntity() })
                     parsed.paidForMe.forEach { db.debtDao().insertPaidForMe(it.toEntity()) }
                     parsed.merchantRules.forEach { db.captureDao().saveRule(it) }
+                    // Чеки — после категорий и расходов, на которые ссылаются.
+                    parsed.receipts.chains.forEach { db.receiptDao().insertChain(it) }
+                    parsed.receipts.stores.forEach { db.receiptDao().insertStore(it) }
+                    parsed.receipts.products.forEach { db.receiptDao().insertProduct(it) }
+                    parsed.receipts.articles.forEach { db.receiptDao().insertArticle(it) }
+                    parsed.receipts.receipts.forEach { db.receiptDao().insertReceipt(it) }
+                    db.receiptDao().insertItems(parsed.receipts.items)
                     parsed.budgets.forEach { db.budgetDao().save(it) }
                     parsed.alerts.forEach { db.budgetDao().insertAlert(it) }
                     if (parsed.rates.isNotEmpty()) db.exchangeRateDao().upsert(parsed.rates)
@@ -462,6 +490,7 @@ class DataTransferImpl @Inject constructor(
             CurrencyCode.DISPLAY.firstOrNull { it.name == s.displayCurrency }?.let { settings.setDisplayCurrency(it) }
             ThemeMode.entries.firstOrNull { it.name == s.themeMode }?.let { settings.setThemeMode(it) }
             settings.setDynamicColor(s.dynamicColor)
+            settings.setReceiptsEnabled(s.receiptsEnabled)
             settings.setDefaultAccount(s.defaultAccountId?.takeIf { id -> parsed.methods.any { it.id == id } })
         }
         JsonImportResult(parsed.expenses.size, parsed.categories.size, parsed.methods.size, parsed.budgets.size, parsed.recurring.size)
@@ -484,7 +513,61 @@ class DataTransferImpl @Inject constructor(
         val persons: List<PersonEntity>,
         val shares: List<ExpenseShare>,
         val paidForMe: List<PaidForMe>,
+        val receipts: ParsedReceipts,
     )
+
+    private class ParsedReceipts(
+        val chains: List<ChainEntity>,
+        val stores: List<StoreEntity>,
+        val products: List<ProductEntity>,
+        val articles: List<ArticleEntity>,
+        val receipts: List<ReceiptEntity>,
+        val items: List<ReceiptItemEntity>,
+    )
+
+    /** Чеки и цены v4: каждая ссылка — на запись из файла, единица артикула — как у его продукта. */
+    private fun parseReceipts(dto: BackupDto, categoryIds: Set<Any>, expenseIds: Set<Long>): ParsedReceipts {
+        fun unique(ids: List<Any>) = ids.toSet().also { if (it.size != ids.size) inconsistent() }
+        val chains = dto.chains.map {
+            if (it.defaultCategoryId != null && it.defaultCategoryId !in categoryIds) inconsistent()
+            ChainEntity(it.id, it.taxId, it.officialName, it.shortName, it.defaultCategoryId)
+        }
+        val chainIds = unique(chains.map { it.id })
+        unique(chains.map { it.taxId })
+        val stores = dto.stores.map {
+            if (it.chainId !in chainIds) inconsistent()
+            StoreEntity(it.id, it.chainId, it.locationCode, it.locationName, it.address, it.city)
+        }
+        val storeIds = unique(stores.map { it.id })
+        unique(stores.map { it.chainId to it.locationCode })
+        val products = dto.products.map { ProductEntity(it.id, it.name.trim().ifEmpty { inconsistent() }, ItemUnit.valueOf(it.unit)) }
+        val productUnit = products.associate { it.id to it.unit }
+        unique(products.map { it.id })
+        val articles = dto.articles.map {
+            val unit = ItemUnit.valueOf(it.unit)
+            if (it.chainId !in chainIds || productUnit[it.productId] != unit) inconsistent()
+            ArticleEntity(it.id, it.chainId, it.code, it.name, unit, it.productId)
+        }
+        val articleIds = unique(articles.map { it.id })
+        unique(articles.map { it.chainId to it.code })
+        val receipts = dto.receipts.map {
+            if (it.storeId != null && it.storeId !in storeIds) inconsistent()
+            if (it.expenseId != null && it.expenseId !in expenseIds) inconsistent()
+            ReceiptEntity(
+                it.id, it.invoiceNumber, it.url, it.totalMinor, Instant.parse(it.issuedAt), it.storeId, it.expenseId,
+                ReceiptStatus.valueOf(it.status), it.error, it.journal, Instant.parse(it.createdAt),
+            )
+        }
+        val receiptIds = unique(receipts.map { it.id })
+        unique(receipts.map { it.invoiceNumber })
+        unique(receipts.mapNotNull { it.expenseId })
+        val items = dto.receiptItems.map {
+            if (it.receiptId !in receiptIds || (it.articleId != null && it.articleId !in articleIds)) inconsistent()
+            ReceiptItemEntity(it.id, it.receiptId, it.position, it.rawName, it.quantityMilli, it.unitPriceMinor, it.totalMinor, it.vatRate, it.articleId)
+        }
+        unique(items.map { it.id })
+        return ParsedReceipts(chains, stores, products, articles, receipts, items)
+    }
 
     private fun parse(dto: BackupDto): Parsed {
         fun currency(code: String) = CurrencyCode.valueOf(code)
@@ -683,7 +766,7 @@ class DataTransferImpl @Inject constructor(
         unique(paidForMe.map { it.id })
         return Parsed(
             categories, methods, expenses, budgets, alerts, recurring, rates, adjustments, incomeCategories, incomes, refunds, transfers,
-            merchantRules, persons, shares, paidForMe,
+            merchantRules, persons, shares, paidForMe, parseReceipts(dto, categoryIds, expenses.map { it.id }.toSet()),
         )
     }
 

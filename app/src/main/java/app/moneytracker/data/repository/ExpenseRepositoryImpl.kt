@@ -103,7 +103,8 @@ class ExpenseRepositoryImpl @Inject constructor(
         val shares = db.debtDao().sharesForExpense(id).map { it.toDomain() }
         // Погашенная доля держит расход: удаление унесло бы её деньги из баланса счёта.
         if (shares.any { it.isSettled }) return@withTransaction null
-        val deleted = DeletedExpense(expense, dao.refundIdsFor(id), dao.transferIdsWithFee(id), dao.captureIdsFor(id), shares)
+        val receiptId = db.receiptDao().getByExpense(id)?.id
+        val deleted = DeletedExpense(expense, dao.refundIdsFor(id), dao.transferIdsWithFee(id), dao.captureIdsFor(id), shares, receiptId)
         dao.delete(id)
         deleted
     }
@@ -116,6 +117,10 @@ class ExpenseRepositoryImpl @Inject constructor(
             dao.relinkCaptures(id, deleted.captureIds)
             // Доли удалились каскадом — возвращаем с теми же id и погашениями.
             db.debtDao().insertShares(deleted.shares.map { it.copy(expenseId = id).toEntity() })
+            // Чек открепился (SET NULL); возвращаем, только если его за это время не прикрепили к другому.
+            deleted.receiptId?.let { r ->
+                if (db.receiptDao().get(r)?.expenseId == null && db.receiptDao().getByExpense(id) == null) db.receiptDao().setExpense(r, id)
+            }
         }
     }
 }

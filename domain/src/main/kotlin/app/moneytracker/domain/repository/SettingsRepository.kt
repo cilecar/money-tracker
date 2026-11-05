@@ -15,4 +15,5 @@ interface SettingsRepository {
     suspend fun setDynamicColor(enabled: Boolean)
     suspend fun setAutoCapture(enabled: Boolean)
     suspend fun setCaptureDebug(enabled: Boolean)
+    suspend fun setReceiptsEnabled(enabled: Boolean)
 }

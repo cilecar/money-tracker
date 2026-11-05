@@ -36,6 +36,7 @@ class SettingsViewModel @Inject constructor(
     fun setInputCurrency(c: CurrencyCode) = launch { repository.setInputCurrency(c) }
     fun setTheme(mode: ThemeMode) = launch { repository.setThemeMode(mode) }
     fun setDynamicColor(enabled: Boolean) = launch { repository.setDynamicColor(enabled) }
+    fun setReceiptsEnabled(enabled: Boolean) = launch { repository.setReceiptsEnabled(enabled) }
 
     private fun launch(block: suspend () -> Unit) {
         viewModelScope.launch { block() }

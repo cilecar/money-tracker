@@ -1,6 +1,7 @@
 package app.moneytracker.ui
 
 import android.content.Intent
+import app.moneytracker.domain.receipt.FiscalLinkParser
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -35,6 +36,9 @@ class MainActivity : ComponentActivity() {
     /** «Изменить» в уведомлении автозахвата: открыть редактор с заполненной покупкой. */
     private val openCaptureRequest = MutableStateFlow(0L)
 
+    /** Ссылка с фискального чека из «Поделиться». */
+    private val openReceiptRequest = MutableStateFlow<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // После поворота экрана Intent тот же — не открываем добавление повторно.
@@ -45,11 +49,17 @@ class MainActivity : ComponentActivity() {
             MoneyTrackerTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
                 val openAdd by openAddRequest.collectAsStateWithLifecycle()
                 val openCapture by openCaptureRequest.collectAsStateWithLifecycle()
+                val openReceipt by openReceiptRequest.collectAsStateWithLifecycle()
+                val receiptsEnabled by viewModel.receiptsEnabled.collectAsStateWithLifecycle()
                 AppRoot(
                     openAdd = openAdd,
                     onOpenAddHandled = { openAddRequest.value = false },
                     openCapture = openCapture,
                     onOpenCaptureHandled = { openCaptureRequest.value = 0 },
+                    openReceipt = openReceipt,
+                    receiptsEnabled = receiptsEnabled,
+                    onEnableReceipts = viewModel::enableReceipts,
+                    onOpenReceiptHandled = { openReceiptRequest.value = null },
                 )
                 NoRatesPrompt(viewModel)
             }
@@ -66,6 +76,12 @@ class MainActivity : ComponentActivity() {
         when (intent?.action) {
             ACTION_ADD_EXPENSE -> openAddRequest.value = true
             ACTION_EDIT_CAPTURE -> openCaptureRequest.value = intent.getLongExtra(EXTRA_CAPTURE_ID, 0)
+            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
+                ?.let(FiscalLinkParser::findUrl)
+                ?.let { openReceiptRequest.value = it }
+            Intent.ACTION_VIEW -> intent.dataString
+                ?.let(FiscalLinkParser::findUrl)
+                ?.let { openReceiptRequest.value = it }
         }
     }
 

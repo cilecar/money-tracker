@@ -17,6 +17,7 @@ coroutines = "1.11.0"
 serialization = "1.11.0"
 retrofit = "3.0.0"
 vico = "3.3.1"
+playServicesCodeScanner = "16.1.0"
 javaxInject = "1"
 junit = "4.13.2"
 robolectric = "4.17"
@@ -62,6 +63,7 @@ retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit
 retrofit-kotlinx-serialization = { module = "com.squareup.retrofit2:converter-kotlinx-serialization", version.ref = "retrofit" }
 
 vico-compose-m3 = { module = "com.patrykandpatrick.vico:compose-m3", version.ref = "vico" }
+play-services-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playServicesCodeScanner" }
 
 javax-inject = { module = "javax.inject:javax.inject", version.ref = "javaxInject" }
 

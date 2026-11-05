@@ -29,6 +29,12 @@ import app.moneytracker.domain.repository.RefundRepository
 import app.moneytracker.domain.repository.TransferRepository
 import app.moneytracker.domain.repository.RecurringRepository
 import app.moneytracker.domain.repository.DebtRepository
+import app.moneytracker.domain.repository.ReceiptRepository
+import app.moneytracker.domain.receipt.ReceiptSource
+import app.moneytracker.domain.receipt.ReceiptSyncScheduler
+import app.moneytracker.work.RatesSyncScheduler
+import app.moneytracker.data.receipt.SufClient
+import app.moneytracker.data.repository.ReceiptRepositoryImpl
 import app.moneytracker.domain.repository.PersonRepository
 import app.moneytracker.data.repository.DebtRepositoryImpl
 import app.moneytracker.data.repository.PersonRepositoryImpl
@@ -61,4 +67,7 @@ interface RepositoryModule {
     @Binds @Singleton fun settings(impl: SettingsRepositoryImpl): SettingsRepository
     @Binds @Singleton fun persons(impl: PersonRepositoryImpl): PersonRepository
     @Binds @Singleton fun debts(impl: DebtRepositoryImpl): DebtRepository
+    @Binds @Singleton fun receipts(impl: ReceiptRepositoryImpl): ReceiptRepository
+    @Binds fun receiptSource(impl: SufClient): ReceiptSource
+    @Binds fun receiptSync(impl: RatesSyncScheduler): ReceiptSyncScheduler
 }

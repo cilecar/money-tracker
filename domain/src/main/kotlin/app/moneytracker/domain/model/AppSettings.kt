@@ -12,4 +12,6 @@ data class AppSettings(
     val autoCapture: Boolean = false,
     /** Отладка автозахвата: хранить сырые уведомления из белого списка (локально, последние 50). */
     val captureDebug: Boolean = false,
+    /** «Чеки и цены»: скан QR с чека и вкладка «Цены» — только после явного включения. */
+    val receiptsEnabled: Boolean = false,
 )

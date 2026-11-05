@@ -22,6 +22,23 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- «Поделиться» ссылкой с фискального чека (Google Lens, камера телефона). -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <!--
+                Ссылка с QR чека открывается сразу в приложении (системный сканер, браузер).
+                Без верификации домена Android 12+ спросит или откроет браузер, пока в настройках приложения
+                не включено «Открывать поддерживаемые ссылки» для suf.purs.gov.rs.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="suf.purs.gov.rs" android:pathPrefix="/v" />
+            </intent-filter>
         </activity>
 
         <receiver

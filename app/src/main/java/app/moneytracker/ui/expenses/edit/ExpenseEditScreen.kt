@@ -1,5 +1,10 @@
 package app.moneytracker.ui.expenses.edit
 
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import app.moneytracker.ui.receipts.rememberQrScanner
+import androidx.compose.material.icons.filled.QrCodeScanner
+import android.widget.Toast
 import android.text.format.DateFormat
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -95,13 +100,25 @@ fun ExpenseEditScreen(
     onSwitchKind: ((NewOperationKind) -> Unit)? = null,
     /** Сохранённый расход: оформить возврат по нему. */
     onRefund: ((Long) -> Unit)? = null,
+    onOpenReceipt: (Long) -> Unit = {},
     viewModel: ExpenseEditViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(viewModel) {
-        viewModel.events.collect { if (it == ExpenseEditEvent.Close) onClose() }
+        viewModel.events.collect { e ->
+            when (e) {
+                ExpenseEditEvent.Close -> onClose()
+                is ExpenseEditEvent.Message -> Toast.makeText(context, e.text, Toast.LENGTH_SHORT).show()
+                is ExpenseEditEvent.OpenReceipt -> onOpenReceipt(e.receiptId)
+            }
+        }
     }
+    val scanReceipt = rememberQrScanner(
+        onResult = viewModel::onReceiptScanned,
+        onError = { Toast.makeText(context, R.string.receipt_scan_failed, Toast.LENGTH_SHORT).show() },
+    )
 
     var splitOpen by rememberSaveable { mutableStateOf(false) }
     Scaffold(
@@ -119,6 +136,13 @@ fun ExpenseEditScreen(
                     val original = state?.form?.original
                     if (original != null && onRefund != null) {
                         TextButton(onClick = { onRefund(original.id) }) { Text(stringResource(R.string.refund_action)) }
+                    }
+                    state?.takeIf { it.receiptsEnabled && it.form.loaded }?.let { s ->
+                        if (s.form.scanningReceipt) {
+                            CircularProgressIndicator(Modifier.padding(12.dp).size(24.dp), strokeWidth = 2.dp)
+                        } else {
+                            ReceiptAction(attached = s.receiptId != null, onClick = { if (s.receiptId != null) viewModel.onReceiptClick() else scanReceipt() })
+                        }
                     }
                 },
             )
@@ -242,6 +266,18 @@ private fun TagsField(s: ExpenseEditUiState, viewModel: ExpenseEditViewModel) {
                     SuggestionChip(onClick = { viewModel.addTag(tag) }, label = { Text(tag, maxLines = 1, overflow = TextOverflow.Ellipsis) })
                 }
             }
+        }
+    }
+}
+
+/** В шапке: QR — отсканировать чек (новый расход заполнится из него); чек — открыть прикреплённый. */
+@Composable
+private fun ReceiptAction(attached: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        if (attached) {
+            Icon(Icons.AutoMirrored.Filled.ReceiptLong, stringResource(R.string.receipt_chip_attached), tint = MaterialTheme.colorScheme.primary)
+        } else {
+            Icon(Icons.Default.QrCodeScanner, stringResource(R.string.receipt_chip))
         }
     }
 }

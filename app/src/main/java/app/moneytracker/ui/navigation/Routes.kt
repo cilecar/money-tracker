@@ -10,8 +10,11 @@ import kotlinx.serialization.Serializable
 @Serializable data object MoreRoute
 @Serializable data object RatesRoute
 
-/** id = 0 — новый расход; captureId != 0 — из покупки, захваченной в уведомлении. */
-@Serializable data class ExpenseEditRoute(val id: Long = 0, val captureId: Long = 0)
+/**
+ * id = 0 — новый расход; captureId != 0 — из покупки, захваченной в уведомлении;
+ * receiptId != 0 — после сохранения прикрепить этот чек (новый расход заполняется из него).
+ */
+@Serializable data class ExpenseEditRoute(val id: Long = 0, val captureId: Long = 0, val receiptId: Long = 0)
 @Serializable data object CategoriesRoute
 @Serializable data object AccountsRoute
 @Serializable data object SettingsRoute
@@ -50,6 +53,16 @@ data class FilteredExpensesRoute(
 @Serializable data class PaidForMeEditRoute(val id: Long = 0)
 @Serializable data object DebtsRoute
 @Serializable data class PersonDebtsRoute(val personId: Long)
+
+/** Приём чека: text — отсканированная или присланная ссылка; receiptId != 0 — сразу к выбору расхода. */
+@Serializable data class ReceiptIntakeRoute(val text: String = "", val receiptId: Long = 0)
+@Serializable data class ReceiptRoute(val id: Long)
+@Serializable data object PricesRoute
+@Serializable data class ProductRoute(val id: Long)
+@Serializable data object StoresRoute
+
+/** filter — имя ReceiptFilter (ALL, PENDING, FAILED, UNATTACHED). */
+@Serializable data class ReceiptsRoute(val filter: String = "ALL")
 
 @Serializable data object AutoCaptureRoute
 @Serializable data object PendingCapturesRoute
