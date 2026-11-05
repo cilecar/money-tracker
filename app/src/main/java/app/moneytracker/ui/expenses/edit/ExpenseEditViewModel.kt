@@ -45,6 +45,8 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import javax.inject.Inject
+import app.moneytracker.domain.usecase.AttachReceiptUseCase
+import app.moneytracker.domain.usecase.PrefillExpenseFromReceiptUseCase
 
 /** Редактируемые поля формы. Справочники и курсы в форму не входят — они приходят потоками. */
 data class ExpenseForm(
@@ -69,6 +71,8 @@ data class ExpenseForm(
     val stashedShares: StashedShares? = null,
     /** Комиссия перевода — её не делим (сумму ведёт перевод). */
     val isTransferFee: Boolean = false,
+    /** Чек, который прикрепится при сохранении (новый расход из чека или скан в ещё не сохранённом расходе). */
+    val pendingReceiptId: Long? = null,
     val saving: Boolean = false,
 )
 
@@ -135,10 +139,13 @@ class ExpenseEditViewModel @Inject constructor(
     private val debts: DebtRepository,
     personRepository: PersonRepository,
     private val savePerson: SavePersonUseCase,
+    private val prefillFromReceipt: PrefillExpenseFromReceiptUseCase,
+    private val attachReceipt: AttachReceiptUseCase,
 ) : ViewModel() {
 
     private val expenseId = savedStateHandle.toRoute<ExpenseEditRoute>().id
     private val captureId = savedStateHandle.toRoute<ExpenseEditRoute>().captureId
+    private val receiptId = savedStateHandle.toRoute<ExpenseEditRoute>().receiptId
     private val form = MutableStateFlow(ExpenseForm(dateTime = LocalDateTime.now(clock).withSecond(0).withNano(0)))
 
     private val _events = Channel<ExpenseEditEvent>(Channel.BUFFERED)
@@ -159,7 +166,10 @@ class ExpenseEditViewModel @Inject constructor(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
-        viewModelScope.launch { load() }
+        viewModelScope.launch {
+            load()
+            if (receiptId != 0L) form.update { if (it.loaded) it.copy(pendingReceiptId = receiptId) else it }
+        }
     }
 
     private suspend fun load() {
@@ -192,6 +202,8 @@ class ExpenseEditViewModel @Inject constructor(
                 dateTime = LocalDateTime.ofInstant(p.occurredAt, clock.zone),
                 comment = p.merchant,
             )
+        } else if (receiptId != 0L && loadFromReceipt(receiptId)) {
+            return
         } else {
             val s = settings.settings.first()
             val methods = accountRepository.getAll(includeArchived = false)
@@ -200,6 +212,24 @@ class ExpenseEditViewModel @Inject constructor(
                 it.copy(loaded = true, accountId = method?.id, currency = method?.currency ?: s.inputCurrency)
             }
         }
+    }
+
+    /** Новый расход из чека: сумма в RSD и время из чека, сеть — в комментарий, её категория по умолчанию. */
+    private suspend fun loadFromReceipt(id: Long): Boolean {
+        val p = prefillFromReceipt(id) ?: return false
+        val s = settings.settings.first()
+        val methods = accountRepository.getAll(includeArchived = false)
+        val method = methods.firstOrNull { it.id == s.defaultAccountId } ?: methods.firstOrNull()
+        form.value = ExpenseForm(
+            loaded = true,
+            amount = AmountInput.from(p.amount),
+            currency = p.amount.currency,
+            categoryId = p.categoryId,
+            accountId = method?.id,
+            dateTime = LocalDateTime.ofInstant(p.occurredAt, clock.zone),
+            comment = p.comment.orEmpty(),
+        )
+        return true
     }
 
     private suspend fun loadExpense(id: Long) {
@@ -366,7 +396,9 @@ class ExpenseEditViewModel @Inject constructor(
                 shares = if (f.sharesChanged) f.shares.toInputs(f.currency) else null,
             )
             // Покупка — через ConfirmCapture: под его замком, чтобы не задвоить с кнопкой «Добавить».
-            if (captureId != 0L) confirmCapture.saveEdited(captureId, input) else saveExpense(input)
+            val savedId = if (captureId != 0L) confirmCapture.saveEdited(captureId, input) else saveExpense(input)
+            // Новый расход из чека: его категория запоминается как категория сети.
+            f.pendingReceiptId?.let { attachReceipt(it, savedId, rememberCategoryId = if (original == null) input.categoryId else null) }
             _events.send(ExpenseEditEvent.Close)
         }
     }

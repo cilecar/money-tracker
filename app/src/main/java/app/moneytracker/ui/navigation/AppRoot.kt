@@ -28,6 +28,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import app.moneytracker.ui.receipts.ReceiptIntakeScreen
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -70,8 +73,34 @@ fun AppRoot(
     onOpenAddHandled: () -> Unit = {},
     openCapture: Long = 0,
     onOpenCaptureHandled: () -> Unit = {},
+    openReceipt: String? = null,
+    receiptsEnabled: Boolean? = null,
+    onEnableReceipts: () -> Unit = {},
+    onOpenReceiptHandled: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    // Ссылка из «Поделиться»: при выключенной функции сначала спрашиваем, включить ли.
+    if (openReceipt != null && receiptsEnabled == false) {
+        AlertDialog(
+            onDismissRequest = onOpenReceiptHandled,
+            title = { Text(stringResource(R.string.receipts_disabled_title)) },
+            text = { Text(stringResource(R.string.receipts_disabled_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onEnableReceipts()
+                    navController.navigate(ReceiptIntakeRoute(text = openReceipt))
+                    onOpenReceiptHandled()
+                }) { Text(stringResource(R.string.action_enable)) }
+            },
+            dismissButton = { TextButton(onClick = onOpenReceiptHandled) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
+    LaunchedEffect(openReceipt, receiptsEnabled) {
+        if (openReceipt != null && receiptsEnabled == true) {
+            navController.navigate(ReceiptIntakeRoute(text = openReceipt))
+            onOpenReceiptHandled()
+        }
+    }
     LaunchedEffect(openCapture) {
         if (openCapture != 0L) {
             navController.navigate(ExpenseEditRoute(captureId = openCapture))
@@ -133,6 +162,17 @@ fun AppRoot(
                     onEditPaidForMe = { navController.navigate(PaidForMeEditRoute(it)) },
                     onOpenPerson = { navController.navigate(PersonDebtsRoute(it)) },
                     onPending = { navController.navigate(PendingCapturesRoute) },
+                )
+            }
+            composable<ReceiptIntakeRoute> {
+                ReceiptIntakeScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenReceipt = { id ->
+                        navController.navigate(ReceiptRoute(id)) { popUpTo<ReceiptIntakeRoute> { inclusive = true } }
+                    },
+                    onOpenEditor = { route ->
+                        navController.navigate(route) { popUpTo<ReceiptIntakeRoute> { inclusive = true } }
+                    },
                 )
             }
             composable<AutoCaptureRoute> {

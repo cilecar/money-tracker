@@ -22,10 +22,11 @@ import java.math.BigDecimal
 import javax.inject.Inject
 import app.moneytracker.domain.repository.ReceiptRepository
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     ratesRepository: ExchangeRateRepository,
     private val refreshRates: RefreshRatesUseCase,
     private val setManualRate: SetManualRateUseCase,
@@ -36,6 +37,11 @@ class MainViewModel @Inject constructor(
 
     val settings: StateFlow<AppSettings> = settingsRepository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, AppSettings())
+
+    /** null — настройки ещё не прочитаны: при старте из «Поделиться» не показываем «функция выключена» раньше времени. */
+    val receiptsEnabled: StateFlow<Boolean?> = settingsRepository.settings
+        .map<AppSettings, Boolean?> { it.receiptsEnabled }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val promptRequested = MutableStateFlow(false)
 
@@ -68,6 +74,10 @@ class MainViewModel @Inject constructor(
                 if (ratesRepository.current() == null) promptRequested.value = true
             }
         }
+    }
+
+    fun enableReceipts() {
+        viewModelScope.launch { settingsRepository.setReceiptsEnabled(true) }
     }
 
     fun dismissNoRatesPrompt() {
