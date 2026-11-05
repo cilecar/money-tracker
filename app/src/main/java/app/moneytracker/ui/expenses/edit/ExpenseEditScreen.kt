@@ -1,5 +1,6 @@
 package app.moneytracker.ui.expenses.edit
 
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import app.moneytracker.ui.receipts.rememberQrScanner
 import androidx.compose.material.icons.filled.QrCodeScanner
 import android.widget.Toast
@@ -135,6 +136,9 @@ fun ExpenseEditScreen(
                     if (original != null && onRefund != null) {
                         TextButton(onClick = { onRefund(original.id) }) { Text(stringResource(R.string.refund_action)) }
                     }
+                    state?.takeIf { it.receiptsEnabled && it.form.loaded }?.let { s ->
+                        ReceiptAction(attached = s.receiptId != null, onClick = { if (s.receiptId != null) viewModel.onReceiptClick() else scanReceipt() })
+                    }
                 },
             )
         },
@@ -157,7 +161,6 @@ fun ExpenseEditScreen(
                 DateTimeRow(s.form.dateTime, onDate = viewModel::onDate, onTime = viewModel::onTime) {
                     // Комиссию перевода не делим.
                     if (!s.form.isTransferFee) SplitChip(s, onClick = { splitOpen = true })
-                    if (s.receiptsEnabled) ReceiptChip(attached = s.receiptId != null, onClick = { if (s.receiptId != null) viewModel.onReceiptClick() else scanReceipt() })
                 }
                 SplitError(s)
                 OutlinedTextField(
@@ -262,12 +265,14 @@ private fun TagsField(s: ExpenseEditUiState, viewModel: ExpenseEditViewModel) {
     }
 }
 
-/** «Чек» — отсканировать и прикрепить; «Чек ✓» — открыть прикреплённый. */
+/** В шапке: QR — отсканировать чек (новый расход заполнится из него); чек — открыть прикреплённый. */
 @Composable
-private fun ReceiptChip(attached: Boolean, onClick: () -> Unit) {
-    AssistChip(
-        onClick = onClick,
-        label = { Text(stringResource(if (attached) R.string.receipt_chip_attached else R.string.receipt_chip)) },
-        leadingIcon = { Icon(Icons.Default.QrCodeScanner, contentDescription = null, Modifier.size(18.dp)) },
-    )
+private fun ReceiptAction(attached: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        if (attached) {
+            Icon(Icons.AutoMirrored.Filled.ReceiptLong, stringResource(R.string.receipt_chip_attached), tint = MaterialTheme.colorScheme.primary)
+        } else {
+            Icon(Icons.Default.QrCodeScanner, stringResource(R.string.receipt_chip))
+        }
+    }
 }
