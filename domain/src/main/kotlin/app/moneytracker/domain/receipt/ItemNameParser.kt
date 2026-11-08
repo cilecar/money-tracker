@@ -24,7 +24,14 @@ object ItemNameParser {
         }
         val tokens = trimmed.split(' ', '/').map { it.uppercase(Locale.ROOT) }
         val unit = if ("KG" in tokens) ItemUnit.KG else ItemUnit.PCS
-        return ParsedItemName(normalize(trimmed), trimmed, unit)
+        return ParsedItemName(normalize(trimmed), withoutUnitSuffix(trimmed), unit)
+    }
+
+    /** Maxi пишет `Название/ЕД`: единица в имени не нужна. В коде она остаётся — по нему находится сохранённый товар. */
+    private fun withoutUnitSuffix(text: String): String {
+        val head = text.substringBeforeLast('/', "").trim()
+        val unit = text.substringAfterLast('/').trim().uppercase(Locale.ROOT)
+        return if (head.isNotEmpty() && unit in UNITS) head else text
     }
 
     /** Метка налоговой ставки в конце (`(Ђ)`) к названию не относится. */

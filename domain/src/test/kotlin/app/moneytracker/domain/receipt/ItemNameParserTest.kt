@@ -34,6 +34,23 @@ class ItemNameParserTest {
         )
     }
 
+    /** Формат Maxi: `Название/ЕД` без артикула. Код не меняется — по нему сеть узнаёт уже сохранённый товар. */
+    @Test
+    fun `unit suffix is dropped from name but kept in code`() {
+        assertEquals(
+            ParsedItemName("monster energy 500ml/kom", "Monster Energy 500ml", ItemUnit.PCS),
+            ItemNameParser.parse("Monster Energy 500ml/KOM (Ђ)"),
+        )
+        assertEquals(ParsedItemName("banane/kg", "Banane", ItemUnit.KG), ItemNameParser.parse("Banane/KG"))
+    }
+
+    @Test
+    fun `only the last slash part is treated as unit`() {
+        assertEquals("Kikiriki/opna rostilj Emma200g", ItemNameParser.parse("Kikiriki/opna rostilj Emma200g/KOM").name)
+        assertEquals("Sir 1/2", ItemNameParser.parse("Sir 1/2").name)
+        assertEquals("/KOM", ItemNameParser.parse("/KOM").name)
+    }
+
     @Test
     fun `fallback detects kg token`() {
         assertEquals(ItemUnit.KG, ItemNameParser.parse("BANANE KG").unit)
