@@ -15,7 +15,10 @@ import java.util.Base64
  */
 object FiscalLinkParser {
     private const val PREFIX = "https://suf.purs.gov.rs/v/?vl="
-    private val URL = Regex("""https://suf\.purs\.gov\.rs/v/\?vl=[A-Za-z0-9%+/=_\-]+""")
+
+    /** Кассы Maxi печатают в QR явный порт — адрес тот же. */
+    private const val PREFIX_WITH_PORT = "https://suf.purs.gov.rs:443/v/?vl="
+    private val URL = Regex("""https://suf\.purs\.gov\.rs(?::443)?/v/\?vl=[A-Za-z0-9%+/=_\-]+""")
     private const val MIN_LENGTH = 43
 
     /** Первая ссылка налоговой в тексте («Поделиться» может прислать её вместе с другими словами). */
@@ -24,7 +27,8 @@ object FiscalLinkParser {
     fun parse(text: String): FiscalLinkResult {
         // Уже декодированная ссылка (пробелы вместо «+») принимается, только если весь текст — она сама:
         // иначе пробел не отличить от слов после ссылки.
-        val candidates = listOfNotNull(text.trim().takeIf { it.startsWith(PREFIX) }, findUrl(text))
+        val whole = text.trim().takeIf { it.startsWith(PREFIX) || it.startsWith(PREFIX_WITH_PORT) }
+        val candidates = listOfNotNull(whole, findUrl(text))
         val base64 = candidates.firstNotNullOfOrNull { vlBase64(it) } ?: return FiscalLinkResult.NotFiscal
         val bytes = Base64.getDecoder().decode(base64)
         if (bytes.size < MIN_LENGTH) return FiscalLinkResult.NotFiscal
